@@ -1,0 +1,1872 @@
+{
+  "metadata": {
+    "title": "Context Engineering for AI Agents: The Complete Playbook",
+    "sourceUrl": "https://x.com/sairahul1/status/2067171101978071501",
+    "fetchedAt": "2026-06-20 12:10:21"
+  },
+  "article": {
+    "title": "Context Engineering for AI Agents: The Complete Playbook",
+    "sourceUrl": "https://x.com/sairahul1/status/2067171101978071501",
+    "fetchedAt": "2026-06-20 12:10:21",
+    "tags": [
+      "AI Agent",
+      "Context Engineering",
+      "上下文工程",
+      "Agent 架构"
+    ],
+    "anchors": [
+      {
+        "id": "og-1",
+        "label": "Context rot starts before the hard limit"
+      },
+      {
+        "id": "og-2",
+        "label": "Seven categories compete for the same window"
+      },
+      {
+        "id": "og-3",
+        "label": "Write, Select, Compress, Isolate"
+      },
+      {
+        "id": "og-4",
+        "label": "Four failure modes explain broken agents"
+      },
+      {
+        "id": "og-5",
+        "label": "Agent system prompts define architecture"
+      },
+      {
+        "id": "og-6",
+        "label": "KV-cache rewards stable context order"
+      },
+      {
+        "id": "og-7",
+        "label": "Frequent intentional compaction"
+      },
+      {
+        "id": "og-8",
+        "label": "A universal agent turn pipeline"
+      }
+    ]
+  },
+  "hero": {
+    "title": "AI Agent 上下文工程完整指南",
+    "meta": "X / @sairahul1 · Wed Jun 17 09:02:51 +0000 2026",
+    "en": "Your AI agent works great for the first 10 steps.\nThen somewhere around step 15, it starts getting sloppy.\nWrong tool calls. Forgetting your original instructions. Low-quality outputs.\nMost people",
+    "zh": "上下文工程不是把窗口塞满，而是决定哪些信息写入、选择、压缩和隔离，才能让长任务 Agent 保持可靠。"
+  },
+  "summary": {
+    "lead": "这篇资料的核心判断是：Agent 长任务质量下降通常不是模型本身突然变差，而是上下文窗口中可见信息的组织方式失控；上下文工程要在正确时间给模型正确信息。",
+    "cards": [
+      {
+        "icon": "01",
+        "title": "问题起点",
+        "body": "Agent 在多步执行后会出现错用工具、遗忘原始指令、输出质量下降；原文把根因指向“模型正在看到什么”。"
+      },
+      {
+        "icon": "02",
+        "title": "窗口约束",
+        "body": "上下文窗口像 RAM，系统提示词、工具定义、工具结果、检索知识、会话历史、记忆和状态都在争用有限空间。"
+      },
+      {
+        "icon": "03",
+        "title": "四类策略",
+        "body": "Write、Select、Compress、Isolate 分别解决遗忘、过载、累积和污染问题，是原文组织所有上下文工程技术的主框架。"
+      },
+      {
+        "icon": "04",
+        "title": "失败诊断",
+        "body": "Context Poisoning、Distraction、Confusion、Clash 四类失败模式帮助定位 Agent 为什么在长上下文中失效。"
+      },
+      {
+        "icon": "05",
+        "title": "工程落点",
+        "body": "系统提示词要定义 Agent 架构，KV-cache 要求稳定内容放在前面，复杂工作流应通过频繁有意压缩分阶段推进。"
+      }
+    ],
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "上下文工程不是提示词工程的替代口号，而是面向 Agent 长任务可靠性的上下文选择、排序、压缩和隔离机制。"
+      },
+      {
+        "label": "设计原则",
+        "text": "不要把大窗口当作可以填满的仓库；原文强调退化会在硬性上限之前连续发生，并伴随 Lost in the Middle 问题。"
+      },
+      {
+        "label": "实践路径",
+        "text": "把稳定规则和阶段产物写到外部，按步骤检索必要信息，主动压缩过时上下文，并用子 Agent 或状态 schema 隔离不同任务。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "症状：长任务变差",
+        "summary": "Agent 前几步正常，随后出现错误工具调用、遗忘指令和低质量输出。"
+      },
+      {
+        "id": "fw-2",
+        "label": "根因：看到的信息失控",
+        "summary": "原文认为多数问题不在模型本身，而在模型当前上下文中看到的信息。"
+      },
+      {
+        "id": "fw-3",
+        "label": "约束：窗口像 RAM",
+        "summary": "上下文窗口有限且会随输入长度增加而逐步退化，不是到硬限制才突然失效。"
+      },
+      {
+        "id": "fw-4",
+        "label": "竞争：七类内容争用空间",
+        "summary": "系统提示词、工具定义、工具结果、RAG 内容、会话历史、记忆和 Agent 状态同时占用窗口。"
+      },
+      {
+        "id": "fw-5",
+        "label": "策略：写入、选择、压缩、隔离",
+        "summary": "四类策略分别控制信息持久化、即时相关性、token 密度和任务边界。"
+      },
+      {
+        "id": "fw-6",
+        "label": "诊断：四种失败模式",
+        "summary": "投毒、分心、混淆和冲突为上下文失败提供可命名、可修复的分类。"
+      },
+      {
+        "id": "fw-7",
+        "label": "提示词：定义 Agent 架构",
+        "summary": "Agent 系统提示词要写控制流、工具使用、错误处理和护栏，而不只是设定语气。"
+      },
+      {
+        "id": "fw-8",
+        "label": "成本：稳定前缀服务 KV-cache",
+        "summary": "把稳定内容放在上下文顶部、动态内容放在底部，可以提高缓存命中并降低成本。"
+      },
+      {
+        "id": "fw-9",
+        "label": "工作流：分阶段压缩",
+        "summary": "研究、计划、实现等阶段通过压缩产物衔接，每一阶段用更干净的上下文继续推进。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      },
+      {
+        "from": "fw-6",
+        "to": "fw-7"
+      },
+      {
+        "from": "fw-7",
+        "to": "fw-8"
+      },
+      {
+        "from": "fw-8",
+        "to": "fw-9"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "问题不是模型，而是模型看到什么",
+      "title": "问题不是模型，而是模型看到什么",
+      "rows": [
+        {
+          "en": "Your AI agent works great for the first 10 steps.",
+          "zh": "你的 AI Agent 在前 10 步表现很好。"
+        },
+        {
+          "en": "It's what the model is seeing.",
+          "zh": "关键在于模型正在看到什么。"
+        },
+        {
+          "en": "Put simply: make sure your agent sees the right information, in the right format, at the right time.",
+          "zh": "上下文工程的实际目标，是让 Agent 在正确时间、以正确格式看到正确的信息。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "为什么提示词工程不足以支撑 Agent",
+      "title": "为什么提示词工程不足以支撑 Agent",
+      "rows": [
+        {
+          "en": "A chatbot answers one question and stops.",
+          "zh": "聊天机器人通常回答一个问题就结束，因此清晰指令、示例和角色设定往往足够。"
+        },
+        {
+          "en": "An agent takes actions — browsing the web, calling APIs, writing code, running commands — step after step after step, sometimes for dozens of steps.",
+          "zh": "Agent 会连续浏览网页、调用 API、写代码、运行命令；每一步产生的新输出都会进入上下文，问题随步骤累积。"
+        },
+        {
+          "en": "Prompt engineering is a subset of context engineering.",
+          "zh": "原文没有否定提示词本身，而是把提示词工程放入更大的上下文工程范畴中。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "上下文窗口像 RAM，会提前退化",
+      "title": "上下文窗口像 RAM，会提前退化",
+      "rows": [
+        {
+          "en": "The context window is RAM — the working memory where everything the model can currently see and reason about lives.",
+          "zh": "上下文窗口被类比为 RAM：它是模型当前能看到、能推理的工作记忆。"
+        },
+        {
+          "en": "Every single model's performance degraded as input length increased.",
+          "zh": "随着输入长度增加，每一个模型的表现都会下降。"
+        },
+        {
+          "en": "Your original instructions — buried under 50,000 tokens of tool outputs — effectively disappear.",
+          "zh": "当原始指令被大量工具输出埋到上下文中部时，会因为注意力分布问题而实际“消失”。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "七类信息争用同一个窗口",
+      "title": "七类信息争用同一个窗口",
+      "rows": [
+        {
+          "en": "7 categories. All fighting for the same finite window.",
+          "zh": "原文把上下文空间竞争拆成七类内容，强调它们都在争用同一个有限窗口。"
+        },
+        {
+          "en": "1. System Prompt",
+          "zh": "原文列出的七类竞争内容从系统提示词开始；后续还包括工具定义、工具调用结果、RAG、会话历史、记忆和 Agent 状态。"
+        },
+        {
+          "en": "Context engineering is deciding what wins.",
+          "zh": "上下文工程的关键不是全部塞入，而是决定当前阶段哪些信息应当优先进入窗口。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "四类核心策略：Write、Select、Compress、Isolate",
+      "title": "四类核心策略：Write、Select、Compress、Isolate",
+      "rows": [
+        {
+          "en": "Every technique you will ever learn fits into one of these.",
+          "zh": "你之后学到的每一种技巧，几乎都可以归入这四类之一。"
+        },
+        {
+          "en": "Write means giving the agent ways to persist information outside the context window.",
+          "zh": "Write 解决遗忘：让 Agent 把中间发现、规则和长期记忆持久化到窗口之外。"
+        },
+        {
+          "en": "Don't give the agent everything. Give it what it needs right now.",
+          "zh": "Select 解决过载：不要给 Agent 一切，只给当前步骤真正需要的内容。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "压缩与隔离控制累积和污染",
+      "title": "压缩与隔离控制累积和污染",
+      "rows": [
+        {
+          "en": "Even with good selection, context accumulates.",
+          "zh": "即使选择机制做得好，上下文仍会因为工具调用、检索文档和决策记录不断累积。"
+        },
+        {
+          "en": "The goal: reduce token count. Preserve what actually matters.",
+          "zh": "Compress 的目标是减少 token 数量，同时保留真正重要的含义，而不是机械截断。"
+        },
+        {
+          "en": "Isolation means giving different parts of the work their own separate context windows.",
+          "zh": "Isolate 通过为不同阶段或子任务分配独立上下文，避免研究噪声污染实现阶段。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "四类失败模式：命名问题才能修复问题",
+      "title": "四类失败模式：命名问题才能修复问题",
+      "rows": [
+        {
+          "en": "Every broken agent you've ever seen falls into one of these.",
+          "zh": "原文认为常见的 Agent 失效可以归入四类上下文失败模式。"
+        },
+        {
+          "en": "A hallucination or error enters context.",
+          "zh": "一旦幻觉或错误进入上下文，它就会污染后续步骤。"
+        },
+        {
+          "en": "Superfluous content leads the model to low-quality decisions.",
+          "zh": "Context Confusion 指无关内容过多，使模型虽然没有超出窗口，却无法清晰做出高质量决策。"
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "toc": "Agent 系统提示词要定义架构",
+      "title": "Agent 系统提示词要定义架构",
+      "rows": [
+        {
+          "en": "A chatbot system prompt sets a tone.",
+          "zh": "聊天机器人的系统提示词主要设定语气和互动风格。"
+        },
+        {
+          "en": "An agent system prompt defines architecture.",
+          "zh": "Agent 的系统提示词则要定义架构：任务控制流、工具使用时机、错误处理和护栏。"
+        },
+        {
+          "en": "Specific enough to guide autonomous behavior. Flexible enough for the model to apply judgment in novel situations.",
+          "zh": "好的 Agent 提示词应当足够具体以指导自主行为，同时保留模型处理新情境的判断空间。"
+        }
+      ]
+    },
+    {
+      "num": "9",
+      "toc": "KV-cache 让上下文顺序变成成本问题",
+      "title": "KV-cache 让上下文顺序变成成本问题",
+      "rows": [
+        {
+          "en": "If the beginning of your context — the prefix — stays the same between API calls, the provider reuses the cached computation and only processes the new tokens at the end.",
+          "zh": "如果上下文开头的稳定前缀在多次 API 调用之间保持不变，推理服务商可以复用缓存计算，只处理末尾新增 token。"
+        },
+        {
+          "en": "→ Stable content goes at the TOP of context — system prompt, tool definitions, anything that doesn't change between turns",
+          "zh": "原文给出的实践规则是：系统提示词、工具定义等稳定内容放在上下文顶部。"
+        },
+        {
+          "en": "→ Dynamic content goes at the BOTTOM — conversation history, current step, agent state → Don't dynamically add and remove tools mid-conversation — it invalidates the cache",
+          "zh": "会话历史、当前步骤和 Agent 状态等动态内容应放在底部，以减少对缓存前缀的破坏。"
+        }
+      ]
+    },
+    {
+      "num": "10",
+      "toc": "可交付工作流：频繁有意压缩",
+      "title": "可交付工作流：频繁有意压缩",
+      "rows": [
+        {
+          "en": "Structure agent work into phases. Each phase produces a compacted artifact. Each new phase starts with a fresh context window containing only that artifact.",
+          "zh": "原文推荐把 Agent 工作拆成阶段：每个阶段产出压缩工件，下个阶段只带着这个工件开启新的上下文窗口。"
+        },
+        {
+          "en": "Phase 1 — Research",
+          "zh": "示例工作流是研究、计划、实现三阶段；研究产物压缩为文档，计划接受人工审查，实现阶段再按计划执行。"
+        },
+        {
+          "en": "The result: a clean, focused agent at every phase. No contamination. No context rot. No \"sloppy step 20.\"",
+          "zh": "这样每个阶段的 Agent 都保持干净、聚焦，减少上下文污染、腐化和长任务后段变差。"
+        }
+      ]
+    },
+    {
+      "num": "11",
+      "toc": "生产级 Agent 回合流水线",
+      "title": "生产级 Agent 回合流水线",
+      "rows": [
+        {
+          "en": "Every serious platform converges on the same 5-step loop per agent turn:",
+          "zh": "原文最后把严肃 Agent 平台的每回合处理归纳为五步循环。"
+        },
+        {
+          "en": "Collect — user input, conversation history, tool results, retrieved docs, agent state",
+          "zh": "第一步是收集用户输入、对话历史、工具结果、检索文档和 Agent 状态。"
+        },
+        {
+          "en": "Select — what's relevant for this step within the remaining token budget",
+          "zh": "第二步是在剩余 token 预算内选择当前步骤相关内容，随后再压缩、排列、组装并调用模型。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "原文认为 Agent 到多步任务后变差时，最常见的根因是什么？",
+      "options": [
+        "模型当前看到的信息组织不当",
+        "模型参数在运行中被改变",
+        "Agent 必须完全删除系统提示词",
+        "所有工具调用都应被禁止"
+      ],
+      "answer": 0,
+      "explain": "原文说“几乎从来不是模型，而是模型正在看到什么”，并把组织模型所见内容定义为上下文工程。",
+      "wrongReason": "其他选项没有对应原文：文章没有说模型参数会变化，也没有主张删除系统提示词或禁止工具。",
+      "sourceAnchor": "It's what the model is seeing."
+    },
+    {
+      "question": "为什么原文说提示词工程不足以覆盖 Agent 场景？",
+      "options": [
+        "因为 Agent 会连续采取行动，每一步输出都会加入上下文",
+        "因为聊天机器人不能使用自然语言",
+        "因为所有 Agent 都只有一次模型调用",
+        "因为上下文窗口没有长度限制"
+      ],
+      "answer": 0,
+      "explain": "原文区分 chatbot 和 agent：chatbot 回答一个问题就停止，而 Agent 会浏览网页、调用 API、写代码、运行命令，持续多步。",
+      "wrongReason": "干扰项与原文相反或无依据；原文强调上下文有限且 Agent 会多步执行。",
+      "sourceAnchor": "A chatbot answers one question and stops."
+    },
+    {
+      "question": "“上下文窗口像 RAM”这个类比强调了什么？",
+      "options": [
+        "它是模型当前可见和可推理的信息工作区，填满后推理会退化",
+        "它会永久保存所有历史信息",
+        "它只存放最终答案，不存放工具结果",
+        "它越满越能提高模型注意力"
+      ],
+      "answer": 0,
+      "explain": "原文把上下文窗口称为工作记忆，并指出像电脑 RAM 填满会变慢一样，上下文拥挤会降低 Agent 推理质量。",
+      "wrongReason": "其他选项都与原文不符：上下文不是永久存储，也会包含工具结果，变长会导致性能下降。",
+      "sourceAnchor": "The context window is RAM"
+    },
+    {
+      "question": "下列哪一组是原文提出的四类上下文工程核心策略？",
+      "options": [
+        "Write、Select、Compress、Isolate",
+        "Collect、Deploy、Monitor、Rollback",
+        "Prompt、Sample、Rank、Cache",
+        "Research、Code、Merge、Release"
+      ],
+      "answer": 0,
+      "explain": "原文明确说 LangChain 框架把所有上下文工程技术组织为 Write、Select、Compress、Isolate 四个桶。",
+      "wrongReason": "其他组合是常见工程或模型相关动作，但不是这篇文章的四类上下文策略。",
+      "sourceAnchor": "Write. Select. Compress. Isolate."
+    },
+    {
+      "question": "Context Poisoning 指的是什么？",
+      "options": [
+        "错误或幻觉进入上下文，并在后续步骤中被反复引用",
+        "上下文太短导致模型无法输出任何内容",
+        "工具定义被稳定放在上下文前缀",
+        "把研究阶段交给子 Agent 隔离执行"
+      ],
+      "answer": 0,
+      "explain": "原文定义 Context Poisoning 为 hallucination 或 error 进入上下文后，Agent 在后续步骤中反复引用它。",
+      "wrongReason": "其他选项分别对应不同主题或与失败模式无关：稳定前缀是 KV-cache 策略，子 Agent 是隔离策略。",
+      "sourceAnchor": "Failure 1: Context Poisoning"
+    },
+    {
+      "question": "为了提高 KV-cache 效率，原文建议如何排列上下文？",
+      "options": [
+        "稳定内容放顶部，动态内容放底部",
+        "每轮都重新排列系统提示词",
+        "动态内容放顶部，工具定义放底部",
+        "删除所有工具定义来保证前缀为空"
+      ],
+      "answer": 0,
+      "explain": "原文建议 stable content goes at the TOP，dynamic content goes at the BOTTOM，以复用前缀缓存并减少重算。",
+      "wrongReason": "其他做法会破坏稳定前缀，或不是原文建议；文章还提到用 tool masking 而不是动态移除工具。",
+      "sourceAnchor": "Stable content goes at the TOP of context"
+    }
+  ],
+  "original": {
+    "title": "Context Engineering for AI Agents: The Complete Playbook",
+    "meta": "X / @sairahul1 · Wed Jun 17 09:02:51 +0000 2026",
+    "groups": [
+      {
+        "id": "og-1",
+        "group": "Context Engineering for AI Agents: The Complete Playbook · AI Agent 上下文工程：完整方法手册",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Your AI agent works great for the first 10 steps.\n\nThen somewhere around step 15, it starts getting sloppy.\n\nWrong tool calls. Forgetting your original instructions. Low-quality outputs.\n\nMost people blame the model.\n\nIt's almost never the model.\n\nIt's what the model is seeing.\n\nOrganizing what the model sees is called context engineering.\n\nIt is quickly becoming the most important skill for anyone building AI agents.\n\nHere is the complete playbook.",
+            "zh": "你的 AI Agent 在前 10 步表现很好。\n\n然后大约到第 15 步时，它开始变得马虎。\n\n工具调用错误。忘记你的原始指令。输出质量下降。\n\n大多数人会怪模型。\n\n但问题几乎从来不是模型。\n\n而是模型正在看到什么。\n\n组织模型所看到的内容，就叫做上下文工程。\n\n对于任何构建 AI Agent 的人来说，它正迅速成为最重要的技能。\n\n下面是完整的方法手册。",
+            "html": "<p>Your AI agent works great for the first 10 steps.</p>\n<p>Then somewhere around step 15, it starts getting sloppy.</p>\n<p>Wrong tool calls. Forgetting your original instructions. Low-quality outputs.</p>\n<p>Most people blame the model.</p>\n<p>It&#x27;s almost never the model.</p>\n<p>It&#x27;s what the model is seeing.</p>\n<p>Organizing what the model sees is called context engineering.</p>\n<p>It is quickly becoming the most important skill for anyone building AI agents.</p>\n<p>Here is the complete playbook.</p>",
+            "zhHtml": "<p>你的 AI Agent 在前 10 步表现很好。</p>\n<p>然后大约到第 15 步时，它开始变得马虎。</p>\n<p>工具调用错误。忘记你的原始指令。输出质量下降。</p>\n<p>大多数人会怪模型。</p>\n<p>但问题几乎从来不是模型。</p>\n<p>而是模型正在看到什么。</p>\n<p>组织模型所看到的内容，就叫做上下文工程。</p>\n<p>对于任何构建 AI Agent 的人来说，它正迅速成为最重要的技能。</p>\n<p>下面是完整的方法手册。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-2",
+        "group": "Prompt engineering is dead. Context engineering is what matters now. · 提示词工程已死。现在重要的是上下文工程。",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_1phNboAAYxSV.jpg",
+            "alt": "Source visual 1",
+            "caption": "来源图片 1，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "You've heard of prompt engineering.\n\nWriting clear instructions. Good examples. Telling the model what role to play.\n\nThat works perfectly for a chatbot.\n\nIt stops working the moment you build an agent.\n\nHere's why.\n\nA chatbot answers one question and stops.\n\nAn agent takes actions — browsing the web, calling APIs, writing code, running commands — step after step after step, sometimes for dozens of steps.\n\nEvery single step produces output that gets added to the model's context.",
+            "zh": "你听说过提示词工程。\n\n写清楚指令。给出好例子。告诉模型要扮演什么角色。\n\n这对聊天机器人非常有效。\n\n但一旦你开始构建 Agent，它就不再奏效。\n\n原因如下。\n\n聊天机器人回答一个问题，然后停止。\n\nAgent 会采取行动：浏览网页、调用 API、写代码、运行命令，一步接一步，有时会持续几十步。\n\n每一步都会产生输出，而这些输出会被加入模型的上下文。",
+            "html": "<p>You&#x27;ve heard of prompt engineering.</p>\n<p>Writing clear instructions. Good examples. Telling the model what role to play.</p>\n<p>That works perfectly for a chatbot.</p>\n<p>It stops working the moment you build an agent.</p>\n<p>Here&#x27;s why.</p>\n<p>A chatbot answers one question and stops.</p>\n<p>An agent takes actions — browsing the web, calling APIs, writing code, running commands — step after step after step, sometimes for dozens of steps.</p>\n<p>Every single step produces output that gets added to the model&#x27;s context.</p>",
+            "zhHtml": "<p>你听说过提示词工程。</p>\n<p>写清楚指令。给出好例子。告诉模型要扮演什么角色。</p>\n<p>这对聊天机器人非常有效。</p>\n<p>但一旦你开始构建 Agent，它就不再奏效。</p>\n<p>原因如下。</p>\n<p>聊天机器人回答一个问题，然后停止。</p>\n<p>Agent 会采取行动：浏览网页、调用 API、写代码、运行命令，一步接一步，有时会持续几十步。</p>\n<p>每一步都会产生输出，而这些输出会被加入模型的上下文。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "And that context is finite.\n\nAnthropic's engineering team defines it like this:\n\n\"Context is the set of tokens included when you sample from an LLM. Context engineering is optimizing the utility of those tokens to consistently achieve a desired outcome.\"\n\nPut simply: make sure your agent sees the right information, in the right format, at the right time.\n\nPrompt engineering is a subset of context engineering.\n\nContext engineering is everything.",
+            "zh": "而上下文是有限的。\n\nAnthropic 的工程团队是这样定义它的：\n\n“上下文是在你从 LLM 采样时包含的一组 token。上下文工程，是优化这些 token 的效用，以稳定达成期望结果。”\n\n简单说：确保你的 Agent 在正确的时间，以正确的格式，看到正确的信息。\n\n提示词工程是上下文工程的一个子集。\n\n上下文工程才是全部。",
+            "html": "<p>And that context is finite.</p>\n<p>Anthropic&#x27;s engineering team defines it like this:</p>\n<p>&quot;Context is the set of tokens included when you sample from an LLM. Context engineering is optimizing the utility of those tokens to consistently achieve a desired outcome.&quot;</p>\n<p>Put simply: make sure your agent sees the right information, in the right format, at the right time.</p>\n<p>Prompt engineering is a subset of context engineering.</p>\n<p>Context engineering is everything.</p>",
+            "zhHtml": "<p>而上下文是有限的。</p>\n<p>Anthropic 的工程团队是这样定义它的：</p>\n<p>“上下文是在你从 LLM 采样时包含的一组 token。上下文工程，是优化这些 token 的效用，以稳定达成期望结果。”</p>\n<p>简单说：确保你的 Agent 在正确的时间，以正确的格式，看到正确的信息。</p>\n<p>提示词工程是上下文工程的一个子集。</p>\n<p>上下文工程才是全部。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-3",
+        "group": "Your agent's context window is RAM. And it's filling up. · 你的 Agent 上下文窗口就是 RAM，而且正在被填满。",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_1uE9aQAAQLO1.jpg",
+            "alt": "Source visual 2",
+            "caption": "来源图片 2，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "LangChain has the right analogy for this.\n\nThink of an LLM like a new kind of operating system.\n\nThe model is the CPU — it does the thinking.\n\nThe context window is RAM — the working memory where everything the model can currently see and reason about lives.\n\nJust like your computer slows down when RAM fills up, your agent's reasoning degrades when the context window gets crowded.\n\nThis is called context rot.\n\nChroma ran a study evaluating 18 frontier models — GPT-4.1, Claude 4, Gemini 2.5, Qwen3, and others.",
+            "zh": "LangChain 对此有一个很好的类比。\n\n可以把 LLM 看作一种新型操作系统。\n\n模型是 CPU，负责思考。\n\n上下文窗口是 RAM，也就是工作内存，模型当前能看到并据此推理的一切都存在这里。\n\n就像电脑的 RAM 被占满后会变慢一样，当上下文窗口变得拥挤时，Agent 的推理能力也会下降。\n\n这叫做上下文腐化。\n\nChroma 做过一项研究，评估了 18 个前沿模型，包括 GPT-4.1、Claude 4、Gemini 2.5、Qwen3 等。",
+            "html": "<p>LangChain has the right analogy for this.</p>\n<p>Think of an LLM like a new kind of operating system.</p>\n<p>The model is the CPU — it does the thinking.</p>\n<p>The context window is RAM — the working memory where everything the model can currently see and reason about lives.</p>\n<p>Just like your computer slows down when RAM fills up, your agent&#x27;s reasoning degrades when the context window gets crowded.</p>\n<p>This is called context rot.</p>\n<p>Chroma ran a study evaluating 18 frontier models — GPT-4.1, Claude 4, Gemini 2.5, Qwen3, and others.</p>",
+            "zhHtml": "<p>LangChain 对此有一个很好的类比。</p>\n<p>可以把 LLM 看作一种新型操作系统。</p>\n<p>模型是 CPU，负责思考。</p>\n<p>上下文窗口是 RAM，也就是工作内存，模型当前能看到并据此推理的一切都存在这里。</p>\n<p>就像电脑的 RAM 被占满后会变慢一样，当上下文窗口变得拥挤时，Agent 的推理能力也会下降。</p>\n<p>这叫做上下文腐化。</p>\n<p>Chroma 做过一项研究，评估了 18 个前沿模型，包括 GPT-4.1、Claude 4、Gemini 2.5、Qwen3 等。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Every single model's performance degraded as input length increased.\n\nNot at the hard limit. Well before it.\n\nA model with a 200K-token window might show significant degradation at 50K tokens.\n\nThe decline is continuous. Not a cliff.",
+            "zh": "随着输入长度增加，每一个模型的性能都会下降。\n\n不是在硬性上限处才下降，而是早在那之前就开始了。\n\n一个拥有 20 万 token 窗口的模型，可能在 5 万 token 时就出现明显退化。\n\n这种下降是连续的，不是断崖式的。",
+            "html": "<p>Every single model&#x27;s performance degraded as input length increased.</p>\n<p>Not at the hard limit. Well before it.</p>\n<p>A model with a 200K-token window might show significant degradation at 50K tokens.</p>\n<p>The decline is continuous. Not a cliff.</p>",
+            "zhHtml": "<p>随着输入长度增加，每一个模型的性能都会下降。</p>\n<p>不是在硬性上限处才下降，而是早在那之前就开始了。</p>\n<p>一个拥有 20 万 token 窗口的模型，可能在 5 万 token 时就出现明显退化。</p>\n<p>这种下降是连续的，不是断崖式的。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Why? Transformers work by having every token attend to every other token — creating n-squared relationships. As context grows, the model's ability to hold all those relationships thins out.\n\nAnd then there's the \"Lost in the Middle\" problem.\n\nLLMs show a U-shaped attention curve.\n\n→ Beginning of context: remembered well\n\n→ End of context: remembered well\n\n→ Middle: largely ignored\n\nResearchers measured a 30+ percentage point accuracy drop when relevant information moved from the beginning of context to the middle.",
+            "zh": "为什么？Transformer 的工作方式是让每个 token 关注其他每个 token，从而形成平方级关系。随着上下文增长，模型维持所有这些关系的能力会被稀释。\n\n还有“中间遗失”问题。\n\nLLM 呈现出 U 形注意力曲线。\n\n→ 上下文开头：记得很好\n\n→ 上下文结尾：记得很好\n\n→ 中间部分：很大程度上被忽略\n\n研究人员测得，当相关信息从上下文开头移到中间时，准确率会下降 30 多个百分点。",
+            "html": "<p>Why? Transformers work by having every token attend to every other token — creating n-squared relationships. As context grows, the model&#x27;s ability to hold all those relationships thins out.</p>\n<p>And then there&#x27;s the &quot;Lost in the Middle&quot; problem.</p>\n<p>LLMs show a U-shaped attention curve.</p>\n<p>→ Beginning of context: remembered well</p>\n<p>→ End of context: remembered well</p>\n<p>→ Middle: largely ignored</p>\n<p>Researchers measured a 30+ percentage point accuracy drop when relevant information moved from the beginning of context to the middle.</p>",
+            "zhHtml": "<p>为什么？Transformer 的工作方式是让每个 token 关注其他每个 token，从而形成平方级关系。随着上下文增长，模型维持所有这些关系的能力会被稀释。</p>\n<p>还有“中间遗失”问题。</p>\n<p>LLM 呈现出 U 形注意力曲线。</p>\n<p>→ 上下文开头：记得很好</p>\n<p>→ 上下文结尾：记得很好</p>\n<p>→ 中间部分：很大程度上被忽略</p>\n<p>研究人员测得，当相关信息从上下文开头移到中间时，准确率会下降 30 多个百分点。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Your original instructions — buried under 50,000 tokens of tool outputs — effectively disappear.\n\nClaude Code users have found output quality degrades at 40–60% of context capacity. Well before any hard limit.",
+            "zh": "你的原始指令如果被埋在 5 万个 token 的工具输出下面，实际上就消失了。\n\nClaude Code 用户发现，输出质量会在上下文容量的 40% 到 60% 时下降，远早于任何硬性限制。",
+            "html": "<p>Your original instructions — buried under 50,000 tokens of tool outputs — effectively disappear.</p>\n<p>Claude Code users have found output quality degrades at 40–60% of context capacity. Well before any hard limit.</p>",
+            "zhHtml": "<p>你的原始指令如果被埋在 5 万个 token 的工具输出下面，实际上就消失了。</p>\n<p>Claude Code 用户发现，输出质量会在上下文容量的 40% 到 60% 时下降，远早于任何硬性限制。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-4",
+        "group": "What's actually competing for space in your agent's context · 究竟是什么在争夺 Agent 上下文空间",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_14BJb0AAberS.jpg",
+            "alt": "Source visual 3",
+            "caption": "来源图片 3，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "7 categories. All fighting for the same finite window.\n\nSystem Prompt",
+            "zh": "7 类信息都在争夺同一个有限窗口。\n\n1. 系统提示词",
+            "html": "<p>7 categories. All fighting for the same finite window.</p>\n<ol><li>System Prompt</li></ol>",
+            "zhHtml": "<p>7 类信息都在争夺同一个有限窗口。</p>\n<ol><li>系统提示词</li></ol>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The agent's identity. Behavioral rules. Control flow logic. Instructions for different task types. In an agent, this isn't just \"be helpful.\" It can define the entire architecture.\n\nTool Definitions\n\nEvery tool the agent could call needs a schema describing what it does, what parameters it takes, and when to use it.\n\nTool Call Results\n\nEvery tool call adds its output to context. A web page retrieval: 5,000–10,000 tokens. A file read: similar. These accumulate fast.",
+            "zh": "Agent 的身份、行为规则、控制流逻辑，以及不同任务类型的指令。在 Agent 中，这不只是“保持有帮助”。它可以定义整个架构。\n\n2. 工具定义\n\nAgent 可能调用的每个工具都需要一个 schema，用来描述它做什么、接收哪些参数以及何时使用。\n\n3. 工具调用结果\n\n每次工具调用都会把输出加入上下文。一次网页抓取可能有 5,000 到 10,000 个 token；一次文件读取也类似。这些内容会快速累积。",
+            "html": "<p>The agent&#x27;s identity. Behavioral rules. Control flow logic. Instructions for different task types. In an agent, this isn&#x27;t just &quot;be helpful.&quot; It can define the entire architecture.</p>\n<ol><li>Tool Definitions</li></ol>\n<p>Every tool the agent could call needs a schema describing what it does, what parameters it takes, and when to use it.</p>\n<ol><li>Tool Call Results</li></ol>\n<p>Every tool call adds its output to context. A web page retrieval: 5,000–10,000 tokens. A file read: similar. These accumulate fast.</p>",
+            "zhHtml": "<p>Agent 的身份、行为规则、控制流逻辑，以及不同任务类型的指令。在 Agent 中，这不只是“保持有帮助”。它可以定义整个架构。</p>\n<ol><li>工具定义</li></ol>\n<p>Agent 可能调用的每个工具都需要一个 schema，用来描述它做什么、接收哪些参数以及何时使用。</p>\n<ol><li>工具调用结果</li></ol>\n<p>每次工具调用都会把输出加入上下文。一次网页抓取可能有 5,000 到 10,000 个 token；一次文件读取也类似。这些内容会快速累积。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Retrieved Knowledge (RAG)\n\nDocuments pulled from vector databases, search results, API responses — anything retrieved to inform the agent's decisions.\n\nConversation History\n\nThe full transcript of everything that's happened. User messages, agent responses, reasoning, prior decisions. Grows linearly with every turn.\n\nMemory\n\nShort-term memory from the current session. Long-term memory from previous sessions — user preferences, prior outcomes, learned patterns.",
+            "zh": "4. 检索到的知识（RAG）\n\n从向量数据库、搜索结果、API 响应中拉取的文档，以及任何用于辅助 Agent 决策的检索内容。\n\n5. 对话历史\n\n已经发生的一切的完整转录：用户消息、Agent 回复、推理过程、先前决策。它会随每一轮对话线性增长。\n\n6. 记忆\n\n当前会话的短期记忆。来自过去会话的长期记忆，包括用户偏好、过往结果和习得模式。",
+            "html": "<ol><li>Retrieved Knowledge (RAG)</li></ol>\n<p>Documents pulled from vector databases, search results, API responses — anything retrieved to inform the agent&#x27;s decisions.</p>\n<ol><li>Conversation History</li></ol>\n<p>The full transcript of everything that&#x27;s happened. User messages, agent responses, reasoning, prior decisions. Grows linearly with every turn.</p>\n<ol><li>Memory</li></ol>\n<p>Short-term memory from the current session. Long-term memory from previous sessions — user preferences, prior outcomes, learned patterns.</p>",
+            "zhHtml": "<ol><li>检索到的知识（RAG）</li></ol>\n<p>从向量数据库、搜索结果、API 响应中拉取的文档，以及任何用于辅助 Agent 决策的检索内容。</p>\n<ol><li>对话历史</li></ol>\n<p>已经发生的一切的完整转录：用户消息、Agent 回复、推理过程、先前决策。它会随每一轮对话线性增长。</p>\n<ol><li>记忆</li></ol>\n<p>当前会话的短期记忆。来自过去会话的长期记忆，包括用户偏好、过往结果和习得模式。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Agent State\n\nCurrent plan, todo list, progress markers, scratchpad notes. The meta-information tracking where the agent is in a multi-step task.\n\nAll 7 competing for the same window.\n\nContext engineering is deciding what wins.",
+            "zh": "7. Agent 状态\n\n当前计划、待办列表、进度标记、草稿笔记。这些是追踪 Agent 在多步骤任务中所处位置的元信息。\n\n这 7 类信息都在竞争同一个窗口。\n\n上下文工程就是决定谁能胜出。",
+            "html": "<ol><li>Agent State</li></ol>\n<p>Current plan, todo list, progress markers, scratchpad notes. The meta-information tracking where the agent is in a multi-step task.</p>\n<p>All 7 competing for the same window.</p>\n<p>Context engineering is deciding what wins.</p>",
+            "zhHtml": "<ol><li>Agent 状态</li></ol>\n<p>当前计划、待办列表、进度标记、草稿笔记。这些是追踪 Agent 在多步骤任务中所处位置的元信息。</p>\n<p>这 7 类信息都在竞争同一个窗口。</p>\n<p>上下文工程就是决定谁能胜出。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-5",
+        "group": "The 4 Core Strategies · 4 个核心策略",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "LangChain published the framework that organizes every context engineering technique into 4 buckets.\n\nEvery technique you will ever learn fits into one of these.\n\nWrite. Select. Compress. Isolate.",
+            "zh": "LangChain 发布了一个框架，把所有上下文工程技术归入 4 个类别。\n\n你今后会学到的每一种技术，都可以放进这些类别之一。\n\n写入。选择。压缩。隔离。",
+            "html": "<p>LangChain published the framework that organizes every context engineering technique into 4 buckets.</p>\n<p>Every technique you will ever learn fits into one of these.</p>\n<p>Write. Select. Compress. Isolate.</p>",
+            "zhHtml": "<p>LangChain 发布了一个框架，把所有上下文工程技术归入 4 个类别。</p>\n<p>你今后会学到的每一种技术，都可以放进这些类别之一。</p>\n<p>写入。选择。压缩。隔离。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2DlwaIAAThKM.jpg",
+            "alt": "Source visual 4",
+            "caption": "来源图片 4，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2TJ4aAAAArFR.jpg",
+            "alt": "Source visual 5",
+            "caption": "来源图片 5，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "When an agent's context fills up and gets compacted, it loses information.\n\nIf the agent didn't write anything down before that happened — that information is gone forever.\n\nWrite means giving the agent ways to persist information outside the context window.\n\nThree forms:\n\nGive the agent a tool that lets it take notes during a task. Intermediate findings. Decisions made. Information it knows it will need later.\n\nAnthropic built a \"think\" tool — a dedicated space for Claude to work through problems.",
+            "zh": "当 Agent 的上下文被填满并发生压缩时，它会丢失信息。\n\n如果 Agent 在压缩发生前没有把任何内容写下来，那些信息就会永远消失。\n\n写入，意思是给 Agent 提供把信息持久化到上下文窗口之外的方法。\n\n有三种形式：\n\n给 Agent 一个工具，让它能在任务过程中做笔记。记录中间发现、已做决定，以及它知道稍后还会需要的信息。\n\nAnthropic 构建了一个“think”工具，也就是一个专门供 Claude 处理问题的空间。",
+            "html": "<p>When an agent&#x27;s context fills up and gets compacted, it loses information.</p>\n<p>If the agent didn&#x27;t write anything down before that happened — that information is gone forever.</p>\n<p>Write means giving the agent ways to persist information outside the context window.</p>\n<p>Three forms:</p>\n<p>Give the agent a tool that lets it take notes during a task. Intermediate findings. Decisions made. Information it knows it will need later.</p>\n<p>Anthropic built a &quot;think&quot; tool — a dedicated space for Claude to work through problems.</p>",
+            "zhHtml": "<p>当 Agent 的上下文被填满并发生压缩时，它会丢失信息。</p>\n<p>如果 Agent 在压缩发生前没有把任何内容写下来，那些信息就会永远消失。</p>\n<p>写入，意思是给 Agent 提供把信息持久化到上下文窗口之外的方法。</p>\n<p>有三种形式：</p>\n<p>给 Agent 一个工具，让它能在任务过程中做笔记。记录中间发现、已做决定，以及它知道稍后还会需要的信息。</p>\n<p>Anthropic 构建了一个“think”工具，也就是一个专门供 Claude 处理问题的空间。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "On the tau-bench benchmark, this improved performance by up to 54% on certain tasks.\n\nPersistent procedural memory.\n\nIf you've used Claude Code, you've seen CLAUDE.md.\n\nInstructions loaded at the start of every session — project architecture, conventions, how to run tests, what to be careful about.\n\nThe agent reads it every time it starts.\n\nIt never forgets the fundamentals.\n\nThe agent saves facts, user preferences, and learned patterns so it can retrieve them across sessions.",
+            "zh": "在 tau-bench 基准上，这让某些任务的性能最高提升了 54%。\n\n持久化的程序性记忆。\n\n如果你用过 Claude Code，就见过 CLAUDE.md。\n\n这些是在每次会话开始时加载的指令，包括项目架构、约定、如何运行测试、需要注意什么。\n\nAgent 每次启动都会读取它。\n\n它永远不会忘记基础规则。\n\nAgent 保存事实、用户偏好和习得模式，以便跨会话检索。",
+            "html": "<p>On the tau-bench benchmark, this improved performance by up to 54% on certain tasks.</p>\n<p>Persistent procedural memory.</p>\n<p>If you&#x27;ve used Claude Code, you&#x27;ve seen CLAUDE.md.</p>\n<p>Instructions loaded at the start of every session — project architecture, conventions, how to run tests, what to be careful about.</p>\n<p>The agent reads it every time it starts.</p>\n<p>It never forgets the fundamentals.</p>\n<p>The agent saves facts, user preferences, and learned patterns so it can retrieve them across sessions.</p>",
+            "zhHtml": "<p>在 tau-bench 基准上，这让某些任务的性能最高提升了 54%。</p>\n<p>持久化的程序性记忆。</p>\n<p>如果你用过 Claude Code，就见过 CLAUDE.md。</p>\n<p>这些是在每次会话开始时加载的指令，包括项目架构、约定、如何运行测试、需要注意什么。</p>\n<p>Agent 每次启动都会读取它。</p>\n<p>它永远不会忘记基础规则。</p>\n<p>Agent 保存事实、用户偏好和习得模式，以便跨会话检索。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Lives outside the context window entirely.\n\nInformation the agent needs tomorrow is there waiting when tomorrow comes.",
+            "zh": "它们完全存在于上下文窗口之外。\n\nAgent 明天需要的信息，明天会在那里等着。",
+            "html": "<p>Lives outside the context window entirely.</p>\n<p>Information the agent needs tomorrow is there waiting when tomorrow comes.</p>",
+            "zhHtml": "<p>它们完全存在于上下文窗口之外。</p>\n<p>Agent 明天需要的信息，明天会在那里等着。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2ljeaIAEcU85.jpg",
+            "alt": "Source visual 6",
+            "caption": "来源图片 6，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "An agent with 40 tools, a large knowledge base, and several sessions of history cannot load all of that at once.\n\nSomething has to decide what's relevant for this step.\n\nTraditional RAG: the system decides.\n\nUser asks → retrieve documents → stuff into prompt → done.\n\nStatic. One-shot. The model has no say.\n\nAgentic RAG: the agent decides. It searches for what it needs, refines queries, picks tools, determines when it has enough information.",
+            "zh": "一个拥有 40 个工具、庞大知识库和多轮会话历史的 Agent，不可能一次加载所有内容。\n\n必须有某种机制来决定当前这一步相关的是什么。\n\n传统 RAG：由系统决定。\n\n用户提问 → 检索文档 → 塞进提示词 → 完成。\n\n静态。一次性。模型没有发言权。\n\nAgentic RAG：由 Agent 决定。它会搜索所需信息、细化查询、选择工具，并判断何时信息已经足够。",
+            "html": "<p>An agent with 40 tools, a large knowledge base, and several sessions of history cannot load all of that at once.</p>\n<p>Something has to decide what&#x27;s relevant for this step.</p>\n<p>Traditional RAG: the system decides.</p>\n<p>User asks → retrieve documents → stuff into prompt → done.</p>\n<p>Static. One-shot. The model has no say.</p>\n<p>Agentic RAG: the agent decides. It searches for what it needs, refines queries, picks tools, determines when it has enough information.</p>",
+            "zhHtml": "<p>一个拥有 40 个工具、庞大知识库和多轮会话历史的 Agent，不可能一次加载所有内容。</p>\n<p>必须有某种机制来决定当前这一步相关的是什么。</p>\n<p>传统 RAG：由系统决定。</p>\n<p>用户提问 → 检索文档 → 塞进提示词 → 完成。</p>\n<p>静态。一次性。模型没有发言权。</p>\n<p>Agentic RAG：由 Agent 决定。它会搜索所需信息、细化查询、选择工具，并判断何时信息已经足够。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Retrieval as an iterative process, not a one-shot pipeline.\n\nThis matters because what's relevant changes at every step — and only the agent knows what it needs next.\n\nThe tool selection problem is the one that trips people up most.\n\nIf your agent has 40+ tools, that's potentially 10,000 tokens of tool definitions sitting in context before any work begins.\n\nThe fix: RAG over tool descriptions.\n\nInstead of dumping all tool definitions in every call, use semantic search to surface only the tools relevant to the current step.",
+            "zh": "检索是一个迭代过程，而不是一次性管道。\n\n这一点很重要，因为每一步相关的信息都会变化，只有 Agent 知道接下来需要什么。\n\n工具选择问题最容易让人栽跟头。\n\n如果你的 Agent 有 40 多个工具，那么在任何工作开始之前，工具定义就可能占用 10,000 个 token。\n\n解决办法是：对工具描述做 RAG。\n\n不要在每次调用中倾倒所有工具定义，而是用语义搜索只浮现当前步骤相关的工具。",
+            "html": "<p>Retrieval as an iterative process, not a one-shot pipeline.</p>\n<p>This matters because what&#x27;s relevant changes at every step — and only the agent knows what it needs next.</p>\n<p>The tool selection problem is the one that trips people up most.</p>\n<p>If your agent has 40+ tools, that&#x27;s potentially 10,000 tokens of tool definitions sitting in context before any work begins.</p>\n<p>The fix: RAG over tool descriptions.</p>\n<p>Instead of dumping all tool definitions in every call, use semantic search to surface only the tools relevant to the current step.</p>",
+            "zhHtml": "<p>检索是一个迭代过程，而不是一次性管道。</p>\n<p>这一点很重要，因为每一步相关的信息都会变化，只有 Agent 知道接下来需要什么。</p>\n<p>工具选择问题最容易让人栽跟头。</p>\n<p>如果你的 Agent 有 40 多个工具，那么在任何工作开始之前，工具定义就可能占用 10,000 个 token。</p>\n<p>解决办法是：对工具描述做 RAG。</p>\n<p>不要在每次调用中倾倒所有工具定义，而是用语义搜索只浮现当前步骤相关的工具。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "A paper called RAG-MCP tested this.\n\nTool-selection accuracy: 14% → 43% (3x improvement). Token usage: cut roughly in half.\n\nAnthropic calls it a hybrid strategy: load essential context up front (like CLAUDE.md), let the agent do just-in-time retrieval for everything else.\n\nFront-load the basics. Retrieve the rest on demand.",
+            "zh": "一篇名为 RAG-MCP 的论文测试了这种方法。\n\n工具选择准确率：14% → 43%（提升 3 倍）。token 使用量大约减半。\n\nAnthropic 称其为混合策略：把基础上下文预先加载（比如 CLAUDE.md），其余内容让 Agent 即时检索。\n\n把基础内容前置。其余内容按需检索。",
+            "html": "<p>A paper called RAG-MCP tested this.</p>\n<p>Tool-selection accuracy: 14% → 43% (3x improvement). Token usage: cut roughly in half.</p>\n<p>Anthropic calls it a hybrid strategy: load essential context up front (like CLAUDE.md), let the agent do just-in-time retrieval for everything else.</p>\n<p>Front-load the basics. Retrieve the rest on demand.</p>",
+            "zhHtml": "<p>一篇名为 RAG-MCP 的论文测试了这种方法。</p>\n<p>工具选择准确率：14% → 43%（提升 3 倍）。token 使用量大约减半。</p>\n<p>Anthropic 称其为混合策略：把基础上下文预先加载（比如 CLAUDE.md），其余内容让 Agent 即时检索。</p>\n<p>把基础内容前置。其余内容按需检索。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2so1acAAgSmD.jpg",
+            "alt": "Source visual 7",
+            "caption": "来源图片 7，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Even with good selection, context accumulates.\n\nEvery tool call, retrieved document, and decision stays in the window.\n\nImagine your agent has made 20 tool calls.\n\nContext: 80,000 tokens of accumulated tool outputs, conversation history, reasoning traces.\n\nMost of that is no longer relevant. The agent already acted on it.\n\nBut it's still there, taking space, degrading attention, driving up cost and latency.\n\nYou can compress at 3 points.",
+            "zh": "即使选择做得很好，上下文仍会累积。\n\n每次工具调用、检索到的文档和做出的决策都会留在窗口里。\n\n想象你的 Agent 已经进行了 20 次工具调用。\n\n上下文中有 80,000 个 token，包含累积的工具输出、对话历史和推理痕迹。\n\n其中大部分已经不再相关。Agent 已经基于它们采取过行动。\n\n但它们仍然在那里，占据空间、削弱注意力，并推高成本和延迟。\n\n你可以在 3 个时间点进行压缩。",
+            "html": "<p>Even with good selection, context accumulates.</p>\n<p>Every tool call, retrieved document, and decision stays in the window.</p>\n<p>Imagine your agent has made 20 tool calls.</p>\n<p>Context: 80,000 tokens of accumulated tool outputs, conversation history, reasoning traces.</p>\n<p>Most of that is no longer relevant. The agent already acted on it.</p>\n<p>But it&#x27;s still there, taking space, degrading attention, driving up cost and latency.</p>\n<p>You can compress at 3 points.</p>",
+            "zhHtml": "<p>即使选择做得很好，上下文仍会累积。</p>\n<p>每次工具调用、检索到的文档和做出的决策都会留在窗口里。</p>\n<p>想象你的 Agent 已经进行了 20 次工具调用。</p>\n<p>上下文中有 80,000 个 token，包含累积的工具输出、对话历史和推理痕迹。</p>\n<p>其中大部分已经不再相关。Agent 已经基于它们采取过行动。</p>\n<p>但它们仍然在那里，占据空间、削弱注意力，并推高成本和延迟。</p>\n<p>你可以在 3 个时间点进行压缩。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Before information enters context:\n\n→ Chunk large documents into coherent pieces before retrieval\n\n→ Rerank so only the most useful chunks make it in\n\n→ Summarize tool outputs on the fly before they enter the main context\n\nWhile the agent is working:\n\n→ Rolling summary of conversation history — continuously updated\n\n→ Popular hybrid: keep last 10 messages verbatim + summarize everything older\n\n→ Hard trimming: remove older messages once context hits a size threshold",
+            "zh": "在信息进入上下文之前：\n\n→ 在检索前把大文档切分成连贯的片段\n\n→ 重新排序，只让最有用的片段进入上下文\n\n→ 在工具输出进入主上下文前即时摘要\n\n在 Agent 工作过程中：\n\n→ 持续更新的对话历史滚动摘要\n\n→ 常见混合做法：保留最近 10 条消息原文，并摘要更早的所有内容\n\n→ 硬裁剪：一旦上下文达到大小阈值，就移除更早的消息",
+            "html": "<p>Before information enters context:</p>\n<p>→ Chunk large documents into coherent pieces before retrieval</p>\n<p>→ Rerank so only the most useful chunks make it in</p>\n<p>→ Summarize tool outputs on the fly before they enter the main context</p>\n<p>While the agent is working:</p>\n<p>→ Rolling summary of conversation history — continuously updated</p>\n<p>→ Popular hybrid: keep last 10 messages verbatim + summarize everything older</p>\n<p>→ Hard trimming: remove older messages once context hits a size threshold</p>",
+            "zhHtml": "<p>在信息进入上下文之前：</p>\n<p>→ 在检索前把大文档切分成连贯的片段</p>\n<p>→ 重新排序，只让最有用的片段进入上下文</p>\n<p>→ 在工具输出进入主上下文前即时摘要</p>\n<p>在 Agent 工作过程中：</p>\n<p>→ 持续更新的对话历史滚动摘要</p>\n<p>→ 常见混合做法：保留最近 10 条消息原文，并摘要更早的所有内容</p>\n<p>→ 硬裁剪：一旦上下文达到大小阈值，就移除更早的消息</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "→ Claude Code auto-compaction: triggers at 95% capacity, automatically summarizes full trajectory\n\nAfter the agent has acted on something:\n\n→ Tool result clearing: once a tool result was used 15 steps ago, drop it\n\n→ Replace with a one-line summary or remove entirely\n\n→ The agent does not need the full text of a web page it fetched 20 steps ago\n\nThe goal: reduce token count. Preserve what actually matters.",
+            "zh": "→ Claude Code 自动压缩：在达到 95% 容量时触发，自动摘要完整轨迹\n\n在 Agent 已经基于某些内容采取行动之后：\n\n→ 工具结果清理：某个工具结果如果在 15 步前已经被使用，就丢弃它\n\n→ 用一句话摘要替代，或完全移除\n\n→ Agent 不需要 20 步前抓取的网页全文\n\n目标是：减少 token 数量，保留真正重要的内容。",
+            "html": "<p>→ Claude Code auto-compaction: triggers at 95% capacity, automatically summarizes full trajectory</p>\n<p>After the agent has acted on something:</p>\n<p>→ Tool result clearing: once a tool result was used 15 steps ago, drop it</p>\n<p>→ Replace with a one-line summary or remove entirely</p>\n<p>→ The agent does not need the full text of a web page it fetched 20 steps ago</p>\n<p>The goal: reduce token count. Preserve what actually matters.</p>",
+            "zhHtml": "<p>→ Claude Code 自动压缩：在达到 95% 容量时触发，自动摘要完整轨迹</p>\n<p>在 Agent 已经基于某些内容采取行动之后：</p>\n<p>→ 工具结果清理：某个工具结果如果在 15 步前已经被使用，就丢弃它</p>\n<p>→ 用一句话摘要替代，或完全移除</p>\n<p>→ Agent 不需要 20 步前抓取的网页全文</p>\n<p>目标是：减少 token 数量，保留真正重要的内容。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3H6uaAAAcMy6.jpg",
+            "alt": "Source visual 8",
+            "caption": "来源图片 8，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Here is the deeper problem with long agent runs.\n\nIt's not just space. It's contamination.\n\nThe detailed file searches from the research phase are still sitting in context when the agent moves to writing code.\n\nThat old research context is now noise. It's distracting the model during a phase where it needs to focus on clean implementation.\n\nIsolation means giving different parts of the work their own separate context windows.",
+            "zh": "长时间运行 Agent 的更深层问题在这里。\n\n不只是空间问题，而是污染问题。\n\n研究阶段的详细文件搜索结果，在 Agent 转向写代码时仍然留在上下文中。\n\n这些旧的研究上下文现在成了噪声。在需要专注于干净实现的阶段，它会分散模型注意力。\n\n隔离，意思是让工作的不同部分拥有各自独立的上下文窗口。",
+            "html": "<p>Here is the deeper problem with long agent runs.</p>\n<p>It&#x27;s not just space. It&#x27;s contamination.</p>\n<p>The detailed file searches from the research phase are still sitting in context when the agent moves to writing code.</p>\n<p>That old research context is now noise. It&#x27;s distracting the model during a phase where it needs to focus on clean implementation.</p>\n<p>Isolation means giving different parts of the work their own separate context windows.</p>",
+            "zhHtml": "<p>长时间运行 Agent 的更深层问题在这里。</p>\n<p>不只是空间问题，而是污染问题。</p>\n<p>研究阶段的详细文件搜索结果，在 Agent 转向写代码时仍然留在上下文中。</p>\n<p>这些旧的研究上下文现在成了噪声。在需要专注于干净实现的阶段，它会分散模型注意力。</p>\n<p>隔离，意思是让工作的不同部分拥有各自独立的上下文窗口。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Sub-agents\n\nA parent agent delegates a focused subtask — \"search the codebase for all authentication-related files\" — to a sub-agent.\n\nThe sub-agent works in its own clean context window.\n\nWhen it reports back, it returns only a condensed summary.\n\nAll the messy search operations stay isolated in the sub-agent's context and never pollute the parent.\n\nState schema isolation (LangGraph's approach)\n\nDesign the agent's state so different fields store different types of context.",
+            "zh": "子 Agent\n\n父 Agent 把一个聚焦子任务委派给子 Agent，例如“在代码库中搜索所有与认证相关的文件”。\n\n子 Agent 在自己的干净上下文窗口中工作。\n\n当它汇报时，只返回压缩后的摘要。\n\n所有杂乱的搜索操作都留在子 Agent 的上下文中，绝不会污染父 Agent。\n\n状态 schema 隔离（LangGraph 的方法）\n\n设计 Agent 状态时，让不同字段存放不同类型的上下文。",
+            "html": "<p>Sub-agents</p>\n<p>A parent agent delegates a focused subtask — &quot;search the codebase for all authentication-related files&quot; — to a sub-agent.</p>\n<p>The sub-agent works in its own clean context window.</p>\n<p>When it reports back, it returns only a condensed summary.</p>\n<p>All the messy search operations stay isolated in the sub-agent&#x27;s context and never pollute the parent.</p>\n<p>State schema isolation (LangGraph&#x27;s approach)</p>\n<p>Design the agent&#x27;s state so different fields store different types of context.</p>",
+            "zhHtml": "<p>子 Agent</p>\n<p>父 Agent 把一个聚焦子任务委派给子 Agent，例如“在代码库中搜索所有与认证相关的文件”。</p>\n<p>子 Agent 在自己的干净上下文窗口中工作。</p>\n<p>当它汇报时，只返回压缩后的摘要。</p>\n<p>所有杂乱的搜索操作都留在子 Agent 的上下文中，绝不会污染父 Agent。</p>\n<p>状态 schema 隔离（LangGraph 的方法）</p>\n<p>设计 Agent 状态时，让不同字段存放不同类型的上下文。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The LLM only sees the fields relevant to the current step.\n\nTool results sit in a \"backstage\" field — invisible to the model until explicitly surfaced.\n\nFine-grained control over what the agent sees at each step without spinning up separate sub-agents.\n\nIsolation is what makes complex multi-step workflows actually reliable.\n\nDifferent jobs. Different context windows. No contamination.",
+            "zh": "LLM 只看到当前步骤相关的字段。\n\n工具结果放在“后台”字段中；除非显式浮现，否则模型看不到。\n\n无需启动单独的子 Agent，也能细粒度控制 Agent 在每一步看到什么。\n\n隔离让复杂的多步骤工作流真正变得可靠。\n\n不同工作。不同上下文窗口。没有污染。",
+            "html": "<p>The LLM only sees the fields relevant to the current step.</p>\n<p>Tool results sit in a &quot;backstage&quot; field — invisible to the model until explicitly surfaced.</p>\n<p>Fine-grained control over what the agent sees at each step without spinning up separate sub-agents.</p>\n<p>Isolation is what makes complex multi-step workflows actually reliable.</p>\n<p>Different jobs. Different context windows. No contamination.</p>",
+            "zhHtml": "<p>LLM 只看到当前步骤相关的字段。</p>\n<p>工具结果放在“后台”字段中；除非显式浮现，否则模型看不到。</p>\n<p>无需启动单独的子 Agent，也能细粒度控制 Agent 在每一步看到什么。</p>\n<p>隔离让复杂的多步骤工作流真正变得可靠。</p>\n<p>不同工作。不同上下文窗口。没有污染。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-6",
+        "group": "4 Ways Agents Fail (Name the failure. Fix it.) · Agent 失败的 4 种方式（命名失败，修复它）",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Drew Breunig identified four distinct failure modes as agent context grows.\n\nEvery broken agent you've ever seen falls into one of these.",
+            "zh": "Drew Breunig 指出了随着 Agent 上下文增长而出现的四种不同失败模式。\n\n你见过的每一个坏掉的 Agent，都属于这些类型之一。",
+            "html": "<p>Drew Breunig identified four distinct failure modes as agent context grows.</p>\n<p>Every broken agent you&#x27;ve ever seen falls into one of these.</p>",
+            "zhHtml": "<p>Drew Breunig 指出了随着 Agent 上下文增长而出现的四种不同失败模式。</p>\n<p>你见过的每一个坏掉的 Agent，都属于这些类型之一。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3K1zasAAHvjO.jpg",
+            "alt": "Source visual 9",
+            "caption": "来源图片 9，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "A hallucination or error enters context.\n\nThe agent references it again and again in subsequent steps.\n\nBad data from step 5 compounds into every step after.",
+            "zh": "幻觉或错误进入上下文。\n\nAgent 会在后续步骤中一遍又一遍引用它。\n\n第 5 步的坏数据会复合影响之后的每一步。",
+            "html": "<p>A hallucination or error enters context.</p>\n<p>The agent references it again and again in subsequent steps.</p>\n<p>Bad data from step 5 compounds into every step after.</p>",
+            "zhHtml": "<p>幻觉或错误进入上下文。</p>\n<p>Agent 会在后续步骤中一遍又一遍引用它。</p>\n<p>第 5 步的坏数据会复合影响之后的每一步。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Fix: Validate tool outputs before they enter context. After recovering from an error, compress the failed-attempt history. Don't leave 10 steps of dead-end debugging visible when only the resolution matters.\n\n━━━\n\nContext gets so long the model starts over-relying on recent history.\n\nInstead of synthesizing a novel plan, it just rehashes what it recently did.\n\nIt stops thinking. It starts repeating.\n\nFix: Summarize and prune aggressively. Even when you have a large context window available. Big window does not mean fill it.",
+            "zh": "修复方法：在工具输出进入上下文前验证它们。从错误中恢复后，压缩失败尝试的历史。不要让 10 步死胡同调试过程仍然可见；只保留解决方案真正需要的内容。\n\n分隔线。\n\n上下文变得太长，以至于模型开始过度依赖近期历史。\n\n它不再综合出新的计划，而只是复述最近做过的事。\n\n它停止思考，开始重复。\n\n修复方法：积极摘要和剪枝。即使你拥有很大的上下文窗口也要这样做。大窗口并不意味着要把它填满。",
+            "html": "<p>Fix: Validate tool outputs before they enter context. After recovering from an error, compress the failed-attempt history. Don&#x27;t leave 10 steps of dead-end debugging visible when only the resolution matters.</p>\n<p>━━━</p>\n<p>Context gets so long the model starts over-relying on recent history.</p>\n<p>Instead of synthesizing a novel plan, it just rehashes what it recently did.</p>\n<p>It stops thinking. It starts repeating.</p>\n<p>Fix: Summarize and prune aggressively. Even when you have a large context window available. Big window does not mean fill it.</p>",
+            "zhHtml": "<p>修复方法：在工具输出进入上下文前验证它们。从错误中恢复后，压缩失败尝试的历史。不要让 10 步死胡同调试过程仍然可见；只保留解决方案真正需要的内容。</p>\n<p>分隔线。</p>\n<p>上下文变得太长，以至于模型开始过度依赖近期历史。</p>\n<p>它不再综合出新的计划，而只是复述最近做过的事。</p>\n<p>它停止思考，开始重复。</p>\n<p>修复方法：积极摘要和剪枝。即使你拥有很大的上下文窗口也要这样做。大窗口并不意味着要把它填满。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "━━━\n\nSuperfluous content leads the model to low-quality decisions.\n\nClassic example: a model failing on a benchmark when given 46 tools — even though the context was well within limits — but working fine with only 19 tools.\n\nThe tools were not too many for the context to hold.\n\nThey were too many for the model to reason about clearly.\n\nFix: Dynamic tool management. Use RAG-MCP to surface only the tools relevant to the current step. Keep the tool set matched to the current phase.",
+            "zh": "分隔线。\n\n多余内容会导致模型做出低质量决策。\n\n一个经典例子：模型在基准测试中拿到 46 个工具时失败，尽管上下文还远未超限；但只给 19 个工具时却运行良好。\n\n问题不是上下文容不下这些工具。\n\n而是工具太多，模型无法清晰推理。\n\n修复方法：动态工具管理。使用 RAG-MCP 只浮现当前步骤相关的工具。让工具集匹配当前阶段。",
+            "html": "<p>━━━</p>\n<p>Superfluous content leads the model to low-quality decisions.</p>\n<p>Classic example: a model failing on a benchmark when given 46 tools — even though the context was well within limits — but working fine with only 19 tools.</p>\n<p>The tools were not too many for the context to hold.</p>\n<p>They were too many for the model to reason about clearly.</p>\n<p>Fix: Dynamic tool management. Use RAG-MCP to surface only the tools relevant to the current step. Keep the tool set matched to the current phase.</p>",
+            "zhHtml": "<p>分隔线。</p>\n<p>多余内容会导致模型做出低质量决策。</p>\n<p>一个经典例子：模型在基准测试中拿到 46 个工具时失败，尽管上下文还远未超限；但只给 19 个工具时却运行良好。</p>\n<p>问题不是上下文容不下这些工具。</p>\n<p>而是工具太多，模型无法清晰推理。</p>\n<p>修复方法：动态工具管理。使用 RAG-MCP 只浮现当前步骤相关的工具。让工具集匹配当前阶段。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "━━━\n\nNew information contradicts something already in context.\n\nThe system prompt says one thing. A retrieved document says something different.\n\nThe agent cannot reconcile the contradiction. Produces inconsistent behavior.\n\nFix: Establish a clear authority ordering. System prompt > retrieved facts > conversation history.\n\nValidate new information against existing context before injecting.\n\nUse XML tags and clear headers so the model knows which source to trust.",
+            "zh": "分隔线。\n\n新信息与上下文中已有内容相矛盾。\n\n系统提示词说一件事，检索文档说另一件事。\n\nAgent 无法调和这种矛盾，于是产生不一致行为。\n\n修复方法：建立清晰的权威顺序。系统提示词 > 检索事实 > 对话历史。\n\n在注入新信息前，先对照现有上下文进行验证。\n\n使用 XML 标签和清晰标题，让模型知道应该信任哪个来源。",
+            "html": "<p>━━━</p>\n<p>New information contradicts something already in context.</p>\n<p>The system prompt says one thing. A retrieved document says something different.</p>\n<p>The agent cannot reconcile the contradiction. Produces inconsistent behavior.</p>\n<p>Fix: Establish a clear authority ordering. System prompt &gt; retrieved facts &gt; conversation history.</p>\n<p>Validate new information against existing context before injecting.</p>\n<p>Use XML tags and clear headers so the model knows which source to trust.</p>",
+            "zhHtml": "<p>分隔线。</p>\n<p>新信息与上下文中已有内容相矛盾。</p>\n<p>系统提示词说一件事，检索文档说另一件事。</p>\n<p>Agent 无法调和这种矛盾，于是产生不一致行为。</p>\n<p>修复方法：建立清晰的权威顺序。系统提示词 &gt; 检索事实 &gt; 对话历史。</p>\n<p>在注入新信息前，先对照现有上下文进行验证。</p>\n<p>使用 XML 标签和清晰标题，让模型知道应该信任哪个来源。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-7",
+        "group": "How to Write System Prompts for Agents (Not chatbots. Agents.) · 如何为 Agent 编写系统提示词（不是聊天机器人，而是 Agent）",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3djBacAAVxWq.jpg",
+            "alt": "Source visual 10",
+            "caption": "来源图片 10，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "A chatbot system prompt sets a tone.\n\n\"You are a helpful assistant. Be concise and friendly.\"\n\nAn agent system prompt defines architecture.\n\nIt specifies control flow — how to approach task types, which tools to use when, what to do on errors, what guardrails to follow.\n\nIt is closer to writing a job description for an autonomous employee than a personality prompt.\n\nAnthropic calls it writing at the \"right altitude.\"",
+            "zh": "聊天机器人的系统提示词设定的是语气。\n\n“你是一个有帮助的助手。保持简洁友好。”\n\nAgent 的系统提示词定义的是架构。\n\n它指定控制流：如何处理任务类型、什么时候使用哪些工具、出错时怎么办、遵循哪些防护规则。\n\n它更像是在为一个自主员工写岗位说明，而不是写人格提示。\n\nAnthropic 称之为在“正确高度”写作。",
+            "html": "<p>A chatbot system prompt sets a tone.</p>\n<p>&quot;You are a helpful assistant. Be concise and friendly.&quot;</p>\n<p>An agent system prompt defines architecture.</p>\n<p>It specifies control flow — how to approach task types, which tools to use when, what to do on errors, what guardrails to follow.</p>\n<p>It is closer to writing a job description for an autonomous employee than a personality prompt.</p>\n<p>Anthropic calls it writing at the &quot;right altitude.&quot;</p>",
+            "zhHtml": "<p>聊天机器人的系统提示词设定的是语气。</p>\n<p>“你是一个有帮助的助手。保持简洁友好。”</p>\n<p>Agent 的系统提示词定义的是架构。</p>\n<p>它指定控制流：如何处理任务类型、什么时候使用哪些工具、出错时怎么办、遵循哪些防护规则。</p>\n<p>它更像是在为一个自主员工写岗位说明，而不是写人格提示。</p>\n<p>Anthropic 称之为在“正确高度”写作。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Too prescriptive:\"If the user mentions billing AND mentions a refund AND the amount is over $100, call tool X.\" Fragile. Breaks on every edge case you didn't anticipate.\n\nToo vague:\"Be helpful and use the appropriate tools.\" Gives the agent nothing. It can't make good autonomous decisions without concrete signals.",
+            "zh": "过于细致：“如果用户提到账单，并且提到退款，并且金额超过 100 美元，就调用工具 X。”这种写法很脆弱，会被你没预见到的每个边界情况击穿。\n\n过于模糊：“保持有帮助，并使用合适的工具。”这给不了 Agent 任何东西。没有具体信号，它无法做出良好的自主决策。",
+            "html": "<p>Too prescriptive:&quot;If the user mentions billing AND mentions a refund AND the amount is over $100, call tool X.&quot; Fragile. Breaks on every edge case you didn&#x27;t anticipate.</p>\n<p>Too vague:&quot;Be helpful and use the appropriate tools.&quot; Gives the agent nothing. It can&#x27;t make good autonomous decisions without concrete signals.</p>",
+            "zhHtml": "<p>过于细致：“如果用户提到账单，并且提到退款，并且金额超过 100 美元，就调用工具 X。”这种写法很脆弱，会被你没预见到的每个边界情况击穿。</p>\n<p>过于模糊：“保持有帮助，并使用合适的工具。”这给不了 Agent 任何东西。没有具体信号，它无法做出良好的自主决策。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The sweet spot:Specific enough to guide autonomous behavior. Flexible enough for the model to apply judgment in novel situations. Strong heuristics. Not rigid rules.\n\nPractical tips:\n\n→ Organize with XML tags or markdown headers — Background, Instructions, Tool Guidance\n\n→ Start minimal and iterate on failures — don't try to anticipate every edge case up front\n\n→ Minimal doesn't mean short — a complex agent system prompt can be thousands of tokens and that's fine as long as every token earns its place",
+            "zh": "最佳区间是：足够具体，能指导自主行为；又足够灵活，让模型能在新场景中运用判断。给出强启发式，而不是僵硬规则。\n\n实用建议：\n\n→ 用 XML 标签或 Markdown 标题组织内容，例如背景、指令、工具指引\n\n→ 从最小版本开始，并根据失败迭代，不要一开始就试图预判所有边界情况\n\n→ 最小不等于短；复杂 Agent 的系统提示词可以有几千个 token，只要每个 token 都有价值",
+            "html": "<p>The sweet spot:Specific enough to guide autonomous behavior. Flexible enough for the model to apply judgment in novel situations. Strong heuristics. Not rigid rules.</p>\n<p>Practical tips:</p>\n<p>→ Organize with XML tags or markdown headers — Background, Instructions, Tool Guidance</p>\n<p>→ Start minimal and iterate on failures — don&#x27;t try to anticipate every edge case up front</p>\n<p>→ Minimal doesn&#x27;t mean short — a complex agent system prompt can be thousands of tokens and that&#x27;s fine as long as every token earns its place</p>",
+            "zhHtml": "<p>最佳区间是：足够具体，能指导自主行为；又足够灵活，让模型能在新场景中运用判断。给出强启发式，而不是僵硬规则。</p>\n<p>实用建议：</p>\n<p>→ 用 XML 标签或 Markdown 标题组织内容，例如背景、指令、工具指引</p>\n<p>→ 从最小版本开始，并根据失败迭代，不要一开始就试图预判所有边界情况</p>\n<p>→ 最小不等于短；复杂 Agent 的系统提示词可以有几千个 token，只要每个 token 都有价值</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "→ Use few-shot examples — show the agent what good behavior looks like rather than trying to describe every rule in words",
+            "zh": "→ 使用少样本示例：展示 Agent 的良好行为，而不是试图用文字描述每一条规则",
+            "html": "<p>→ Use few-shot examples — show the agent what good behavior looks like rather than trying to describe every rule in words</p>",
+            "zhHtml": "<p>→ 使用少样本示例：展示 Agent 的良好行为，而不是试图用文字描述每一条规则</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-8",
+        "group": "The KV-Cache: The $$$ reason to care about context order · KV-Cache：必须重视上下文顺序的成本原因",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_34ubbAAAdW1c.jpg",
+            "alt": "Source visual 11",
+            "caption": "来源图片 11，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Most agent builders don't know this exists.\n\nWhen you send tokens to an LLM, the model computes key-value representations for each token.\n\nComputationally expensive.\n\nSo inference providers cache these representations.",
+            "zh": "大多数 Agent 构建者并不知道它的存在。\n\n当你向 LLM 发送 token 时，模型会为每个 token 计算键值表示。\n\n这在计算上很昂贵。\n\n所以推理服务商会缓存这些表示。",
+            "html": "<p>Most agent builders don&#x27;t know this exists.</p>\n<p>When you send tokens to an LLM, the model computes key-value representations for each token.</p>\n<p>Computationally expensive.</p>\n<p>So inference providers cache these representations.</p>",
+            "zhHtml": "<p>大多数 Agent 构建者并不知道它的存在。</p>\n<p>当你向 LLM 发送 token 时，模型会为每个 token 计算键值表示。</p>\n<p>这在计算上很昂贵。</p>\n<p>所以推理服务商会缓存这些表示。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "If the beginning of your context — the prefix — stays the same between API calls, the provider reuses the cached computation and only processes the new tokens at the end.\n\nFast. Cheap.\n\nBut if you rearrange or change the early part of your context between calls — you invalidate the cache. The provider recomputes everything from scratch.\n\nThe cost difference on Claude Sonnet:\n\n→ Cached input tokens: $0.30 per million\n\n→ Uncached input tokens: $3.00 per million",
+            "zh": "如果你的上下文开头，也就是前缀，在多次 API 调用之间保持不变，服务商就能复用缓存的计算，只处理末尾的新 token。\n\n又快又便宜。\n\n但如果你在两次调用之间重排或改变上下文的前部，就会使缓存失效。服务商必须从头重新计算一切。\n\nClaude Sonnet 上的成本差异是：\n\n→ 缓存输入 token：每百万 0.30 美元\n\n→ 未缓存输入 token：每百万 3.00 美元",
+            "html": "<p>If the beginning of your context — the prefix — stays the same between API calls, the provider reuses the cached computation and only processes the new tokens at the end.</p>\n<p>Fast. Cheap.</p>\n<p>But if you rearrange or change the early part of your context between calls — you invalidate the cache. The provider recomputes everything from scratch.</p>\n<p>The cost difference on Claude Sonnet:</p>\n<p>→ Cached input tokens: $0.30 per million</p>\n<p>→ Uncached input tokens: $3.00 per million</p>",
+            "zhHtml": "<p>如果你的上下文开头，也就是前缀，在多次 API 调用之间保持不变，服务商就能复用缓存的计算，只处理末尾的新 token。</p>\n<p>又快又便宜。</p>\n<p>但如果你在两次调用之间重排或改变上下文的前部，就会使缓存失效。服务商必须从头重新计算一切。</p>\n<p>Claude Sonnet 上的成本差异是：</p>\n<p>→ 缓存输入 token：每百万 0.30 美元</p>\n<p>→ 未缓存输入 token：每百万 3.00 美元</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "10x difference.\n\nFor an agent making 30–40 API calls per task, this adds up fast.\n\nPractical rules for KV-cache efficiency:\n\n→ Stable content goes at the TOP of context — system prompt, tool definitions, anything that doesn't change between turns",
+            "zh": "相差 10 倍。\n\n对于每个任务要进行 30 到 40 次 API 调用的 Agent，这会迅速累积。\n\nKV-cache 效率的实用规则：\n\n→ 稳定内容放在上下文顶部：系统提示词、工具定义，以及任何轮次之间不变的内容",
+            "html": "<p>10x difference.</p>\n<p>For an agent making 30–40 API calls per task, this adds up fast.</p>\n<p>Practical rules for KV-cache efficiency:</p>\n<p>→ Stable content goes at the TOP of context — system prompt, tool definitions, anything that doesn&#x27;t change between turns</p>",
+            "zhHtml": "<p>相差 10 倍。</p>\n<p>对于每个任务要进行 30 到 40 次 API 调用的 Agent，这会迅速累积。</p>\n<p>KV-cache 效率的实用规则：</p>\n<p>→ 稳定内容放在上下文顶部：系统提示词、工具定义，以及任何轮次之间不变的内容</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "→ Dynamic content goes at the BOTTOM — conversation history, current step, agent state → Don't dynamically add and remove tools mid-conversation — it invalidates the cache",
+            "zh": "→ 动态内容放在底部：对话历史、当前步骤、Agent 状态。不要在对话中动态添加和移除工具，这会使缓存失效",
+            "html": "<p>→ Dynamic content goes at the BOTTOM — conversation history, current step, agent state → Don&#x27;t dynamically add and remove tools mid-conversation — it invalidates the cache</p>",
+            "zhHtml": "<p>→ 动态内容放在底部：对话历史、当前步骤、Agent 状态。不要在对话中动态添加和移除工具，这会使缓存失效</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "→ Use tool masking instead of tool removal — keep all tool definitions stable in the prefix (cached), just mark irrelevant ones as unavailable for the current phase",
+            "zh": "→ 使用工具遮蔽而不是工具移除：保持所有工具定义稳定地位于前缀中（可缓存），只是把当前阶段不相关的工具标记为不可用",
+            "html": "<p>→ Use tool masking instead of tool removal — keep all tool definitions stable in the prefix (cached), just mark irrelevant ones as unavailable for the current phase</p>",
+            "zhHtml": "<p>→ 使用工具遮蔽而不是工具移除：保持所有工具定义稳定地位于前缀中（可缓存），只是把当前阶段不相关的工具标记为不可用</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-9",
+        "group": "The Workflow That Ships 35,000 Lines of Code in 7 Hours · 7 小时交付 35,000 行代码的工作流",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3-45aQAA8EJ7.jpg",
+            "alt": "Source visual 12",
+            "caption": "来源图片 12，来自 X 原文。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Dex Horthy (CEO of HumanLayer) presented this at the AI Engineer Code Summit.\n\nHis team reportedly used it to ship ~35,000 lines of code to a large Rust codebase in one 7-hour session.\n\nThe method: Frequent Intentional Compaction.\n\nStructure agent work into phases. Each phase produces a compacted artifact. Each new phase starts with a fresh context window containing only that artifact.\n\nStay deliberately below 40–60% of the context window at all times.",
+            "zh": "Dex Horthy（HumanLayer CEO）在 AI Engineer Code Summit 上介绍了这个方法。\n\n据称，他的团队用它在一次 7 小时会话中，向一个大型 Rust 代码库交付了约 35,000 行代码。\n\n方法是：有意而频繁的压缩。\n\n把 Agent 工作拆成多个阶段。每个阶段产出一个压缩后的工件。每个新阶段都从一个全新的上下文窗口开始，其中只包含该工件。\n\n始终有意地保持在上下文窗口 40% 到 60% 以下。",
+            "html": "<p>Dex Horthy (CEO of HumanLayer) presented this at the AI Engineer Code Summit.</p>\n<p>His team reportedly used it to ship ~35,000 lines of code to a large Rust codebase in one 7-hour session.</p>\n<p>The method: Frequent Intentional Compaction.</p>\n<p>Structure agent work into phases. Each phase produces a compacted artifact. Each new phase starts with a fresh context window containing only that artifact.</p>\n<p>Stay deliberately below 40–60% of the context window at all times.</p>",
+            "zhHtml": "<p>Dex Horthy（HumanLayer CEO）在 AI Engineer Code Summit 上介绍了这个方法。</p>\n<p>据称，他的团队用它在一次 7 小时会话中，向一个大型 Rust 代码库交付了约 35,000 行代码。</p>\n<p>方法是：有意而频繁的压缩。</p>\n<p>把 Agent 工作拆成多个阶段。每个阶段产出一个压缩后的工件。每个新阶段都从一个全新的上下文窗口开始，其中只包含该工件。</p>\n<p>始终有意地保持在上下文窗口 40% 到 60% 以下。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Phase 1 — Research\n\nSub-agents explore the codebase. Read files. Trace data flows. Map architecture.\n\nAll the messy grep results and file contents stay in sub-agent contexts. Never touch the parent. (Isolate)\n\nOutput: a compact research.md — file paths, function signatures, patterns, gotchas. (Write)\n\nContext reset: raw research used 60–80% of the window. The research artifact compresses it down to 15–20%. (Compress)\n\nPhase 2 — Planning",
+            "zh": "阶段 1：研究\n\n子 Agent 探索代码库，读取文件，追踪数据流，梳理架构。\n\n所有杂乱的 grep 结果和文件内容都留在子 Agent 的上下文中，永远不接触父 Agent。（隔离）\n\n输出：一份压缩后的 research.md，包含文件路径、函数签名、模式和注意事项。（写入）\n\n上下文重置：原始研究占用了窗口的 60% 到 80%。研究工件把它压缩到 15% 到 20%。（压缩）\n\n阶段 2：计划",
+            "html": "<p>Phase 1 — Research</p>\n<p>Sub-agents explore the codebase. Read files. Trace data flows. Map architecture.</p>\n<p>All the messy grep results and file contents stay in sub-agent contexts. Never touch the parent. (Isolate)</p>\n<p>Output: a compact research.md — file paths, function signatures, patterns, gotchas. (Write)</p>\n<p>Context reset: raw research used 60–80% of the window. The research artifact compresses it down to 15–20%. (Compress)</p>\n<p>Phase 2 — Planning</p>",
+            "zhHtml": "<p>阶段 1：研究</p>\n<p>子 Agent 探索代码库，读取文件，追踪数据流，梳理架构。</p>\n<p>所有杂乱的 grep 结果和文件内容都留在子 Agent 的上下文中，永远不接触父 Agent。（隔离）</p>\n<p>输出：一份压缩后的 research.md，包含文件路径、函数签名、模式和注意事项。（写入）</p>\n<p>上下文重置：原始研究占用了窗口的 60% 到 80%。研究工件把它压缩到 15% 到 20%。（压缩）</p>\n<p>阶段 2：计划</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "New context window. Contains only: research document + problem definition.\n\nAgent produces a detailed implementation plan.\n\nThis is the most important human review checkpoint.\n\nCatch logic errors here where fixing them is easy and free. Later it costs hours.\n\nPhase 3 — Implementation\n\nAnother fresh context window. Contains only: the plan.\n\nAgent follows it step by step.\n\nFor complex tasks: a progress.md tracks what's been completed and what remains. (Write)",
+            "zh": "新的上下文窗口。只包含：研究文档 + 问题定义。\n\nAgent 产出详细实现计划。\n\n这是最重要的人工审查检查点。\n\n在这里捕捉逻辑错误，修复起来又容易又免费。晚些时候再修就要花好几个小时。\n\n阶段 3：实现\n\n另一个全新的上下文窗口。只包含计划。\n\nAgent 按步骤执行计划。\n\n对于复杂任务：用 progress.md 跟踪已完成内容和剩余工作。（写入）",
+            "html": "<p>New context window. Contains only: research document + problem definition.</p>\n<p>Agent produces a detailed implementation plan.</p>\n<p>This is the most important human review checkpoint.</p>\n<p>Catch logic errors here where fixing them is easy and free. Later it costs hours.</p>\n<p>Phase 3 — Implementation</p>\n<p>Another fresh context window. Contains only: the plan.</p>\n<p>Agent follows it step by step.</p>\n<p>For complex tasks: a progress.md tracks what&#x27;s been completed and what remains. (Write)</p>",
+            "zhHtml": "<p>新的上下文窗口。只包含：研究文档 + 问题定义。</p>\n<p>Agent 产出详细实现计划。</p>\n<p>这是最重要的人工审查检查点。</p>\n<p>在这里捕捉逻辑错误，修复起来又容易又免费。晚些时候再修就要花好几个小时。</p>\n<p>阶段 3：实现</p>\n<p>另一个全新的上下文窗口。只包含计划。</p>\n<p>Agent 按步骤执行计划。</p>\n<p>对于复杂任务：用 progress.md 跟踪已完成内容和剩余工作。（写入）</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The result: a clean, focused agent at every phase. No contamination. No context rot. No \"sloppy step 20.\"",
+            "zh": "结果是：每个阶段都有一个干净、聚焦的 Agent。没有污染。没有上下文腐化。没有“第 20 步变马虎”。",
+            "html": "<p>The result: a clean, focused agent at every phase. No contamination. No context rot. No &quot;sloppy step 20.&quot;</p>",
+            "zhHtml": "<p>结果是：每个阶段都有一个干净、聚焦的 Agent。没有污染。没有上下文腐化。没有“第 20 步变马虎”。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-10",
+        "group": "How the best platforms handle this differently · 最好的平台如何以不同方式处理它",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Hybrid retrieval. CLAUDE.md loads up front. Tools like glob and grep handle just-in-time codebase navigation.\n\nAuto-compaction at 95% — preserves architectural decisions and the 5 most recently accessed files.\n\nCan spawn sub-agents for complex subtasks, each with their own clean context.\n\nPhilosophy: \"do the simplest thing that works.\" Let the model be smart about what it needs and give it tools to go find it.\n\nKV-cache-aware context ordering: stable prefix, dynamic suffix. Tool masking not removal.",
+            "zh": "混合检索。CLAUDE.md 预先加载。glob 和 grep 等工具负责即时浏览代码库。\n\n95% 时自动压缩，保留架构决策和最近访问的 5 个文件。\n\n可以为复杂子任务生成子 Agent，每个子 Agent 都有自己的干净上下文。\n\n理念是：“做能工作的最简单事情。”让模型自己判断需要什么，并给它工具去查找。\n\nKV-cache 感知的上下文排序：稳定前缀、动态后缀。遮蔽工具而不是移除工具。",
+            "html": "<p>Hybrid retrieval. CLAUDE.md loads up front. Tools like glob and grep handle just-in-time codebase navigation.</p>\n<p>Auto-compaction at 95% — preserves architectural decisions and the 5 most recently accessed files.</p>\n<p>Can spawn sub-agents for complex subtasks, each with their own clean context.</p>\n<p>Philosophy: &quot;do the simplest thing that works.&quot; Let the model be smart about what it needs and give it tools to go find it.</p>\n<p>KV-cache-aware context ordering: stable prefix, dynamic suffix. Tool masking not removal.</p>",
+            "zhHtml": "<p>混合检索。CLAUDE.md 预先加载。glob 和 grep 等工具负责即时浏览代码库。</p>\n<p>95% 时自动压缩，保留架构决策和最近访问的 5 个文件。</p>\n<p>可以为复杂子任务生成子 Agent，每个子 Agent 都有自己的干净上下文。</p>\n<p>理念是：“做能工作的最简单事情。”让模型自己判断需要什么，并给它工具去查找。</p>\n<p>KV-cache 感知的上下文排序：稳定前缀、动态后缀。遮蔽工具而不是移除工具。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Observation compression pipeline — every tool output is processed before entering the agent's context.\n\nPersistent todo list for state tracking.\n\nFile system as overflow memory for evicted context.\n\nBuilt for scale. Serving hundreds of thousands of users where efficiency is a cost-of-business problem.\n\nVisual-first approach. The agent interacts with a GUI browser.\n\nScreenshots added to context as visual snapshots. Model reasons over what it sees.",
+            "zh": "观察压缩管道：每个工具输出在进入 Agent 上下文前都会被处理。\n\n用于状态跟踪的持久待办列表。\n\n文件系统作为被逐出上下文的溢出记忆。\n\n为规模化而构建。服务数十万用户，在这种场景下效率是业务成本问题。\n\n视觉优先方法。Agent 与 GUI 浏览器交互。\n\n截图作为视觉快照加入上下文。模型根据所见内容进行推理。",
+            "html": "<p>Observation compression pipeline — every tool output is processed before entering the agent&#x27;s context.</p>\n<p>Persistent todo list for state tracking.</p>\n<p>File system as overflow memory for evicted context.</p>\n<p>Built for scale. Serving hundreds of thousands of users where efficiency is a cost-of-business problem.</p>\n<p>Visual-first approach. The agent interacts with a GUI browser.</p>\n<p>Screenshots added to context as visual snapshots. Model reasons over what it sees.</p>",
+            "zhHtml": "<p>观察压缩管道：每个工具输出在进入 Agent 上下文前都会被处理。</p>\n<p>用于状态跟踪的持久待办列表。</p>\n<p>文件系统作为被逐出上下文的溢出记忆。</p>\n<p>为规模化而构建。服务数十万用户，在这种场景下效率是业务成本问题。</p>\n<p>视觉优先方法。Agent 与 GUI 浏览器交互。</p>\n<p>截图作为视觉快照加入上下文。模型根据所见内容进行推理。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Visual tokens are expensive so the agent is selective about screenshot count.\n\nUses RL to learn optimal tool-use strategies across thousands of virtual machines rather than explicitly programming them.\n\nThe most principled architectural approach.\n\nThree design principles:\n\nSeparate storage from presentation — durable state is not the same as what appears in each API call\n\nExplicit transformations — named, ordered processors that transform context in testable, composable steps",
+            "zh": "视觉 token 很贵，所以 Agent 会选择性控制截图数量。\n\n使用强化学习，在数千台虚拟机中学习最优工具使用策略，而不是显式编程这些策略。\n\n最有原则的架构方法。\n\n三条设计原则：\n\n把存储和呈现分离：持久状态并不等同于每次 API 调用中出现的内容\n\n显式转换：用具名、有序的处理器以可测试、可组合的方式转换上下文",
+            "html": "<p>Visual tokens are expensive so the agent is selective about screenshot count.</p>\n<p>Uses RL to learn optimal tool-use strategies across thousands of virtual machines rather than explicitly programming them.</p>\n<p>The most principled architectural approach.</p>\n<p>Three design principles:</p>\n<p>Separate storage from presentation — durable state is not the same as what appears in each API call</p>\n<p>Explicit transformations — named, ordered processors that transform context in testable, composable steps</p>",
+            "zhHtml": "<p>视觉 token 很贵，所以 Agent 会选择性控制截图数量。</p>\n<p>使用强化学习，在数千台虚拟机中学习最优工具使用策略，而不是显式编程这些策略。</p>\n<p>最有原则的架构方法。</p>\n<p>三条设计原则：</p>\n<p>把存储和呈现分离：持久状态并不等同于每次 API 调用中出现的内容</p>\n<p>显式转换：用具名、有序的处理器以可测试、可组合的方式转换上下文</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Scope context by default — every model call sees only the minimum required information\n\nEngineering discipline over prompt crafting.",
+            "zh": "默认限定上下文范围：每次模型调用只看到所需的最少信息\n\n工程纪律胜过提示词技巧。",
+            "html": "<p>Scope context by default — every model call sees only the minimum required information</p>\n<p>Engineering discipline over prompt crafting.</p>",
+            "zhHtml": "<p>默认限定上下文范围：每次模型调用只看到所需的最少信息</p>\n<p>工程纪律胜过提示词技巧。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-11",
+        "group": "The universal agent turn pipeline · 通用 Agent 回合流水线",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Every serious platform converges on the same 5-step loop per agent turn:\n\n→ Collect — user input, conversation history, tool results, retrieved docs, agent state\n\n→ Select — what's relevant for this step within the remaining token budget\n\n→ Compress — summarize, truncate, or restructure to fit the context → Arrange — stable content first (cache), dynamic content last\n\n→ Assemble + call — final context → API call → get output → loop",
+            "zh": "每个严肃平台都会收敛到同一个 5 步 Agent 回合循环：\n\n→ 收集：用户输入、对话历史、工具结果、检索文档、Agent 状态\n\n→ 选择：在剩余 token 预算内，选择当前步骤相关的内容\n\n→ 压缩：摘要、截断或重构以适配上下文。→ 排列：稳定内容在前（缓存），动态内容在后\n\n→ 组装并调用：最终上下文 → API 调用 → 获取输出 → 循环",
+            "html": "<p>Every serious platform converges on the same 5-step loop per agent turn:</p>\n<p>→ Collect — user input, conversation history, tool results, retrieved docs, agent state</p>\n<p>→ Select — what&#x27;s relevant for this step within the remaining token budget</p>\n<p>→ Compress — summarize, truncate, or restructure to fit the context → Arrange — stable content first (cache), dynamic content last</p>\n<p>→ Assemble + call — final context → API call → get output → loop</p>",
+            "zhHtml": "<p>每个严肃平台都会收敛到同一个 5 步 Agent 回合循环：</p>\n<p>→ 收集：用户输入、对话历史、工具结果、检索文档、Agent 状态</p>\n<p>→ 选择：在剩余 token 预算内，选择当前步骤相关的内容</p>\n<p>→ 压缩：摘要、截断或重构以适配上下文。→ 排列：稳定内容在前（缓存），动态内容在后</p>\n<p>→ 组装并调用：最终上下文 → API 调用 → 获取输出 → 循环</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "This is the loop running inside every production agent you've ever used.\n\nUnderstanding it is what separates builders who ship reliable agents from builders who wonder why their agent goes sloppy at step 15.",
+            "zh": "这就是你用过的每一个生产级 Agent 内部运行的循环。\n\n理解它，区分了能交付可靠 Agent 的构建者和那些困惑于为什么 Agent 到第 15 步就变马虎的构建者。",
+            "html": "<p>This is the loop running inside every production agent you&#x27;ve ever used.</p>\n<p>Understanding it is what separates builders who ship reliable agents from builders who wonder why their agent goes sloppy at step 15.</p>",
+            "zhHtml": "<p>这就是你用过的每一个生产级 Agent 内部运行的循环。</p>\n<p>理解它，区分了能交付可靠 Agent 的构建者和那些困惑于为什么 Agent 到第 15 步就变马虎的构建者。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-12",
+        "group": "The summary · 总结",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Context rot is real and starts well before your context limit.\n\nThe 4 strategies that fix it:\n\n→ Write — persist info outside context so agents don't forget\n\n→ Select — pull in only what's needed for this step\n\n→ Compress — cut tokens, keep meaning, proactively not reactively\n\n→ Isolate — separate contexts for separate jobs, no contamination\n\nThe 4 failure modes to watch for:\n\n→ Poisoning — bad data compounds through every step\n\n→ Distraction — long history makes agents rehash instead of think",
+            "zh": "上下文腐化是真实存在的，并且在达到上下文限制之前很早就开始了。\n\n解决它的 4 种策略：\n\n→ 写入：把信息持久化到上下文之外，让 Agent 不会忘记\n\n→ 选择：只拉取当前步骤所需的内容\n\n→ 压缩：减少 token，保留含义；主动进行，而不是被动补救\n\n→ 隔离：为不同工作分离上下文，避免污染\n\n需要警惕的 4 种失败模式：\n\n→ 投毒：坏数据会复合影响每一步\n\n→ 分心：过长历史让 Agent 复述，而不是思考",
+            "html": "<p>Context rot is real and starts well before your context limit.</p>\n<p>The 4 strategies that fix it:</p>\n<p>→ Write — persist info outside context so agents don&#x27;t forget</p>\n<p>→ Select — pull in only what&#x27;s needed for this step</p>\n<p>→ Compress — cut tokens, keep meaning, proactively not reactively</p>\n<p>→ Isolate — separate contexts for separate jobs, no contamination</p>\n<p>The 4 failure modes to watch for:</p>\n<p>→ Poisoning — bad data compounds through every step</p>\n<p>→ Distraction — long history makes agents rehash instead of think</p>",
+            "zhHtml": "<p>上下文腐化是真实存在的，并且在达到上下文限制之前很早就开始了。</p>\n<p>解决它的 4 种策略：</p>\n<p>→ 写入：把信息持久化到上下文之外，让 Agent 不会忘记</p>\n<p>→ 选择：只拉取当前步骤所需的内容</p>\n<p>→ 压缩：减少 token，保留含义；主动进行，而不是被动补救</p>\n<p>→ 隔离：为不同工作分离上下文，避免污染</p>\n<p>需要警惕的 4 种失败模式：</p>\n<p>→ 投毒：坏数据会复合影响每一步</p>\n<p>→ 分心：过长历史让 Agent 复述，而不是思考</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "→ Confusion — too many tools degrades decision quality\n\n→ Clash — contradictions produce inconsistent behavior\n\nThe KV-cache is worth 10x cost savings. Put stable content first.\n\nThe best workflow: research → compact → plan → compact → implement. Fresh context at every phase.\n\nContext engineering is not optional for serious agent work.\n\nIt is the work.",
+            "zh": "→ 混淆：工具太多会降低决策质量\n\n→ 冲突：矛盾会产生不一致行为\n\nKV-cache 带来 10 倍成本节省，稳定内容要放在前面。\n\n最佳工作流：研究 → 压缩 → 计划 → 压缩 → 实现。每个阶段都使用新上下文。\n\n对于严肃的 Agent 工作，上下文工程不是可选项。\n\n它就是工作的核心。",
+            "html": "<p>→ Confusion — too many tools degrades decision quality</p>\n<p>→ Clash — contradictions produce inconsistent behavior</p>\n<p>The KV-cache is worth 10x cost savings. Put stable content first.</p>\n<p>The best workflow: research → compact → plan → compact → implement. Fresh context at every phase.</p>\n<p>Context engineering is not optional for serious agent work.</p>\n<p>It is the work.</p>",
+            "zhHtml": "<p>→ 混淆：工具太多会降低决策质量</p>\n<p>→ 冲突：矛盾会产生不一致行为</p>\n<p>KV-cache 带来 10 倍成本节省，稳定内容要放在前面。</p>\n<p>最佳工作流：研究 → 压缩 → 计划 → 压缩 → 实现。每个阶段都使用新上下文。</p>\n<p>对于严肃的 Agent 工作，上下文工程不是可选项。</p>\n<p>它就是工作的核心。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-13",
+        "group": "Source visuals · 来源图片",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_5vX3aMAAe1EZ.jpg",
+            "alt": "Source visual 1",
+            "caption": "来源图片 13，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2DlwaIAAThKM.jpg",
+            "alt": "Source visual 2",
+            "caption": "来源图片 14，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2TJ4aAAAArFR.jpg",
+            "alt": "Source visual 3",
+            "caption": "来源图片 15，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_1phNboAAYxSV.jpg",
+            "alt": "Source visual 4",
+            "caption": "来源图片 16，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3H6uaAAAcMy6.jpg",
+            "alt": "Source visual 5",
+            "caption": "来源图片 17，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_14BJb0AAberS.jpg",
+            "alt": "Source visual 6",
+            "caption": "来源图片 18，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_34ubbAAAdW1c.jpg",
+            "alt": "Source visual 7",
+            "caption": "来源图片 19，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3-45aQAA8EJ7.jpg",
+            "alt": "Source visual 8",
+            "caption": "来源图片 20，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_1uE9aQAAQLO1.jpg",
+            "alt": "Source visual 9",
+            "caption": "来源图片 21，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3K1zasAAHvjO.jpg",
+            "alt": "Source visual 10",
+            "caption": "来源图片 22，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_2ljeaIAEcU85.jpg",
+            "alt": "Source visual 11",
+            "caption": "来源图片 23，来自 X 原文。"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HK_3djBacAAVxWq.jpg",
+            "alt": "Source visual 12",
+            "caption": "来源图片 24，来自 X 原文。"
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "entries": [
+      {
+        "word": "agentic RAG",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "由 Agent 自主决定检索内容和时机的 RAG 方式。",
+        "collocationExample": "Agentic RAG: the agent decides.",
+        "exampleZh": "例句说明：该词在原文中用于表达“由 Agent 自主决定检索内容和时机的 RAG 方式”。"
+      },
+      {
+        "word": "Claude Code",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "Anthropic 的命令行编程 Agent 工具。",
+        "collocationExample": "Claude Code users have found output quality degrades at 40–60% of context capacity.",
+        "exampleZh": "例句说明：该词在原文中用于表达“Anthropic 的命令行编程 Agent 工具”。"
+      },
+      {
+        "word": "context engineering",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "上下文工程；设计、筛选和组织模型上下文的实践。",
+        "collocationExample": "Organizing what the model sees is called context engineering.",
+        "exampleZh": "例句说明：该词在原文中用于表达“上下文工程；设计、筛选和组织模型上下文的实践”。"
+      },
+      {
+        "word": "context rot",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "上下文腐化；长上下文中无关或过期信息降低模型表现的现象。",
+        "collocationExample": "This is called context rot.",
+        "exampleZh": "例句说明：该词在原文中用于表达“上下文腐化；长上下文中无关或过期信息降低模型表现的现象”。"
+      },
+      {
+        "word": "context window",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "上下文窗口；模型一次可处理的上下文长度范围。",
+        "collocationExample": "The context window is RAM — the working memory where everything the model can currently see and reason about lives.",
+        "exampleZh": "例句说明：该词在原文中用于表达“上下文窗口；模型一次可处理的上下文长度范围”。"
+      },
+      {
+        "word": "output quality",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "输出质量；模型或系统生成结果的有用性、准确性和稳定性。",
+        "collocationExample": "Claude Code users have found output quality degrades at 40–60% of context capacity.",
+        "exampleZh": "例句说明：该词在原文中用于表达“输出质量；模型或系统生成结果的有用性、准确性和稳定性”。"
+      },
+      {
+        "word": "tool call",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "工具调用；模型请求外部工具执行动作或获取信息。",
+        "collocationExample": "Tool Call Results Every tool call adds its output to context.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工具调用；模型请求外部工具执行动作或获取信息”。"
+      },
+      {
+        "word": "compaction",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "压缩；把上下文或历史信息压缩成更短表示。",
+        "collocationExample": "→ Claude Code auto-compaction: triggers at 95% capacity, automatically summarizes full trajectory After the agent has acted on something: → Tool result clearin",
+        "exampleZh": "例句说明：该词在原文中用于表达“压缩；把上下文或历史信息压缩成更短表示”。"
+      },
+      {
+        "word": "guardrail",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "护栏；限制、检测或拦截不安全行为的机制。",
+        "collocationExample": "It specifies control flow — how to approach task types, which tools to use when, what to do on errors, what guardrails to follow.",
+        "exampleZh": "例句说明：该词在原文中用于表达“护栏；限制、检测或拦截不安全行为的机制”。"
+      },
+      {
+        "word": "guardrails",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "护栏集合；用于安全、合规和质量控制的约束机制。",
+        "collocationExample": "It specifies control flow — how to approach task types, which tools to use when, what to do on errors, what guardrails to follow.",
+        "exampleZh": "例句说明：该词在原文中用于表达“护栏集合；用于安全、合规和质量控制的约束机制”。"
+      },
+      {
+        "word": "LLM",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "大语言模型，用于推理、生成文本和驱动 Agent 行为。",
+        "collocationExample": "Anthropic's engineering team defines it like this: \"Context is the set of tokens included when you sample from an LLM.",
+        "exampleZh": "例句说明：该词在原文中用于表达“大语言模型，用于推理、生成文本和驱动 Agent 行为”。"
+      },
+      {
+        "word": "prompt",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "提示词；提供给模型的指令、上下文或约束。",
+        "collocationExample": "You've heard of prompt engineering.",
+        "exampleZh": "例句说明：该词在原文中用于表达“提示词；提供给模型的指令、上下文或约束”。"
+      },
+      {
+        "word": "RAG",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "检索增强生成；先检索资料再让模型生成回答的方法。",
+        "collocationExample": "Retrieved Knowledge (RAG) Documents pulled from vector databases, search results, API responses — anything retrieved to inform the agent's decisions.",
+        "exampleZh": "例句说明：该词在原文中用于表达“检索增强生成；先检索资料再让模型生成回答的方法”。"
+      },
+      {
+        "word": "scratchpad",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "草稿区；用于暂存推理或中间结果的空间。",
+        "collocationExample": "Agent State Current plan, todo list, progress markers, scratchpad notes.",
+        "exampleZh": "例句说明：该词在原文中用于表达“草稿区；用于暂存推理或中间结果的空间”。"
+      },
+      {
+        "word": "token",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "词元；模型处理文本时使用的基本单位。",
+        "collocationExample": "Anthropic's engineering team defines it like this: \"Context is the set of tokens included when you sample from an LLM.",
+        "exampleZh": "例句说明：该词在原文中用于表达“词元；模型处理文本时使用的基本单位”。"
+      },
+      {
+        "word": "tokens",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "词元集合；模型上下文长度和成本常用单位。",
+        "collocationExample": "Anthropic's engineering team defines it like this: \"Context is the set of tokens included when you sample from an LLM.",
+        "exampleZh": "例句说明：该词在原文中用于表达“词元集合；模型上下文长度和成本常用单位”。"
+      },
+      {
+        "word": "compress",
+        "ipa": "/kəmˈpres/",
+        "level": "C1",
+        "pos": "v.",
+        "definitionZh": "压缩；减少信息长度或体积。",
+        "collocationExample": "You can compress at 3 points.",
+        "exampleZh": "例句说明：该词在原文中用于表达“压缩；减少信息长度或体积”。"
+      },
+      {
+        "word": "compression",
+        "ipa": "/kəmˈpreʃən/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "压缩；减少上下文或数据体量的过程。",
+        "collocationExample": "Observation compression pipeline — every tool output is processed before entering the agent's context.",
+        "exampleZh": "例句说明：该词在原文中用于表达“压缩；减少上下文或数据体量的过程”。"
+      },
+      {
+        "word": "irrelevant",
+        "ipa": "/ɪˈreləvənt/",
+        "level": "C1",
+        "pos": "adj.",
+        "definitionZh": "不相关的；与目标或上下文无关的。",
+        "collocationExample": "→ Use tool masking instead of tool removal — keep all tool definitions stable in the prefix (cached), just mark irrelevant ones as unavailable for the current phase",
+        "exampleZh": "例句说明：该词在原文中用于表达“不相关的；与目标或上下文无关的”。"
+      },
+      {
+        "word": "isolate",
+        "ipa": "/ˈaɪsəleɪt/",
+        "level": "C1",
+        "pos": "v.",
+        "definitionZh": "隔离；把信息或执行环境分开。",
+        "collocationExample": "All the messy search operations stay isolated in the sub-agent's context and never pollute the parent.",
+        "exampleZh": "例句说明：该词在原文中用于表达“隔离；把信息或执行环境分开”。"
+      },
+      {
+        "word": "isolation",
+        "ipa": "/ˌaɪsəˈleɪʃən/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "隔离；把任务、状态或上下文分开以减少干扰。",
+        "collocationExample": "Isolation means giving different parts of the work their own separate context windows.",
+        "exampleZh": "例句说明：该词在原文中用于表达“隔离；把任务、状态或上下文分开以减少干扰”。"
+      },
+      {
+        "word": "definitions",
+        "ipa": "/ˌdefɪˈnɪʃənz/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "定义；对术语或概念的解释。",
+        "collocationExample": "Tool Definitions Every tool the agent could call needs a schema describing what it does, what parameters it takes, and when to use it.",
+        "exampleZh": "例句说明：该词在原文中用于表达“定义；对术语或概念的解释”。"
+      },
+      {
+        "word": "failure",
+        "ipa": "/ˈfeɪljər/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "失败；系统未达到预期结果的情况。",
+        "collocationExample": "Drew Breunig identified four distinct failure modes as agent context grows.",
+        "exampleZh": "例句说明：该词在原文中用于表达“失败；系统未达到预期结果的情况”。"
+      },
+      {
+        "word": "memory",
+        "ipa": "/ˈmeməri/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "记忆；系统保存和复用历史信息的能力。",
+        "collocationExample": "The context window is RAM — the working memory where everything the model can currently see and reason about lives.",
+        "exampleZh": "例句说明：该词在原文中用于表达“记忆；系统保存和复用历史信息的能力”。"
+      },
+      {
+        "word": "preferences",
+        "ipa": "/ˈprefərənsɪz/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "偏好；用户或系统倾向选择的方式。",
+        "collocationExample": "Long-term memory from previous sessions — user preferences, prior outcomes, learned patterns.",
+        "exampleZh": "例句说明：该词在原文中用于表达“偏好；用户或系统倾向选择的方式”。"
+      },
+      {
+        "word": "relevant",
+        "ipa": "/ˈreləvənt/",
+        "level": "B2",
+        "pos": "adj.",
+        "definitionZh": "相关的；与当前问题或目标有关的。",
+        "collocationExample": "→ Beginning of context: remembered well → End of context: remembered well → Middle: largely ignored Researchers measured a 30+ percentage point accuracy drop when relevant information moved from the beginning of context to the middle.",
+        "exampleZh": "例句说明：该词在原文中用于表达“相关的；与当前问题或目标有关的”。"
+      },
+      {
+        "word": "reliable",
+        "ipa": "/rɪˈlaɪəbl/",
+        "level": "B2",
+        "pos": "adj.",
+        "definitionZh": "可靠的；结果稳定且可依赖的。",
+        "collocationExample": "Isolation is what makes complex multi-step workflows actually reliable.",
+        "exampleZh": "例句说明：该词在原文中用于表达“可靠的；结果稳定且可依赖的”。"
+      },
+      {
+        "word": "retrieval",
+        "ipa": "/rɪˈtriːvəl/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "检索；从外部来源取回相关信息。",
+        "collocationExample": "A web page retrieval: 5,000–10,000 tokens.",
+        "exampleZh": "例句说明：该词在原文中用于表达“检索；从外部来源取回相关信息”。"
+      },
+      {
+        "word": "retrieved",
+        "ipa": "/rɪˈtriːvd/",
+        "level": "B2",
+        "pos": "adj.",
+        "definitionZh": "被检索出的；从外部来源取回的。",
+        "collocationExample": "Retrieved Knowledge (RAG) Documents pulled from vector databases, search results, API responses — anything retrieved to inform the agent's decisions.",
+        "exampleZh": "例句说明：该词在原文中用于表达“被检索出的；从外部来源取回的”。"
+      },
+      {
+        "word": "summarize",
+        "ipa": "/ˈsʌməraɪz/",
+        "level": "B2",
+        "pos": "v.",
+        "definitionZh": "总结；提炼主要信息。",
+        "collocationExample": "nk large documents into coherent pieces before retrieval → Rerank so only the most useful chunks make it in → Summarize tool outputs on the fly before they enter the main context While the agent is working: → Rolling summary of conversation history",
+        "exampleZh": "例句说明：该词在原文中用于表达“总结；提炼主要信息”。"
+      },
+      {
+        "word": "workflow",
+        "ipa": "/ˈwɜːrkfloʊ/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "工作流；按步骤组织的任务执行过程。",
+        "collocationExample": "Isolation is what makes complex multi-step workflows actually reliable.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工作流；按步骤组织的任务执行过程”。"
+      },
+      {
+        "word": "workflows",
+        "ipa": "/ˈwɜːrkfloʊz/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "多个工作流；由步骤和决策组成的任务执行过程。",
+        "collocationExample": "Isolation is what makes complex multi-step workflows actually reliable.",
+        "exampleZh": "例句说明：该词在原文中用于表达“多个工作流；由步骤和决策组成的任务执行过程”。"
+      },
+      {
+        "word": "conversation",
+        "ipa": "/ˌkɑːnvərˈseɪʃən/",
+        "level": "B1",
+        "pos": "n.",
+        "definitionZh": "对话；用户与系统之间的交流历史。",
+        "collocationExample": "Conversation History The full transcript of everything that's happened.",
+        "exampleZh": "例句说明：该词在原文中用于表达“对话；用户与系统之间的交流历史”。"
+      },
+      {
+        "word": "source",
+        "ipa": "/sɔːrs/",
+        "level": "B1",
+        "pos": "n.",
+        "definitionZh": "来源；信息、数据或内容的出处。",
+        "collocationExample": "Use XML tags and clear headers so the model knows which source to trust.",
+        "exampleZh": "例句说明：该词在原文中用于表达“来源；信息、数据或内容的出处”。"
+      },
+      {
+        "word": "summary",
+        "ipa": "/ˈsʌməri/",
+        "level": "B1",
+        "pos": "n.",
+        "definitionZh": "总结；对关键信息的简明概括。",
+        "collocationExample": "→ Summarize tool outputs on the fly before they enter the main context While the agent is working: → Rolling summary of conversation history — continuously updated → Popular hybrid: keep last 10 messages verbatim + summarize everything older → Ha",
+        "exampleZh": "例句说明：该词在原文中用于表达“总结；对关键信息的简明概括”。"
+      }
+    ],
+    "dict": {
+      "agentic_rag": {
+        "w": "agentic RAG",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "由 Agent 自主决定检索内容和时机的 RAG 方式。",
+        "eg": "Agentic RAG: the agent decides.",
+        "egzh": "例句说明：该词在原文中用于表达“由 Agent 自主决定检索内容和时机的 RAG 方式”。"
+      },
+      "claude_code": {
+        "w": "Claude Code",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "Anthropic 的命令行编程 Agent 工具。",
+        "eg": "Claude Code users have found output quality degrades at 40–60% of context capacity.",
+        "egzh": "例句说明：该词在原文中用于表达“Anthropic 的命令行编程 Agent 工具”。"
+      },
+      "context_engineering": {
+        "w": "context engineering",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "上下文工程；设计、筛选和组织模型上下文的实践。",
+        "eg": "Organizing what the model sees is called context engineering.",
+        "egzh": "例句说明：该词在原文中用于表达“上下文工程；设计、筛选和组织模型上下文的实践”。"
+      },
+      "context_rot": {
+        "w": "context rot",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "上下文腐化；长上下文中无关或过期信息降低模型表现的现象。",
+        "eg": "This is called context rot.",
+        "egzh": "例句说明：该词在原文中用于表达“上下文腐化；长上下文中无关或过期信息降低模型表现的现象”。"
+      },
+      "context_window": {
+        "w": "context window",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "上下文窗口；模型一次可处理的上下文长度范围。",
+        "eg": "The context window is RAM — the working memory where everything the model can currently see and reason about lives.",
+        "egzh": "例句说明：该词在原文中用于表达“上下文窗口；模型一次可处理的上下文长度范围”。"
+      },
+      "output_quality": {
+        "w": "output quality",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "输出质量；模型或系统生成结果的有用性、准确性和稳定性。",
+        "eg": "Claude Code users have found output quality degrades at 40–60% of context capacity.",
+        "egzh": "例句说明：该词在原文中用于表达“输出质量；模型或系统生成结果的有用性、准确性和稳定性”。"
+      },
+      "tool_call": {
+        "w": "tool call",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "工具调用；模型请求外部工具执行动作或获取信息。",
+        "eg": "Tool Call Results Every tool call adds its output to context.",
+        "egzh": "例句说明：该词在原文中用于表达“工具调用；模型请求外部工具执行动作或获取信息”。"
+      },
+      "compaction": {
+        "w": "compaction",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "压缩；把上下文或历史信息压缩成更短表示。",
+        "eg": "→ Claude Code auto-compaction: triggers at 95% capacity, automatically summarizes full trajectory After the agent has acted on something: → Tool result clearin",
+        "egzh": "例句说明：该词在原文中用于表达“压缩；把上下文或历史信息压缩成更短表示”。"
+      },
+      "guardrail": {
+        "w": "guardrail",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "护栏；限制、检测或拦截不安全行为的机制。",
+        "eg": "It specifies control flow — how to approach task types, which tools to use when, what to do on errors, what guardrails to follow.",
+        "egzh": "例句说明：该词在原文中用于表达“护栏；限制、检测或拦截不安全行为的机制”。"
+      },
+      "guardrails": {
+        "w": "guardrails",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "护栏集合；用于安全、合规和质量控制的约束机制。",
+        "eg": "It specifies control flow — how to approach task types, which tools to use when, what to do on errors, what guardrails to follow.",
+        "egzh": "例句说明：该词在原文中用于表达“护栏集合；用于安全、合规和质量控制的约束机制”。"
+      },
+      "llm": {
+        "w": "LLM",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "大语言模型，用于推理、生成文本和驱动 Agent 行为。",
+        "eg": "Anthropic's engineering team defines it like this: \"Context is the set of tokens included when you sample from an LLM.",
+        "egzh": "例句说明：该词在原文中用于表达“大语言模型，用于推理、生成文本和驱动 Agent 行为”。"
+      },
+      "prompt": {
+        "w": "prompt",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "提示词；提供给模型的指令、上下文或约束。",
+        "eg": "You've heard of prompt engineering.",
+        "egzh": "例句说明：该词在原文中用于表达“提示词；提供给模型的指令、上下文或约束”。"
+      },
+      "rag": {
+        "w": "RAG",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "检索增强生成；先检索资料再让模型生成回答的方法。",
+        "eg": "Retrieved Knowledge (RAG) Documents pulled from vector databases, search results, API responses — anything retrieved to inform the agent's decisions.",
+        "egzh": "例句说明：该词在原文中用于表达“检索增强生成；先检索资料再让模型生成回答的方法”。"
+      },
+      "scratchpad": {
+        "w": "scratchpad",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "草稿区；用于暂存推理或中间结果的空间。",
+        "eg": "Agent State Current plan, todo list, progress markers, scratchpad notes.",
+        "egzh": "例句说明：该词在原文中用于表达“草稿区；用于暂存推理或中间结果的空间”。"
+      },
+      "token": {
+        "w": "token",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "词元；模型处理文本时使用的基本单位。",
+        "eg": "Anthropic's engineering team defines it like this: \"Context is the set of tokens included when you sample from an LLM.",
+        "egzh": "例句说明：该词在原文中用于表达“词元；模型处理文本时使用的基本单位”。"
+      },
+      "tokens": {
+        "w": "tokens",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "词元集合；模型上下文长度和成本常用单位。",
+        "eg": "Anthropic's engineering team defines it like this: \"Context is the set of tokens included when you sample from an LLM.",
+        "egzh": "例句说明：该词在原文中用于表达“词元集合；模型上下文长度和成本常用单位”。"
+      },
+      "compress": {
+        "w": "compress",
+        "ipa": "/kəmˈpres/",
+        "pos": "v",
+        "level": "C1",
+        "def": "压缩；减少信息长度或体积。",
+        "eg": "You can compress at 3 points.",
+        "egzh": "例句说明：该词在原文中用于表达“压缩；减少信息长度或体积”。"
+      },
+      "compression": {
+        "w": "compression",
+        "ipa": "/kəmˈpreʃən/",
+        "pos": "n",
+        "level": "C1",
+        "def": "压缩；减少上下文或数据体量的过程。",
+        "eg": "Observation compression pipeline — every tool output is processed before entering the agent's context.",
+        "egzh": "例句说明：该词在原文中用于表达“压缩；减少上下文或数据体量的过程”。"
+      },
+      "irrelevant": {
+        "w": "irrelevant",
+        "ipa": "/ɪˈreləvənt/",
+        "pos": "adj",
+        "level": "C1",
+        "def": "不相关的；与目标或上下文无关的。",
+        "eg": "→ Use tool masking instead of tool removal — keep all tool definitions stable in the prefix (cached), just mark irrelevant ones as unavailable for the current phase",
+        "egzh": "例句说明：该词在原文中用于表达“不相关的；与目标或上下文无关的”。"
+      },
+      "isolate": {
+        "w": "isolate",
+        "ipa": "/ˈaɪsəleɪt/",
+        "pos": "v",
+        "level": "C1",
+        "def": "隔离；把信息或执行环境分开。",
+        "eg": "All the messy search operations stay isolated in the sub-agent's context and never pollute the parent.",
+        "egzh": "例句说明：该词在原文中用于表达“隔离；把信息或执行环境分开”。"
+      },
+      "isolation": {
+        "w": "isolation",
+        "ipa": "/ˌaɪsəˈleɪʃən/",
+        "pos": "n",
+        "level": "C1",
+        "def": "隔离；把任务、状态或上下文分开以减少干扰。",
+        "eg": "Isolation means giving different parts of the work their own separate context windows.",
+        "egzh": "例句说明：该词在原文中用于表达“隔离；把任务、状态或上下文分开以减少干扰”。"
+      },
+      "definitions": {
+        "w": "definitions",
+        "ipa": "/ˌdefɪˈnɪʃənz/",
+        "pos": "n",
+        "level": "B2",
+        "def": "定义；对术语或概念的解释。",
+        "eg": "Tool Definitions Every tool the agent could call needs a schema describing what it does, what parameters it takes, and when to use it.",
+        "egzh": "例句说明：该词在原文中用于表达“定义；对术语或概念的解释”。"
+      },
+      "failure": {
+        "w": "failure",
+        "ipa": "/ˈfeɪljər/",
+        "pos": "n",
+        "level": "B2",
+        "def": "失败；系统未达到预期结果的情况。",
+        "eg": "Drew Breunig identified four distinct failure modes as agent context grows.",
+        "egzh": "例句说明：该词在原文中用于表达“失败；系统未达到预期结果的情况”。"
+      },
+      "memory": {
+        "w": "memory",
+        "ipa": "/ˈmeməri/",
+        "pos": "n",
+        "level": "B2",
+        "def": "记忆；系统保存和复用历史信息的能力。",
+        "eg": "The context window is RAM — the working memory where everything the model can currently see and reason about lives.",
+        "egzh": "例句说明：该词在原文中用于表达“记忆；系统保存和复用历史信息的能力”。"
+      },
+      "preferences": {
+        "w": "preferences",
+        "ipa": "/ˈprefərənsɪz/",
+        "pos": "n",
+        "level": "B2",
+        "def": "偏好；用户或系统倾向选择的方式。",
+        "eg": "Long-term memory from previous sessions — user preferences, prior outcomes, learned patterns.",
+        "egzh": "例句说明：该词在原文中用于表达“偏好；用户或系统倾向选择的方式”。"
+      },
+      "relevant": {
+        "w": "relevant",
+        "ipa": "/ˈreləvənt/",
+        "pos": "adj",
+        "level": "B2",
+        "def": "相关的；与当前问题或目标有关的。",
+        "eg": "→ Beginning of context: remembered well → End of context: remembered well → Middle: largely ignored Researchers measured a 30+ percentage point accuracy drop when relevant information moved from the beginning of context to the middle.",
+        "egzh": "例句说明：该词在原文中用于表达“相关的；与当前问题或目标有关的”。"
+      },
+      "reliable": {
+        "w": "reliable",
+        "ipa": "/rɪˈlaɪəbl/",
+        "pos": "adj",
+        "level": "B2",
+        "def": "可靠的；结果稳定且可依赖的。",
+        "eg": "Isolation is what makes complex multi-step workflows actually reliable.",
+        "egzh": "例句说明：该词在原文中用于表达“可靠的；结果稳定且可依赖的”。"
+      },
+      "retrieval": {
+        "w": "retrieval",
+        "ipa": "/rɪˈtriːvəl/",
+        "pos": "n",
+        "level": "B2",
+        "def": "检索；从外部来源取回相关信息。",
+        "eg": "A web page retrieval: 5,000–10,000 tokens.",
+        "egzh": "例句说明：该词在原文中用于表达“检索；从外部来源取回相关信息”。"
+      },
+      "retrieved": {
+        "w": "retrieved",
+        "ipa": "/rɪˈtriːvd/",
+        "pos": "adj",
+        "level": "B2",
+        "def": "被检索出的；从外部来源取回的。",
+        "eg": "Retrieved Knowledge (RAG) Documents pulled from vector databases, search results, API responses — anything retrieved to inform the agent's decisions.",
+        "egzh": "例句说明：该词在原文中用于表达“被检索出的；从外部来源取回的”。"
+      },
+      "summarize": {
+        "w": "summarize",
+        "ipa": "/ˈsʌməraɪz/",
+        "pos": "v",
+        "level": "B2",
+        "def": "总结；提炼主要信息。",
+        "eg": "nk large documents into coherent pieces before retrieval → Rerank so only the most useful chunks make it in → Summarize tool outputs on the fly before they enter the main context While the agent is working: → Rolling summary of conversation history",
+        "egzh": "例句说明：该词在原文中用于表达“总结；提炼主要信息”。"
+      },
+      "workflow": {
+        "w": "workflow",
+        "ipa": "/ˈwɜːrkfloʊ/",
+        "pos": "n",
+        "level": "B2",
+        "def": "工作流；按步骤组织的任务执行过程。",
+        "eg": "Isolation is what makes complex multi-step workflows actually reliable.",
+        "egzh": "例句说明：该词在原文中用于表达“工作流；按步骤组织的任务执行过程”。"
+      },
+      "workflows": {
+        "w": "workflows",
+        "ipa": "/ˈwɜːrkfloʊz/",
+        "pos": "n",
+        "level": "B2",
+        "def": "多个工作流；由步骤和决策组成的任务执行过程。",
+        "eg": "Isolation is what makes complex multi-step workflows actually reliable.",
+        "egzh": "例句说明：该词在原文中用于表达“多个工作流；由步骤和决策组成的任务执行过程”。"
+      },
+      "conversation": {
+        "w": "conversation",
+        "ipa": "/ˌkɑːnvərˈseɪʃən/",
+        "pos": "n",
+        "level": "B1",
+        "def": "对话；用户与系统之间的交流历史。",
+        "eg": "Conversation History The full transcript of everything that's happened.",
+        "egzh": "例句说明：该词在原文中用于表达“对话；用户与系统之间的交流历史”。"
+      },
+      "source": {
+        "w": "source",
+        "ipa": "/sɔːrs/",
+        "pos": "n",
+        "level": "B1",
+        "def": "来源；信息、数据或内容的出处。",
+        "eg": "Use XML tags and clear headers so the model knows which source to trust.",
+        "egzh": "例句说明：该词在原文中用于表达“来源；信息、数据或内容的出处”。"
+      },
+      "summary": {
+        "w": "summary",
+        "ipa": "/ˈsʌməri/",
+        "pos": "n",
+        "level": "B1",
+        "def": "总结；对关键信息的简明概括。",
+        "eg": "→ Summarize tool outputs on the fly before they enter the main context While the agent is working: → Rolling summary of conversation history — continuously updated → Popular hybrid: keep last 10 messages verbatim + summarize everything older → Ha",
+        "egzh": "例句说明：该词在原文中用于表达“总结；对关键信息的简明概括”。"
+      }
+    },
+    "autowrap": [
+      [
+        "\\bagentic\\ RAG\\b",
+        "i",
+        "agentic_rag"
+      ],
+      [
+        "\\bClaude\\ Code\\b",
+        "i",
+        "claude_code"
+      ],
+      [
+        "\\bcontext\\ engineering\\b",
+        "i",
+        "context_engineering"
+      ],
+      [
+        "\\bcontext\\ rot\\b",
+        "i",
+        "context_rot"
+      ],
+      [
+        "\\bcontext\\ window\\b",
+        "i",
+        "context_window"
+      ],
+      [
+        "\\boutput\\ quality\\b",
+        "i",
+        "output_quality"
+      ],
+      [
+        "\\btool\\ call\\b",
+        "i",
+        "tool_call"
+      ],
+      [
+        "\\b(?:compactions|compaction)\\b",
+        "i",
+        "compaction"
+      ],
+      [
+        "\\b(?:guardrails|guardrail)\\b",
+        "i",
+        "guardrail"
+      ],
+      [
+        "\\b(?:guardrailses|guardrails)\\b",
+        "i",
+        "guardrails"
+      ],
+      [
+        "\\b(?:LLMs|LLM)\\b",
+        "i",
+        "llm"
+      ],
+      [
+        "\\b(?:prompts|prompt)\\b",
+        "i",
+        "prompt"
+      ],
+      [
+        "\\b(?:RAGs|RAG)\\b",
+        "i",
+        "rag"
+      ],
+      [
+        "\\b(?:scratchpads|scratchpad)\\b",
+        "i",
+        "scratchpad"
+      ],
+      [
+        "\\b(?:tokens|token)\\b",
+        "i",
+        "token"
+      ],
+      [
+        "\\b(?:tokenses|tokens)\\b",
+        "i",
+        "tokens"
+      ],
+      [
+        "\\b(?:compressing|compressed|compresses|compress)\\b",
+        "i",
+        "compress"
+      ],
+      [
+        "\\b(?:compressions|compression)\\b",
+        "i",
+        "compression"
+      ],
+      [
+        "\\b(?:irrelevant)\\b",
+        "i",
+        "irrelevant"
+      ],
+      [
+        "\\b(?:isolating|isolates|isolated|isolate)\\b",
+        "i",
+        "isolate"
+      ],
+      [
+        "\\b(?:isolations|isolation)\\b",
+        "i",
+        "isolation"
+      ],
+      [
+        "\\b(?:definitionses|definitions)\\b",
+        "i",
+        "definitions"
+      ],
+      [
+        "\\b(?:failures|failure)\\b",
+        "i",
+        "failure"
+      ],
+      [
+        "\\b(?:memories|memory)\\b",
+        "i",
+        "memory"
+      ],
+      [
+        "\\b(?:preferenceses|preferences)\\b",
+        "i",
+        "preferences"
+      ],
+      [
+        "\\b(?:relevant)\\b",
+        "i",
+        "relevant"
+      ],
+      [
+        "\\b(?:reliable)\\b",
+        "i",
+        "reliable"
+      ],
+      [
+        "\\b(?:retrievals|retrieval)\\b",
+        "i",
+        "retrieval"
+      ],
+      [
+        "\\b(?:retrieved)\\b",
+        "i",
+        "retrieved"
+      ],
+      [
+        "\\b(?:summarizing|summarized|summarizes|summarize)\\b",
+        "i",
+        "summarize"
+      ],
+      [
+        "\\b(?:workflows|workflow)\\b",
+        "i",
+        "workflow"
+      ],
+      [
+        "\\b(?:workflowses|workflows)\\b",
+        "i",
+        "workflows"
+      ],
+      [
+        "\\b(?:conversations|conversation)\\b",
+        "i",
+        "conversation"
+      ],
+      [
+        "\\b(?:sources|source)\\b",
+        "i",
+        "source"
+      ],
+      [
+        "\\b(?:summaries|summary)\\b",
+        "i",
+        "summary"
+      ]
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://x.com/sairahul1/status/2067171101978071501",
+    "sourceText": "Context Engineering for AI Agents: The Complete Playbook"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "05",
+  "source": "https://x.com/sairahul1/status/2067171101978071501",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "AI Agent 上下文工程完整指南",
+      "name": "AI Agent 上下文工程完整指南",
+      "description": "Rahul 系统梳理了 AI Agent 的上下文退化问题，提出 Write、Select、Compress、Isolate 四类策略，并解释上下文失败模式、系统提示词、KV-cache 与分阶段压缩工作流。",
+      "tags": [
+        "AI Agent",
+        "Context Engineering",
+        "上下文工程",
+        "Agent 架构"
+      ],
+      "path": "context-engineering-ai-agents",
+      "language": "zh-CN",
+      "createdAt": "2026-06-20T00:00:00Z",
+      "updatedAt": "2026-06-21 12:26:34"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "context-engineering-ai-agents",
+      "createdAt": "2026-06-20T00:00:00Z",
+      "updatedAt": "2026-06-21 21:39:06"
+    }
+  ]
+}

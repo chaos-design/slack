@@ -1,0 +1,30 @@
+{
+  "id": "01",
+  "source": "https://www.anthropic.com/engineering/building-effective-agents",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "构建高效 AI Agent",
+      "name": "构建高效 AI Agent",
+      "description": "Anthropic 总结了构建 Agent 的工程原则：从简单 LLM 调用开始，用评估驱动复杂度升级，并在 workflow 与 autonomous agent 之间做清晰取舍。",
+      "tags": [
+        "AI Agent",
+        "Anthropic",
+        "工作流",
+        "工具使用"
+      ],
+      "path": "building-effective-agents",
+      "language": "zh-CN",
+      "createdAt": "2026-06-19 17:39:32",
+      "updatedAt": "2026-06-21 12:26:34"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "building-effective-agents",
+      "createdAt": "2026-06-19 17:39:32",
+      "updatedAt": "2026-06-21 21:16:22"
+    }
+  ]
+}

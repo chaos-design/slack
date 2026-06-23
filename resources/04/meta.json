@@ -1,0 +1,30 @@
+{
+  "id": "04",
+  "source": "https://claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "Claude Code 动态工作流",
+      "name": "Claude Code 动态工作流",
+      "description": "Anthropic 介绍 Claude Code 的 dynamic workflows：让 Claude 为复杂任务即时生成专用 harness，通过多代理、验证、锦标赛、循环等模式缓解长任务中的懒惰、偏置和目标漂移。",
+      "tags": [
+        "Claude Code",
+        "Dynamic Workflows",
+        "Agent Harness",
+        "多代理协作"
+      ],
+      "path": "claude-code-dynamic-workflows",
+      "language": "zh-CN",
+      "createdAt": "2026-06-20T00:00:00Z",
+      "updatedAt": "2026-06-21 12:26:34"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "claude-code-dynamic-workflows",
+      "createdAt": "2026-06-20T00:00:00Z",
+      "updatedAt": "2026-06-21 21:39:06"
+    }
+  ]
+}

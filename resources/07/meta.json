@@ -1,0 +1,79 @@
+{
+  "id": "07",
+  "source": "https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "Loop Engineering：AI Coding Agents 的新范式",
+      "name": "Loop Engineering：AI Coding Agents 的新范式",
+      "description": "MindStudio 介绍 loop engineering：把单次提示转为带目标、工具、上下文管理、终止条件和错误恢复的迭代式 Agent 工作流，是现代 AI coding agents 的核心运行方式。",
+      "tags": [
+        "AI Agent",
+        "Loop Engineering",
+        "AI Coding",
+        "工作流"
+      ],
+      "path": "what-is-loop-engineering-ai-coding-agents",
+      "language": "zh-CN",
+      "source": "https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents",
+      "sourceType": "url",
+      "createdAt": "2026-06-21 17:12:00",
+      "updatedAt": "2026-06-21 18:24:00"
+    },
+    {
+      "title": "Long-running Claude：面向科学计算的长任务 Agent 工作流",
+      "name": "Long-running Claude：面向科学计算的长任务 Agent 工作流",
+      "description": "Anthropic 研究文章展示如何将 Claude Code 用于跨天科学计算任务，通过 CLAUDE.md、CHANGELOG.md、test oracle、Git/tmux/SLURM 与 Ralph loop 建立可恢复、可验证的 Agent 工作流。",
+      "tags": [
+        "Claude Code",
+        "Scientific Computing",
+        "AI Agent",
+        "Long-running Agents"
+      ],
+      "path": "long-running-claude-for-scientific-computing",
+      "language": "zh-CN",
+      "source": "https://www.anthropic.com/research/long-running-Claude",
+      "sourceType": "url",
+      "createdAt": "2026-06-21 18:24:00",
+      "updatedAt": "2026-06-21 18:24:00"
+    },
+    {
+      "title": "Breaking Down Context Engineering：拆解 Agent 上下文工程",
+      "name": "Breaking Down Context Engineering：拆解 Agent 上下文工程",
+      "description": "SwirlAI Newsletter 文章系统拆解 Context Engineering：从系统指令、用户提示、检索上下文、短期状态、长期记忆、工具到结构化输出，说明 Agentic System 中上下文管理的工程挑战。",
+      "tags": [
+        "Context Engineering",
+        "AI Agent",
+        "RAG",
+        "Memory",
+        "Tool Use"
+      ],
+      "path": "breaking-down-context-engineering",
+      "language": "zh-CN",
+      "source": "https://www.newsletter.swirlai.com/p/breaking-down-context-engineering",
+      "sourceType": "url",
+      "createdAt": "2026-06-21 19:05:00",
+      "updatedAt": "2026-06-21 19:05:00"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "what-is-loop-engineering-ai-coding-agents",
+      "createdAt": "2026-06-21 17:12:00",
+      "updatedAt": "2026-06-21 21:16:22"
+    },
+    {
+      "id": "2",
+      "path": "long-running-claude-for-scientific-computing",
+      "createdAt": "2026-06-21 18:24:00",
+      "updatedAt": "2026-06-21 21:16:22"
+    },
+    {
+      "id": "3",
+      "path": "breaking-down-context-engineering",
+      "createdAt": "2026-06-21 19:05:00",
+      "updatedAt": "2026-06-21 21:16:22"
+    }
+  ]
+}

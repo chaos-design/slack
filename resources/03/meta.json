@@ -1,0 +1,30 @@
+{
+  "id": "03",
+  "source": "https://openai.com/index/equip-responses-api-computer-environment",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "Responses API 的计算机环境",
+      "name": "Responses API 的计算机环境",
+      "description": "OpenAI 说明 Responses API 的价值在于把 shell tool、托管容器、文件系统、数据库、受控网络、skills 与 compaction 组合成可执行、可复用、可长期运行的 Agent 计算环境。",
+      "tags": [
+        "OpenAI",
+        "Responses API",
+        "Shell Tool",
+        "Agent Skills"
+      ],
+      "path": "responses-api-computer-environment",
+      "language": "zh-CN",
+      "createdAt": "2026-06-14T14:16:32Z",
+      "updatedAt": "2026-06-21 12:26:34"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "responses-api-computer-environment",
+      "createdAt": "2026-06-14T14:16:32Z",
+      "updatedAt": "2026-06-21 21:39:06"
+    }
+  ]
+}

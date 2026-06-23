@@ -1,0 +1,1585 @@
+{
+  "metadata": {
+    "title": "Your Agent Harness Should Repair Itself",
+    "sourceUrl": "https://x.com/akshay_pachaar/status/2064051835636498924",
+    "fetchedAt": "2026-06-20 00:00:00"
+  },
+  "article": {
+    "title": "Your Agent Harness Should Repair Itself",
+    "sourceUrl": "https://x.com/akshay_pachaar/status/2064051835636498924",
+    "fetchedAt": "2026-06-20 00:00:00",
+    "tags": [
+      "AI Agent",
+      "Observability",
+      "Agent Harness",
+      "Evals"
+    ],
+    "anchors": [
+      {
+        "id": "og-1",
+        "label": "Current observability stops at the trace"
+      },
+      {
+        "id": "og-2",
+        "label": "The bottleneck starts after the trace"
+      },
+      {
+        "id": "og-3",
+        "label": "A four-layer repair stack"
+      },
+      {
+        "id": "og-4",
+        "label": "Ollie moves from diagnosis to code fix"
+      },
+      {
+        "id": "og-5",
+        "label": "Plain-English tests lock failures"
+      },
+      {
+        "id": "og-6",
+        "label": "Agent Sandbox tests the whole graph"
+      },
+      {
+        "id": "og-7",
+        "label": "The flywheel compounds quality"
+      }
+    ]
+  },
+  "hero": {
+    "title": "可自我修复的 Agent Harness",
+    "meta": "X / @akshay_pachaar · Mon Jun 08 18:28:00 +0000 2026",
+    "en": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.\nYou get a clean trace of the run, every model call and tool that",
+    "zh": "生产 Agent 的瓶颈不只是看见 trace，而是把失败转化为修复、验证和回归测试的自动闭环。"
+  },
+  "summary": {
+    "lead": "这篇文章的主张是：生产 Agent 的可观测性不能止步于 trace，真正需要自动化的是 trace 之后的诊断、修复、验证和回归固化。",
+    "cards": [
+      {
+        "icon": "▣",
+        "title": "问题不在看不见",
+        "body": "现有观测平台能给出模型调用、工具触发、耗时和 token 成本，但通常不给出失败原因、修复改动或复发保证。"
+      },
+      {
+        "icon": "▣",
+        "title": "瓶颈在 trace 之后",
+        "body": "团队仍要逐个 span 阅读 trace、形成假设、手写补丁，并担心修复破坏已有行为；模型升级和工具增加会反复扩大这个循环。"
+      },
+      {
+        "icon": "▣",
+        "title": "Opik 的闭环",
+        "body": "文章把 Opik 描述为从 Trace 到 Ollie 诊断、修复建议、验证、Test Suite 回归锁定，再回到 Trace 的连通工作流。"
+      },
+      {
+        "icon": "▣",
+        "title": "工程约束",
+        "body": "Ollie 可以读取 span、源码并提出 diff，但代码不会在没有明确批准的情况下改变；Sandbox 用完整 Agent 图验证，而不是只重跑单次模型调用。"
+      }
+    ],
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "对生产 Agent 来说，“发生了什么”只是起点；质量闭环要回答为什么失败、改哪里、如何验证以及如何防止复发。"
+      },
+      {
+        "label": "关键机制",
+        "text": "失败 trace 被转成根因分析、受控 diff、原输入复跑、并排 trace 对比和回归测试，形成可累积的 harness 改进循环。"
+      },
+      {
+        "label": "适用边界",
+        "text": "文章面向已经在生产中运行多工具、多模型或多框架 Agent 的团队，强调开放栈、自托管和 50+ 框架集成。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "trace 只能回答发生了什么",
+        "summary": "观测工具能记录 span、延迟、token 成本和工具调用，却没有直接给出失败原因和修复方案。"
+      },
+      {
+        "id": "fw-2",
+        "label": "手工循环在规模化时失效",
+        "summary": "模型升级带来新失败模式，工具增加带来新边界情况，harness 复杂度超过团队手工跟踪和修复能力。"
+      },
+      {
+        "id": "fw-3",
+        "label": "Opik 把循环自动化",
+        "summary": "Opik 的前提是 trace 之后的流程应该由系统执行，而不是依赖人持续值守。"
+      },
+      {
+        "id": "fw-4",
+        "label": "四层栈串成工作流",
+        "summary": "Tracing 提供可复现运行记录，Ollie 诊断并提出修复，Test Suites 锁定回归，Agent Sandbox 端到端验证完整 Agent 图。"
+      },
+      {
+        "id": "fw-5",
+        "label": "批准与验证守住边界",
+        "summary": "Ollie 可以进入代码修复模式并提出 diff，但变更需要明确批准，随后用原始失败输入重跑并比较新旧 trace。"
+      },
+      {
+        "id": "fw-6",
+        "label": "飞轮让 harness 更难被破坏",
+        "summary": "每个真实生产失败都会进入同一闭环并沉淀为测试用例，使后续 harness 质量持续累积。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "生产失败暴露的是修复缺口",
+      "title": "生产失败暴露的是修复缺口",
+      "rows": [
+        {
+          "en": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.",
+          "zh": "当 AI Agent 在生产环境中失败时，观测工具会准确展示它做了什么，却几乎不会告诉你该如何修复。"
+        },
+        {
+          "en": "What you don't get is why it broke, the change that would fix it, or any promise the same thing won't happen again next week.",
+          "zh": "你得不到的是它为什么坏了、什么改动能修好它，或者同样问题下周不会再次发生的任何保证。"
+        },
+        {
+          "en": "The real bottleneck isn't your observability. It's everything that has to happen after the trace lands on your screen.",
+          "zh": "真正的瓶颈不是可观测性本身，而是 trace 出现在屏幕之后必须发生的一切。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "规模化让手工调试循环反复打开",
+      "title": "规模化让手工调试循环反复打开",
+      "rows": [
+        {
+          "en": "So you scroll through the trace span by span, form a theory about what went wrong, write a patch by hand, and hope it doesn't break something that was working before.",
+          "zh": "于是你逐个 span 翻看 trace，推测哪里出了问题，手写补丁，然后希望它不会破坏之前已经正常工作的部分。"
+        },
+        {
+          "en": "Every model upgrade introduces new failure modes. Every new tool adds new edge cases.",
+          "zh": "每次模型升级都会引入新的失败模式；每个新工具都会增加新的边界情况。"
+        },
+        {
+          "en": "The harness gets more complex faster than any team can manually track and repair.",
+          "zh": "harness 的复杂度增长速度超过任何团队手工跟踪和修复的能力。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "Opik 的前提是自动化 trace 之后的循环",
+      "title": "Opik 的前提是自动化 trace 之后的循环",
+      "rows": [
+        {
+          "en": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+          "zh": "Opik 是一个面向 AI Agent 和 LLM 应用的开源日志、调试和优化平台。"
+        },
+        {
+          "en": "Opik is built around the premise that this loop should be automated, not staffed.",
+          "zh": "Opik 的构建前提是：这个循环应该被自动化，而不是靠人持续值守。"
+        },
+        {
+          "en": "Trace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace",
+          "zh": "Trace → Ollie 诊断 → Ollie 提出修复方案 → 修复被应用并验证 → Test Suite 将失败锁定为回归测试 → 回到 Trace。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "Tracing 提供可复现的运行事实",
+      "title": "Tracing 提供可复现的运行事实",
+      "rows": [
+        {
+          "en": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+          "zh": "每一次 LLM 调用、工具调用和检索步骤，都会通过一个装饰器自动完成埋点。"
+        },
+        {
+          "en": "Works with LangGraph, CrewAI, and 50+ frameworks out of the box.",
+          "zh": "它开箱即用地支持 LangGraph、CrewAI 和 50 多个框架。"
+        },
+        {
+          "en": "Every trace records which agent configuration was active for full reproducibility when you need to rerun a failing input later.",
+          "zh": "每条 trace 都记录当时启用的 agent 配置，便于之后重跑失败输入时做到完整可复现。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "Ollie 从 span 树走到受控代码修复",
+      "title": "Ollie 从 span 树走到受控代码修复",
+      "rows": [
+        {
+          "en": "Every other observability platform stops at \"here's your trace.\" Opik goes from trace to fixed code, powered by Ollie.",
+          "zh": "其他观测平台止步于“这是你的 trace”；在 Ollie 的驱动下，Opik 会从 trace 走到已修复的代码。"
+        },
+        {
+          "en": "Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.",
+          "zh": "即使没有代码访问权限，Ollie 也能读取 span 树、识别失败模式，并解释贯穿每次 LLM 调用的因果链。"
+        },
+        {
+          "en": "Proposes a diff; nothing changes without your explicit approval",
+          "zh": "它会提出 diff；但没有你的明确批准，任何内容都不会改变。"
+        },
+        {
+          "en": "Once you approve, Ollie reruns your agent against the exact inputs from the original failing trace, streams the new trace for side-by-side comparison, and locks the original failure as a regression case in your test suite.",
+          "zh": "一旦你批准，Ollie 会使用原始失败 trace 中完全相同的输入重跑你的 agent，流式输出新 trace 以便并排比较，并把原始失败锁定为测试套件中的回归用例。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "Test Suites 用真实失败沉淀质量约束",
+      "title": "Test Suites 用真实失败沉淀质量约束",
+      "rows": [
+        {
+          "en": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+          "zh": "多数评测工作流是：构建带标签的数据集、定义数值指标、比较浮点数。"
+        },
+        {
+          "en": "Opik replaces it with plain-English assertions.",
+          "zh": "Opik 用自然语言断言取代这种方式。"
+        },
+        {
+          "en": "Opik converts those into LLM-as-a-judge checks under the hood. Clean pass/fail per test case.",
+          "zh": "Opik 在底层把这些断言转换成 LLM-as-a-judge 检查，每个测试用例都有清晰的通过或失败结果。"
+        },
+        {
+          "en": "The part that changes the workflow: every failing trace you debug automatically becomes a new test case. The suite grows from real production failures, not synthetic scenarios someone wrote in advance.",
+          "zh": "真正改变工作流的部分是：你调试过的每条失败 trace 都会自动成为新的测试用例；测试套件从真实生产失败中增长，而不是从预先编写的合成场景中增长。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "Sandbox 和飞轮验证完整 Agent 图",
+      "title": "Sandbox 和飞轮验证完整 Agent 图",
+      "rows": [
+        {
+          "en": "Most playgrounds are prompt playgrounds. You change a system prompt and rerun one LLM call. That answers the wrong question.",
+          "zh": "多数 playground 都是提示词 playground：改一个系统提示词，重跑一次 LLM 调用。但这回答的是错误的问题。"
+        },
+        {
+          "en": "The production question is, what happens to the entire agent graph when I change this.",
+          "zh": "生产环境真正的问题是：当我改动这个东西时，整个 agent 图会发生什么。"
+        },
+        {
+          "en": "Opik's Agent Sandbox runs the fully instrumented agent end-to-end inside the UI.",
+          "zh": "Opik 的 Agent Sandbox 会在 UI 中端到端运行完整埋点的 agent。"
+        },
+        {
+          "en": "The manual loop Cursor describes is the one Opik closes on its own, from a bad trace all the way to a locked regression test.",
+          "zh": "Cursor 描述的手工循环，正是 Opik 自行闭合的循环：从一条坏 trace 一直到锁定的回归测试。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "文章认为生产 Agent 的真正瓶颈主要发生在哪里？",
+      "options": [
+        "trace 出现在屏幕之后的诊断、修复、验证和防复发工作",
+        "观测工具完全无法记录模型调用和工具调用",
+        "团队缺少能比较浮点指标的数据集",
+        "所有 Agent 都不需要 harness"
+      ],
+      "answer": 0,
+      "explain": "原文明确说真正瓶颈不是可观测性，而是 trace 落到屏幕之后必须发生的一切。",
+      "wrongReason": "文章承认观测工具能记录调用、延迟和 token；它批评的是后续闭环缺失，而不是否定 harness 或只讨论数据集。"
+    },
+    {
+      "question": "在文章描述的 Opik 四层栈中，Ollie 的作用是什么？",
+      "options": [
+        "只统计 token 成本并生成仪表盘",
+        "读取 span 树和源码，识别失败模式、解释因果链并提出 diff",
+        "替代所有人工批准直接改代码",
+        "只负责把提示词保存成版本记录"
+      ],
+      "answer": 1,
+      "explain": "文章写到 Ollie 会读取 span tree、识别 failure modes、解释 causal chain；运行 opik connect 后还会读取源码并提出 diff。",
+      "wrongReason": "Ollie 不只是成本统计，也不会绕过明确批准；提示词版本管理不是该段的重点。"
+    },
+    {
+      "question": "为什么文章强调 Test Suites 要从失败 trace 中增长？",
+      "options": [
+        "因为真实生产失败会自动变成回归测试，让 harness 每轮更难被破坏",
+        "因为合成场景永远不能用于任何评测",
+        "因为自然语言断言不需要任何判定过程",
+        "因为测试套件只服务研究人员的浮点指标比较"
+      ],
+      "answer": 0,
+      "explain": "原文说每个被调试的失败 trace 都会自动成为新测试用例，套件来自真实生产失败，并让 harness 越来越难被破坏。",
+      "wrongReason": "文章不是绝对否定合成场景，也说明自然语言断言会被转换为 LLM-as-a-judge 检查；它批评的是只比较浮点数的传统评测方式不贴合工程质量。"
+    },
+    {
+      "question": "文章为什么认为 Agent Sandbox 比普通 prompt playground 更贴近生产问题？",
+      "options": [
+        "因为它只重跑一次单独的 LLM 调用",
+        "因为它完全不生成 trace",
+        "因为它在 UI 中端到端运行完整埋点的 agent，观察整个 agent 图的响应",
+        "因为它只允许开发人员修改 git 中的配置"
+      ],
+      "answer": 2,
+      "explain": "原文把生产问题定义为改动后整个 agent graph 会发生什么，并说明 Agent Sandbox 会端到端运行完整埋点的 agent，每次运行产生完整 Opik trace。",
+      "wrongReason": "普通 playground 才是只重跑单次 LLM 调用；文章还说非开发干系人也能在不接触 git 的情况下测试配置。"
+    }
+  ],
+  "original": {
+    "title": "Your Agent Harness Should Repair Itself · 原文要点对照",
+    "meta": "X / @akshay_pachaar · Mon Jun 08 18:28:00 +0000 2026",
+    "groups": [
+      {
+        "group": "Your Agent Harness Should Repair Itself · 你的 Agent Harness 应该自我修复",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.\n\nYou get a clean trace of the run, every model call and tool that fired, how long each step took, and what it cost in tokens.\n\nWhat you don't get is why it broke, the change that would fix it, or any promise the same thing won't happen again next week.",
+            "zh": "当 AI Agent 在生产环境中失败时，你的观测工具会准确显示它做了什么，却几乎不会告诉你该如何修复。\n\n你会得到一次运行的清晰 trace：每一次模型调用、每个被触发的工具、每一步耗时多久，以及消耗了多少 token。\n\n你得不到的是：它为什么坏了、什么改动能修好它，或者任何关于同样问题下周不会再次发生的保证。",
+            "html": "<p>When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.</p>\n<p>You get a clean trace of the run, every model call and tool that fired, how long each step took, and what it cost in tokens.</p>\n<p>What you don&#x27;t get is why it broke, the change that would fix it, or any promise the same thing won&#x27;t happen again next week.</p>",
+            "zhHtml": "<p>当 AI Agent 在生产环境中失败时，你的观测工具会准确显示它做了什么，却几乎不会告诉你该如何修复。</p>\n<p>你会得到一次运行的清晰 trace：每一次模型调用、每个被触发的工具、每一步耗时多久，以及消耗了多少 token。</p>\n<p>你得不到的是：它为什么坏了、什么改动能修好它，或者任何关于同样问题下周不会再次发生的保证。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "So you scroll through the trace span by span, form a theory about what went wrong, write a patch by hand, and hope it doesn't break something that was working before.\n\nThen a new model ships with a fresh batch of failure modes, and you run that whole manual loop from the top.\n\nThe real bottleneck isn't your observability. It's everything that has to happen after the trace lands on your screen.",
+            "zh": "于是你逐个 span 翻看 trace，推测哪里出了问题，手写一个补丁，然后希望它不会破坏之前正常工作的部分。\n\n接着新模型发布，带来一批新的失败模式，你又从头跑一遍整个手工循环。\n\n真正的瓶颈不是你的可观测性，而是 trace 出现在屏幕之后必须发生的一切。",
+            "html": "<p>So you scroll through the trace span by span, form a theory about what went wrong, write a patch by hand, and hope it doesn&#x27;t break something that was working before.</p>\n<p>Then a new model ships with a fresh batch of failure modes, and you run that whole manual loop from the top.</p>\n<p>The real bottleneck isn&#x27;t your observability. It&#x27;s everything that has to happen after the trace lands on your screen.</p>",
+            "zhHtml": "<p>于是你逐个 span 翻看 trace，推测哪里出了问题，手写一个补丁，然后希望它不会破坏之前正常工作的部分。</p>\n<p>接着新模型发布，带来一批新的失败模式，你又从头跑一遍整个手工循环。</p>\n<p>真正的瓶颈不是你的可观测性，而是 trace 出现在屏幕之后必须发生的一切。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSta5UaAAE4D7S.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          },
+          {
+            "type": "bilingual",
+            "en": "Cursor recently shared how much engineering goes into the harness around their agent, the layer of prompts, tools, and checks wrapped around the raw model.\n\nA better harness on the same model gives far better results, and that work never really ends.\n\nThis is where every observability platform leaves you. It answers what happened, then hands back why it happened, what to change, and how to keep it from breaking again.\n\nThat gap is the loop most teams are stuck in today. Here's why it keeps reopening, and what it finally takes to close it.",
+            "zh": "Cursor 最近分享了他们围绕 agent 的 harness 投入了多少工程工作，也就是包裹在原始模型外面的提示词、工具和检查层。\n\n同一个模型配上更好的 harness 会得到好得多的结果，而这项工作永远不会真正结束。\n\n这正是每个观测平台把你留在原地的位置。它回答了发生了什么，然后把为什么发生、该改什么、以及如何防止再次出错这些问题又交还给你。\n\n这个缺口就是今天多数团队被困住的循环。下面说明为什么它会不断重新打开，以及最终需要什么才能闭合它。",
+            "html": "<p>Cursor recently shared how much engineering goes into the harness around their agent, the layer of prompts, tools, and checks wrapped around the raw model.</p>\n<p>A better harness on the same model gives far better results, and that work never really ends.</p>\n<p>This is where every observability platform leaves you. It answers what happened, then hands back why it happened, what to change, and how to keep it from breaking again.</p>\n<p>That gap is the loop most teams are stuck in today. Here&#x27;s why it keeps reopening, and what it finally takes to close it.</p>",
+            "zhHtml": "<p>Cursor 最近分享了他们围绕 agent 的 harness 投入了多少工程工作，也就是包裹在原始模型外面的提示词、工具和检查层。</p>\n<p>同一个模型配上更好的 harness 会得到好得多的结果，而这项工作永远不会真正结束。</p>\n<p>这正是每个观测平台把你留在原地的位置。它回答了发生了什么，然后把为什么发生、该改什么、以及如何防止再次出错这些问题又交还给你。</p>\n<p>这个缺口就是今天多数团队被困住的循环。下面说明为什么它会不断重新打开，以及最终需要什么才能闭合它。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Why Current Observability Breaks at Scale · 为什么当前观测能力在规模化时失效",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Most agent observability platforms deliver a trace and stop.\n\nYou get a span tree, latency numbers, token costs, and a dashboard. What you don't get: why it failed, what to fix, or any guarantee it won't break again.\n\n\"What happened\" → the platform handles this\n\n\"Why it happened\" → manual\n\n\"Here's the fix\" → manual\n\n\"This won't break again\" → manual\n\nThat was a reasonable product in 2023. It's the wrong abstraction for teams running agents in production today.",
+            "zh": "大多数 Agent 观测平台交付一条 trace 后就停止了。\n\n你会得到 span 树、延迟数字、token 成本和仪表盘。你得不到的是：它为什么失败、该修什么，或者任何它不会再次出错的保证。\n\n“发生了什么” → 平台会处理这个问题\n\n“为什么发生” → 手工处理\n\n“这是修复方案” → 手工处理\n\n“这不会再次出错” → 手工处理\n\n这在 2023 年是一个合理的产品形态。但对今天在生产环境运行 Agent 的团队来说，这是错误的抽象。",
+            "html": "<p>Most agent observability platforms deliver a trace and stop.</p>\n<p>You get a span tree, latency numbers, token costs, and a dashboard. What you don&#x27;t get: why it failed, what to fix, or any guarantee it won&#x27;t break again.</p>\n<p>&quot;What happened&quot; → the platform handles this</p>\n<p>&quot;Why it happened&quot; → manual</p>\n<p>&quot;Here&#x27;s the fix&quot; → manual</p>\n<p>&quot;This won&#x27;t break again&quot; → manual</p>\n<p>That was a reasonable product in 2023. It&#x27;s the wrong abstraction for teams running agents in production today.</p>",
+            "zhHtml": "<p>大多数 Agent 观测平台交付一条 trace 后就停止了。</p>\n<p>你会得到 span 树、延迟数字、token 成本和仪表盘。你得不到的是：它为什么失败、该修什么，或者任何它不会再次出错的保证。</p>\n<p>“发生了什么” → 平台会处理这个问题</p>\n<p>“为什么发生” → 手工处理</p>\n<p>“这是修复方案” → 手工处理</p>\n<p>“这不会再次出错” → 手工处理</p>\n<p>这在 2023 年是一个合理的产品形态。但对今天在生产环境运行 Agent 的团队来说，这是错误的抽象。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The problem compounds itself. Every model upgrade introduces new failure modes. Every new tool adds new edge cases. The harness gets more complex faster than any team can manually track and repair.\n\nHere's the stack that does it.",
+            "zh": "这个问题会自我叠加。每次模型升级都会引入新的失败模式。每个新工具都会增加新的边界情况。harness 变复杂的速度超过任何团队手工跟踪和修复的速度。\n\n下面就是实现这一点的技术栈。",
+            "html": "<p>The problem compounds itself. Every model upgrade introduces new failure modes. Every new tool adds new edge cases. The harness gets more complex faster than any team can manually track and repair.</p>\n<p>Here&#x27;s the stack that does it.</p>",
+            "zhHtml": "<p>这个问题会自我叠加。每次模型升级都会引入新的失败模式。每个新工具都会增加新的边界情况。harness 变复杂的速度超过任何团队手工跟踪和修复的速度。</p>\n<p>下面就是实现这一点的技术栈。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKStt7DbEAAb7oE.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          }
+        ]
+      },
+      {
+        "group": "Opik: AI Observability & Evals For the Agentic Era · Opik：面向 Agentic 时代的 AI 可观测性与评测",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications. Opik is built around the premise that this loop should be automated, not staffed.",
+            "zh": "Opik 是一个面向 AI Agent 和 LLM 应用的开源日志、调试和优化平台。Opik 的构建前提是：这个循环应该被自动化，而不是靠人持续值守。",
+            "html": "<p>Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications. Opik is built around the premise that this loop should be automated, not staffed.</p>",
+            "zhHtml": "<p>Opik 是一个面向 AI Agent 和 LLM 应用的开源日志、调试和优化平台。Opik 的构建前提是：这个循环应该被自动化，而不是靠人持续值守。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSuZYNbwAA-yjh.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          }
+        ]
+      },
+      {
+        "group": "The Four-Layer Stack · 四层栈",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Opik's architecture is one connected workflow.\n\nTrace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace",
+            "zh": "Opik 的架构是一个连通的工作流。\n\nTrace → Ollie 诊断 → Ollie 提出修复方案 → 修复被应用并验证 → Test Suite 将失败锁定为回归测试 → 回到 Trace",
+            "html": "<p>Opik&#x27;s architecture is one connected workflow.</p>\n<p>Trace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace</p>",
+            "zhHtml": "<p>Opik 的架构是一个连通的工作流。</p>\n<p>Trace → Ollie 诊断 → Ollie 提出修复方案 → 修复被应用并验证 → Test Suite 将失败锁定为回归测试 → 回到 Trace</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSulwkbYAApCVA.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          },
+          {
+            "type": "bilingual",
+            "en": "Here's each layer.",
+            "zh": "下面逐层说明。",
+            "html": "<p>Here&#x27;s each layer.</p>",
+            "zhHtml": "<p>下面逐层说明。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Layer 1: Tracing · 第一层：Tracing",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+            "zh": "每一次 LLM 调用、工具调用和检索步骤都会通过一个装饰器自动完成埋点。",
+            "html": "<p>Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.</p>",
+            "zhHtml": "<p>每一次 LLM 调用、工具调用和检索步骤都会通过一个装饰器自动完成埋点。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Works with LangGraph, CrewAI, and 50+ frameworks out of the box. Every trace records which agent configuration was active for full reproducibility when you need to rerun a failing input later.",
+            "zh": "它开箱即用地支持 LangGraph、CrewAI 和 50 多个框架。每条 trace 都记录当时启用的是哪套 agent 配置，以便之后需要重跑失败输入时实现完整可复现。",
+            "html": "<p>Works with LangGraph, CrewAI, and 50+ frameworks out of the box. Every trace records which agent configuration was active for full reproducibility when you need to rerun a failing input later.</p>",
+            "zhHtml": "<p>它开箱即用地支持 LangGraph、CrewAI 和 50 多个框架。每条 trace 都记录当时启用的是哪套 agent 配置，以便之后需要重跑失败输入时实现完整可复现。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSwDwNboAATBy7.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          }
+        ]
+      },
+      {
+        "group": "Layer 2: Ollie · 第二层：Ollie",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Every other observability platform stops at \"here's your trace.\" Opik goes from trace to fixed code, powered by Ollie.\n\nOllie is a coding agent built into Opik. One agent, full context.",
+            "zh": "其他所有观测平台都止步于“这是你的 trace”。在 Ollie 的驱动下，Opik 会从 trace 走到已修复的代码。\n\nOllie 是内置在 Opik 中的 coding agent。一个 agent，具备完整上下文。",
+            "html": "<p>Every other observability platform stops at &quot;here&#x27;s your trace.&quot; Opik goes from trace to fixed code, powered by Ollie.</p>\n<p>Ollie is a coding agent built into Opik. One agent, full context.</p>",
+            "zhHtml": "<p>其他所有观测平台都止步于“这是你的 trace”。在 Ollie 的驱动下，Opik 会从 trace 走到已修复的代码。</p>\n<p>Ollie 是内置在 Opik 中的 coding agent。一个 agent，具备完整上下文。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSwqWkakAAhrBV.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          },
+          {
+            "type": "bilingual",
+            "en": "Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.\n\nAsk it, \"why did the final answer ignore the retrieved context?\" It walks the full span tree and surfaces the root cause.\n\nRun opik connect from your project root, and Ollie upgrades to full code-fix mode:\n\nReads your source files\n\nIdentifies the exact lines responsible\n\nProposes a diff; nothing changes without your explicit approval",
+            "zh": "即使没有任何代码访问权限，Ollie 也能读取 span 树、识别失败模式，并解释贯穿每次 LLM 调用的因果链。\n\n问它“为什么最终答案忽略了检索到的上下文？”它会遍历完整 span 树并指出根因。\n\n在项目根目录运行 opik connect，Ollie 就会升级到完整的代码修复模式：\n\n读取你的源文件\n\n识别负有责任的确切代码行\n\n提出 diff；没有你的明确批准，任何内容都不会改变",
+            "html": "<p>Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.</p>\n<p>Ask it, &quot;why did the final answer ignore the retrieved context?&quot; It walks the full span tree and surfaces the root cause.</p>\n<p>Run opik connect from your project root, and Ollie upgrades to full code-fix mode:</p>\n<p>Reads your source files</p>\n<p>Identifies the exact lines responsible</p>\n<p>Proposes a diff; nothing changes without your explicit approval</p>",
+            "zhHtml": "<p>即使没有任何代码访问权限，Ollie 也能读取 span 树、识别失败模式，并解释贯穿每次 LLM 调用的因果链。</p>\n<p>问它“为什么最终答案忽略了检索到的上下文？”它会遍历完整 span 树并指出根因。</p>\n<p>在项目根目录运行 opik connect，Ollie 就会升级到完整的代码修复模式：</p>\n<p>读取你的源文件</p>\n<p>识别负有责任的确切代码行</p>\n<p>提出 diff；没有你的明确批准，任何内容都不会改变</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Once you approve, Ollie reruns your agent against the exact inputs from the original failing trace, streams the new trace for side-by-side comparison,\n\nand locks the original failure as a regression case in your test suite.\n\nBad trace → root cause → diff → approve → rerun → regression locked",
+            "zh": "一旦你批准，Ollie 会用原始失败 trace 中完全相同的输入重跑你的 agent，并流式输出新的 trace 以便并排比较。\n\n并把原始失败锁定为测试套件中的一个回归用例。\n\n坏 trace → 根因 → diff → 批准 → 重跑 → 回归用例锁定",
+            "html": "<p>Once you approve, Ollie reruns your agent against the exact inputs from the original failing trace, streams the new trace for side-by-side comparison,</p>\n<p>and locks the original failure as a regression case in your test suite.</p>\n<p>Bad trace → root cause → diff → approve → rerun → regression locked</p>",
+            "zhHtml": "<p>一旦你批准，Ollie 会用原始失败 trace 中完全相同的输入重跑你的 agent，并流式输出新的 trace 以便并排比较。</p>\n<p>并把原始失败锁定为测试套件中的一个回归用例。</p>\n<p>坏 trace → 根因 → diff → 批准 → 重跑 → 回归用例锁定</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSxAsCbAAEPsH_.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          }
+        ]
+      },
+      {
+        "group": "Layer 3: Test Suites · 第三层：Test Suites",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats. That model works for researchers. It doesn't match how engineers think about quality.\n\nOpik replaces it with plain-English assertions.\n\nOpik converts those into LLM-as-a-judge checks under the hood. Clean pass/fail per test case.",
+            "zh": "多数评测工作流是：构建带标签的数据集，定义数值指标，然后比较浮点数。这个模型适合研究人员，却不符合工程师思考质量的方式。\n\nOpik 用自然语言断言取代了它。\n\nOpik 在底层把这些断言转换为 LLM-as-a-judge 检查。每个测试用例都有清晰的通过/失败结果。",
+            "html": "<p>Most eval workflows: build a labeled dataset, define a numerical metric, compare floats. That model works for researchers. It doesn&#x27;t match how engineers think about quality.</p>\n<p>Opik replaces it with plain-English assertions.</p>\n<p>Opik converts those into LLM-as-a-judge checks under the hood. Clean pass/fail per test case.</p>",
+            "zhHtml": "<p>多数评测工作流是：构建带标签的数据集，定义数值指标，然后比较浮点数。这个模型适合研究人员，却不符合工程师思考质量的方式。</p>\n<p>Opik 用自然语言断言取代了它。</p>\n<p>Opik 在底层把这些断言转换为 LLM-as-a-judge 检查。每个测试用例都有清晰的通过/失败结果。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSxkDzbYAA0bd3.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          },
+          {
+            "type": "bilingual",
+            "en": "The part that changes the workflow: every failing trace you debug automatically becomes a new test case. The suite grows from real production failures, not synthetic scenarios someone wrote in advance.\n\nEvery cycle, the harness gets harder to break.\n\nBut even with a growing test suite, you still need a safe place to test changes before they ship. That's what Layer 4 is for.",
+            "zh": "真正改变工作流的部分是：你调试过的每条失败 trace 都会自动变成一个新的测试用例。这个套件从真实生产失败中增长，而不是从某人预先编写的合成场景中增长。\n\n每经过一个循环，harness 就会更难被破坏。\n\n但即便测试套件在增长，你仍然需要一个安全的地方，在变更发布前进行测试。这就是第四层的作用。",
+            "html": "<p>The part that changes the workflow: every failing trace you debug automatically becomes a new test case. The suite grows from real production failures, not synthetic scenarios someone wrote in advance.</p>\n<p>Every cycle, the harness gets harder to break.</p>\n<p>But even with a growing test suite, you still need a safe place to test changes before they ship. That&#x27;s what Layer 4 is for.</p>",
+            "zhHtml": "<p>真正改变工作流的部分是：你调试过的每条失败 trace 都会自动变成一个新的测试用例。这个套件从真实生产失败中增长，而不是从某人预先编写的合成场景中增长。</p>\n<p>每经过一个循环，harness 就会更难被破坏。</p>\n<p>但即便测试套件在增长，你仍然需要一个安全的地方，在变更发布前进行测试。这就是第四层的作用。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Layer 4: Agent Sandbox · 第四层：Agent Sandbox",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Most playgrounds are prompt playgrounds. You change a system prompt and rerun one LLM call. That answers the wrong question.\n\nThe production question is, what happens to the entire agent graph when I change this.\n\nOpik's Agent Sandbox runs the fully instrumented agent end-to-end inside the UI.\n\nChange a prompt, swap a model, add a tool, and watch how the whole system responds across the full spanning tree.\n\nEvery sandbox run produces a complete Opik trace.",
+            "zh": "大多数 playground 都是提示词 playground。你修改系统提示词，然后重跑一次 LLM 调用。这回答的是错误的问题。\n\n生产环境真正的问题是：当我改动这个东西时，整个 agent 图会发生什么。\n\nOpik 的 Agent Sandbox 会在 UI 中端到端运行完整埋点的 agent。\n\n修改提示词、替换模型、添加工具，然后观察整个系统在完整 span 树上的响应。\n\n每次 sandbox 运行都会生成一条完整的 Opik trace。",
+            "html": "<p>Most playgrounds are prompt playgrounds. You change a system prompt and rerun one LLM call. That answers the wrong question.</p>\n<p>The production question is, what happens to the entire agent graph when I change this.</p>\n<p>Opik&#x27;s Agent Sandbox runs the fully instrumented agent end-to-end inside the UI.</p>\n<p>Change a prompt, swap a model, add a tool, and watch how the whole system responds across the full spanning tree.</p>\n<p>Every sandbox run produces a complete Opik trace.</p>",
+            "zhHtml": "<p>大多数 playground 都是提示词 playground。你修改系统提示词，然后重跑一次 LLM 调用。这回答的是错误的问题。</p>\n<p>生产环境真正的问题是：当我改动这个东西时，整个 agent 图会发生什么。</p>\n<p>Opik 的 Agent Sandbox 会在 UI 中端到端运行完整埋点的 agent。</p>\n<p>修改提示词、替换模型、添加工具，然后观察整个系统在完整 span 树上的响应。</p>\n<p>每次 sandbox 运行都会生成一条完整的 Opik trace。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Non-developer stakeholders, PMs, domain experts, and QA can safely test configurations without touching git.",
+            "zh": "非开发干系人、产品经理、领域专家和 QA 可以在不接触 git 的情况下安全测试配置。",
+            "html": "<p>Non-developer stakeholders, PMs, domain experts, and QA can safely test configurations without touching git.</p>",
+            "zhHtml": "<p>非开发干系人、产品经理、领域专家和 QA 可以在不接触 git 的情况下安全测试配置。</p>"
+          }
+        ]
+      },
+      {
+        "group": "The Flywheel in Practice · 实践中的飞轮",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The layers aren't independent features. They're one loop.\n\nInstrument with @opik.track. Declare an opik.Config. Something fails in production.\n\nOllie reads the trace, reads your source, and proposes a fix. You approve.\n\nOllie reruns the agent in the Sandbox against the original failing input. Fixes passes.\n\nSave it as a new Blueprint. The environment pointer promotes to staging. Original failure locked as a regression test.",
+            "zh": "这些层不是彼此独立的功能。它们是同一个循环。\n\n用 @opik.track 做埋点。声明一个 opik.Config。生产环境中某个东西失败。\n\nOllie 读取 trace，读取你的源码，并提出修复方案。你批准。\n\nOllie 在 Sandbox 中针对原始失败输入重跑 agent。修复通过。\n\n将其保存为新的 Blueprint。环境指针提升到 staging。原始失败被锁定为回归测试。",
+            "html": "<p>The layers aren&#x27;t independent features. They&#x27;re one loop.</p>\n<p>Instrument with @opik.track. Declare an opik.Config. Something fails in production.</p>\n<p>Ollie reads the trace, reads your source, and proposes a fix. You approve.</p>\n<p>Ollie reruns the agent in the Sandbox against the original failing input. Fixes passes.</p>\n<p>Save it as a new Blueprint. The environment pointer promotes to staging. Original failure locked as a regression test.</p>",
+            "zhHtml": "<p>这些层不是彼此独立的功能。它们是同一个循环。</p>\n<p>用 @opik.track 做埋点。声明一个 opik.Config。生产环境中某个东西失败。</p>\n<p>Ollie 读取 trace，读取你的源码，并提出修复方案。你批准。</p>\n<p>Ollie 在 Sandbox 中针对原始失败输入重跑 agent。修复通过。</p>\n<p>将其保存为新的 Blueprint。环境指针提升到 staging。原始失败被锁定为回归测试。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSz8UVaIAAtf84.jpg",
+            "alt": "Source visual",
+            "caption": "Source visual from the original post."
+          },
+          {
+            "type": "bilingual",
+            "en": "The next failure enters the same loop.\n\nEvery cycle, the harness gets harder to break.",
+            "zh": "下一次失败会进入同一个循环。\n\n每经过一个循环，harness 就会更难被破坏。",
+            "html": "<p>The next failure enters the same loop.</p>\n<p>Every cycle, the harness gets harder to break.</p>",
+            "zhHtml": "<p>下一次失败会进入同一个循环。</p>\n<p>每经过一个循环，harness 就会更难被破坏。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Closing the Loop · 闭合循环",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Observability that ends at the trace made sense when agents were simple. Once they hit production, the real work is everything after the trace, and that is the part Opik runs for you instead of leaving it on your plate.\n\nThe whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations,\n\nwith the project past 19.3K stars on GitHub.\n\nIt self-hosts in three commands:\n\nThe manual loop Cursor describes is the one Opik closes on its own, from a bad trace all the way to a locked regression test.",
+            "zh": "当 Agent 还很简单时，止步于 trace 的可观测性是说得通的。一旦它们进入生产环境，真正的工作就是 trace 之后的一切，而这正是 Opik 替你运行、不再丢回给你的部分。\n\n整个技术栈都是开放发布的，包括 Tracing、Ollie、Test Suites、Agent Sandbox、一个包含 6 种算法的 Agent Optimizer，以及 50 多个框架集成。\n\n该项目在 GitHub 上已经超过 19.3K stars。\n\n它可以通过三条命令自托管：\n\nCursor 描述的那个手工循环，正是 Opik 自行闭合的循环：从一条坏 trace 一直到锁定的回归测试。",
+            "html": "<p>Observability that ends at the trace made sense when agents were simple. Once they hit production, the real work is everything after the trace, and that is the part Opik runs for you instead of leaving it on your plate.</p>\n<p>The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations,</p>\n<p>with the project past 19.3K stars on GitHub.</p>\n<p>It self-hosts in three commands:</p>\n<p>The manual loop Cursor describes is the one Opik closes on its own, from a bad trace all the way to a locked regression test.</p>",
+            "zhHtml": "<p>当 Agent 还很简单时，止步于 trace 的可观测性是说得通的。一旦它们进入生产环境，真正的工作就是 trace 之后的一切，而这正是 Opik 替你运行、不再丢回给你的部分。</p>\n<p>整个技术栈都是开放发布的，包括 Tracing、Ollie、Test Suites、Agent Sandbox、一个包含 6 种算法的 Agent Optimizer，以及 50 多个框架集成。</p>\n<p>该项目在 GitHub 上已经超过 19.3K stars。</p>\n<p>它可以通过三条命令自托管：</p>\n<p>Cursor 描述的那个手工循环，正是 Opik 自行闭合的循环：从一条坏 trace 一直到锁定的回归测试。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "It is worth a look if you are running agents in production.\n\nCheck out Comet ML and Opik →\n\n( don't forget to star 🌟)\n\nWhat's the current state of observability in your agent stack, and where does the debugging loop break for your team right now?",
+            "zh": "如果你正在生产环境运行 Agent，它值得一看。\n\n去看看 Comet ML 和 Opik →\n\n（别忘了点 star 🌟）\n\n你们的 agent 技术栈目前可观测性处于什么状态？对你的团队来说，调试循环现在断在哪个环节？",
+            "html": "<p>It is worth a look if you are running agents in production.</p>\n<p>Check out Comet ML and Opik →</p>\n<p>( don&#x27;t forget to star 🌟)</p>\n<p>What&#x27;s the current state of observability in your agent stack, and where does the debugging loop break for your team right now?</p>",
+            "zhHtml": "<p>如果你正在生产环境运行 Agent，它值得一看。</p>\n<p>去看看 Comet ML 和 Opik →</p>\n<p>（别忘了点 star 🌟）</p>\n<p>你们的 agent 技术栈目前可观测性处于什么状态？对你的团队来说，调试循环现在断在哪个环节？</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "If you are building an open-source tool that AI engineers would love, reach out. We only cover tools that pass our own test, so we'll try yours first and write about it only if it holds up.\n\nThanks to Comet ML for sponsoring today's issue.",
+            "zh": "如果你正在构建 AI 工程师会喜欢的开源工具，欢迎联系。我们只报道能通过自己测试的工具，所以会先试用你的工具，只有它经得起检验时才会撰写介绍。\n\n感谢 Comet ML 赞助今天这一期。",
+            "html": "<p>If you are building an open-source tool that AI engineers would love, reach out. We only cover tools that pass our own test, so we&#x27;ll try yours first and write about it only if it holds up.</p>\n<p>Thanks to Comet ML for sponsoring today&#x27;s issue.</p>",
+            "zhHtml": "<p>如果你正在构建 AI 工程师会喜欢的开源工具，欢迎联系。我们只报道能通过自己测试的工具，所以会先试用你的工具，只有它经得起检验时才会撰写介绍。</p>\n<p>感谢 Comet ML 赞助今天这一期。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Source visuals · 来源图片",
+        "rows": [
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKT7cxzbcAAzT9w.jpg",
+            "alt": "Source visual 1",
+            "caption": "Source visual 1"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSta5UaAAE4D7S.jpg",
+            "alt": "Source visual 2",
+            "caption": "Source visual 2"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSxAsCbAAEPsH_.jpg",
+            "alt": "Source visual 3",
+            "caption": "Source visual 3"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSxkDzbYAA0bd3.jpg",
+            "alt": "Source visual 4",
+            "caption": "Source visual 4"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSz8UVaIAAtf84.jpg",
+            "alt": "Source visual 5",
+            "caption": "Source visual 5"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSulwkbYAApCVA.jpg",
+            "alt": "Source visual 6",
+            "caption": "Source visual 6"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKStt7DbEAAb7oE.jpg",
+            "alt": "Source visual 7",
+            "caption": "Source visual 7"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSwqWkakAAhrBV.jpg",
+            "alt": "Source visual 8",
+            "caption": "Source visual 8"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSuZYNbwAA-yjh.jpg",
+            "alt": "Source visual 9",
+            "caption": "Source visual 9"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HKSwDwNboAATBy7.jpg",
+            "alt": "Source visual 10",
+            "caption": "Source visual 10"
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "entries": [
+      {
+        "word": "agent optimizer",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "Agent 优化器；用于改进 Agent 行为或性能的组件。",
+        "collocationExample": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "exampleZh": "例句说明：该词在原文中用于表达“Agent 优化器；用于改进 Agent 行为或性能的组件”。"
+      },
+      {
+        "word": "AI agents",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "AI Agent；能够围绕目标执行任务的智能系统。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“AI Agent；能够围绕目标执行任务的智能系统”。"
+      },
+      {
+        "word": "framework integrations",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "框架集成；与外部框架连接并协同工作的能力。",
+        "collocationExample": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "exampleZh": "例句说明：该词在原文中用于表达“框架集成；与外部框架连接并协同工作的能力”。"
+      },
+      {
+        "word": "labeled dataset",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "带标签数据集；包含人工或规则标注的数据集合。",
+        "collocationExample": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "exampleZh": "例句说明：该词在原文中用于表达“带标签数据集；包含人工或规则标注的数据集合”。"
+      },
+      {
+        "word": "LLM applications",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "LLM 应用；基于大语言模型构建的软件系统。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“LLM 应用；基于大语言模型构建的软件系统”。"
+      },
+      {
+        "word": "numerical metric",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "数值指标；用数字衡量系统表现的标准。",
+        "collocationExample": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "exampleZh": "例句说明：该词在原文中用于表达“数值指标；用数字衡量系统表现的标准”。"
+      },
+      {
+        "word": "open-source logging",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "开源日志记录；用开源工具记录系统运行信息。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“开源日志记录；用开源工具记录系统运行信息”。"
+      },
+      {
+        "word": "span tree",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "追踪跨度树；展示调用链和执行层级的结构。",
+        "collocationExample": "You get a span tree, latency numbers, token costs, and a dashboard.",
+        "exampleZh": "例句说明：该词在原文中用于表达“追踪跨度树；展示调用链和执行层级的结构”。"
+      },
+      {
+        "word": "span trees",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "追踪跨度树集合；用于分析调用链和执行层级。",
+        "collocationExample": "Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.",
+        "exampleZh": "例句说明：该词在原文中用于表达“追踪跨度树集合；用于分析调用链和执行层级”。"
+      },
+      {
+        "word": "test suites",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "测试套件；一组用于验证系统行为的测试。",
+        "collocationExample": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "exampleZh": "例句说明：该词在原文中用于表达“测试套件；一组用于验证系统行为的测试”。"
+      },
+      {
+        "word": "tool invocation",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "工具调用；执行外部工具或函数的动作。",
+        "collocationExample": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工具调用；执行外部工具或函数的动作”。"
+      },
+      {
+        "word": "decorator",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "装饰器；用于给函数附加行为的编程结构。",
+        "collocationExample": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "exampleZh": "例句说明：该词在原文中用于表达“装饰器；用于给函数附加行为的编程结构”。"
+      },
+      {
+        "word": "harness",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "测试框架或执行外壳，用于包裹系统并运行检查。",
+        "collocationExample": "Cursor recently shared how much engineering goes into the harness around their agent, the layer of prompts, tools, and checks wrapped around the raw model.",
+        "exampleZh": "例句说明：该词在原文中用于表达“测试框架或执行外壳，用于包裹系统并运行检查”。"
+      },
+      {
+        "word": "observability",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "可观测性；通过日志、指标和追踪理解系统行为的能力。",
+        "collocationExample": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.",
+        "exampleZh": "例句说明：该词在原文中用于表达“可观测性；通过日志、指标和追踪理解系统行为的能力”。"
+      },
+      {
+        "word": "Ollie",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "文中提到的调试助手，用于解释 Agent 失败原因。",
+        "collocationExample": "Trace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace",
+        "exampleZh": "例句说明：该词在原文中用于表达“文中提到的调试助手，用于解释 Agent 失败原因”。"
+      },
+      {
+        "word": "Opik",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "一个用于 AI Agent 和 LLM 应用观测、调试与评估的平台。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“一个用于 AI Agent 和 LLM 应用观测、调试与评估的平台”。"
+      },
+      {
+        "word": "sandbox",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "沙箱；隔离执行环境，用于限制风险。",
+        "collocationExample": "Opik's Agent Sandbox runs the fully instrumented agent end-to-end inside the UI.",
+        "exampleZh": "例句说明：该词在原文中用于表达“沙箱；隔离执行环境，用于限制风险”。"
+      },
+      {
+        "word": "token",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "词元；模型处理文本时使用的基本单位。",
+        "collocationExample": "You get a clean trace of the run, every model call and tool that fired, how long each step took, and what it cost in tokens.",
+        "exampleZh": "例句说明：该词在原文中用于表达“词元；模型处理文本时使用的基本单位”。"
+      },
+      {
+        "word": "tokens",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "词元集合；模型上下文长度和成本常用单位。",
+        "collocationExample": "You get a clean trace of the run, every model call and tool that fired, how long each step took, and what it cost in tokens.",
+        "exampleZh": "例句说明：该词在原文中用于表达“词元集合；模型上下文长度和成本常用单位”。"
+      },
+      {
+        "word": "tracing",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "链路追踪；记录请求或任务执行过程的机制。",
+        "collocationExample": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "exampleZh": "例句说明：该词在原文中用于表达“链路追踪；记录请求或任务执行过程的机制”。"
+      },
+      {
+        "word": "causal chain",
+        "ipa": "/ˈkɔːzəl tʃeɪn/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "因果链；从原因到结果的一系列关联。",
+        "collocationExample": "Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.",
+        "exampleZh": "例句说明：该词在原文中用于表达“因果链；从原因到结果的一系列关联”。"
+      },
+      {
+        "word": "failure modes",
+        "ipa": "/ˈfeɪljər moʊdz/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "失败模式；系统常见的出错类型或表现。",
+        "collocationExample": "Then a new model ships with a fresh batch of failure modes, and you run that whole manual loop from the top.",
+        "exampleZh": "例句说明：该词在原文中用于表达“失败模式；系统常见的出错类型或表现”。"
+      },
+      {
+        "word": "root cause",
+        "ipa": "/ruːt kɔːz/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "根因；导致问题发生的根本原因。",
+        "collocationExample": "Ask it, \"why did the final answer ignore the retrieved context?\" It walks the full span tree and surfaces the root cause.",
+        "exampleZh": "例句说明：该词在原文中用于表达“根因；导致问题发生的根本原因”。"
+      },
+      {
+        "word": "instrumented",
+        "ipa": "/ˈɪnstrəmentɪd/",
+        "level": "C1",
+        "pos": "adj.",
+        "definitionZh": "已插桩的；已加入观测或记录机制的。",
+        "collocationExample": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "exampleZh": "例句说明：该词在原文中用于表达“已插桩的；已加入观测或记录机制的”。"
+      },
+      {
+        "word": "regression",
+        "ipa": "/rɪˈɡreʃən/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "回归；修改后旧功能再次出错的情况。",
+        "collocationExample": "Trace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace",
+        "exampleZh": "例句说明：该词在原文中用于表达“回归；修改后旧功能再次出错的情况”。"
+      },
+      {
+        "word": "final answer",
+        "ipa": "/ˈfaɪnl ˈænsər/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "最终答案；系统交付给用户的最后输出。",
+        "collocationExample": "Ask it, \"why did the final answer ignore the retrieved context?\" It walks the full span tree and surfaces the root cause.",
+        "exampleZh": "例句说明：该词在原文中用于表达“最终答案；系统交付给用户的最后输出”。"
+      },
+      {
+        "word": "open-source",
+        "ipa": "/ˌoʊpən ˈsɔːrs/",
+        "level": "B2",
+        "pos": "adj.",
+        "definitionZh": "开源的；源代码公开可查看或贡献的。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“开源的；源代码公开可查看或贡献的”。"
+      },
+      {
+        "word": "dataset",
+        "ipa": "/ˈdeɪtəset/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "数据集；用于训练、评估或分析的一组数据。",
+        "collocationExample": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "exampleZh": "例句说明：该词在原文中用于表达“数据集；用于训练、评估或分析的一组数据”。"
+      },
+      {
+        "word": "debugging",
+        "ipa": "/ˌdiːˈbʌɡɪŋ/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "调试；定位并修复系统问题的过程。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“调试；定位并修复系统问题的过程”。"
+      },
+      {
+        "word": "failure",
+        "ipa": "/ˈfeɪljər/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "失败；系统未达到预期结果的情况。",
+        "collocationExample": "Then a new model ships with a fresh batch of failure modes, and you run that whole manual loop from the top.",
+        "exampleZh": "例句说明：该词在原文中用于表达“失败；系统未达到预期结果的情况”。"
+      },
+      {
+        "word": "latency",
+        "ipa": "/ˈleɪtənsi/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "延迟；请求到响应之间的等待时间。",
+        "collocationExample": "You get a span tree, latency numbers, token costs, and a dashboard.",
+        "exampleZh": "例句说明：该词在原文中用于表达“延迟；请求到响应之间的等待时间”。"
+      },
+      {
+        "word": "logging",
+        "ipa": "/ˈlɔːɡɪŋ/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "日志记录；保存系统运行事件和数据。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“日志记录；保存系统运行事件和数据”。"
+      },
+      {
+        "word": "metric",
+        "ipa": "/ˈmetrɪk/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "指标；衡量系统表现的量化标准。",
+        "collocationExample": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "exampleZh": "例句说明：该词在原文中用于表达“指标；衡量系统表现的量化标准”。"
+      },
+      {
+        "word": "optimization",
+        "ipa": "/ˌɑːptɪməˈzeɪʃən/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "优化；提升系统效果、速度或稳定性。",
+        "collocationExample": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "exampleZh": "例句说明：该词在原文中用于表达“优化；提升系统效果、速度或稳定性”。"
+      },
+      {
+        "word": "production",
+        "ipa": "/prəˈdʌkʃən/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "生产环境；面向真实用户运行的系统状态。",
+        "collocationExample": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.",
+        "exampleZh": "例句说明：该词在原文中用于表达“生产环境；面向真实用户运行的系统状态”。"
+      },
+      {
+        "word": "repair",
+        "ipa": "/rɪˈper/",
+        "level": "B2",
+        "pos": "n./v.",
+        "definitionZh": "修复；纠正错误或恢复正常状态。",
+        "collocationExample": "The harness gets more complex faster than any team can manually track and repair.",
+        "exampleZh": "例句说明：该词在原文中用于表达“修复；纠正错误或恢复正常状态”。"
+      },
+      {
+        "word": "retrieval",
+        "ipa": "/rɪˈtriːvəl/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "检索；从外部来源取回相关信息。",
+        "collocationExample": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "exampleZh": "例句说明：该词在原文中用于表达“检索；从外部来源取回相关信息”。"
+      },
+      {
+        "word": "workflow",
+        "ipa": "/ˈwɜːrkfloʊ/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "工作流；按步骤组织的任务执行过程。",
+        "collocationExample": "Opik's architecture is one connected workflow.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工作流；按步骤组织的任务执行过程”。"
+      },
+      {
+        "word": "workflows",
+        "ipa": "/ˈwɜːrkfloʊz/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "多个工作流；由步骤和决策组成的任务执行过程。",
+        "collocationExample": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "exampleZh": "例句说明：该词在原文中用于表达“多个工作流；由步骤和决策组成的任务执行过程”。"
+      }
+    ],
+    "dict": {
+      "agent_optimizer": {
+        "w": "agent optimizer",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "Agent 优化器；用于改进 Agent 行为或性能的组件。",
+        "eg": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "egzh": "例句说明：该词在原文中用于表达“Agent 优化器；用于改进 Agent 行为或性能的组件”。"
+      },
+      "ai_agents": {
+        "w": "AI agents",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "AI Agent；能够围绕目标执行任务的智能系统。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“AI Agent；能够围绕目标执行任务的智能系统”。"
+      },
+      "framework_integrations": {
+        "w": "framework integrations",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "框架集成；与外部框架连接并协同工作的能力。",
+        "eg": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "egzh": "例句说明：该词在原文中用于表达“框架集成；与外部框架连接并协同工作的能力”。"
+      },
+      "labeled_dataset": {
+        "w": "labeled dataset",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "带标签数据集；包含人工或规则标注的数据集合。",
+        "eg": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "egzh": "例句说明：该词在原文中用于表达“带标签数据集；包含人工或规则标注的数据集合”。"
+      },
+      "llm_applications": {
+        "w": "LLM applications",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "LLM 应用；基于大语言模型构建的软件系统。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“LLM 应用；基于大语言模型构建的软件系统”。"
+      },
+      "numerical_metric": {
+        "w": "numerical metric",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "数值指标；用数字衡量系统表现的标准。",
+        "eg": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "egzh": "例句说明：该词在原文中用于表达“数值指标；用数字衡量系统表现的标准”。"
+      },
+      "open_source_logging": {
+        "w": "open-source logging",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "开源日志记录；用开源工具记录系统运行信息。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“开源日志记录；用开源工具记录系统运行信息”。"
+      },
+      "span_tree": {
+        "w": "span tree",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "追踪跨度树；展示调用链和执行层级的结构。",
+        "eg": "You get a span tree, latency numbers, token costs, and a dashboard.",
+        "egzh": "例句说明：该词在原文中用于表达“追踪跨度树；展示调用链和执行层级的结构”。"
+      },
+      "span_trees": {
+        "w": "span trees",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "追踪跨度树集合；用于分析调用链和执行层级。",
+        "eg": "Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.",
+        "egzh": "例句说明：该词在原文中用于表达“追踪跨度树集合；用于分析调用链和执行层级”。"
+      },
+      "test_suites": {
+        "w": "test suites",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "测试套件；一组用于验证系统行为的测试。",
+        "eg": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "egzh": "例句说明：该词在原文中用于表达“测试套件；一组用于验证系统行为的测试”。"
+      },
+      "tool_invocation": {
+        "w": "tool invocation",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "工具调用；执行外部工具或函数的动作。",
+        "eg": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "egzh": "例句说明：该词在原文中用于表达“工具调用；执行外部工具或函数的动作”。"
+      },
+      "decorator": {
+        "w": "decorator",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "装饰器；用于给函数附加行为的编程结构。",
+        "eg": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "egzh": "例句说明：该词在原文中用于表达“装饰器；用于给函数附加行为的编程结构”。"
+      },
+      "harness": {
+        "w": "harness",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "测试框架或执行外壳，用于包裹系统并运行检查。",
+        "eg": "Cursor recently shared how much engineering goes into the harness around their agent, the layer of prompts, tools, and checks wrapped around the raw model.",
+        "egzh": "例句说明：该词在原文中用于表达“测试框架或执行外壳，用于包裹系统并运行检查”。"
+      },
+      "observability": {
+        "w": "observability",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "可观测性；通过日志、指标和追踪理解系统行为的能力。",
+        "eg": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.",
+        "egzh": "例句说明：该词在原文中用于表达“可观测性；通过日志、指标和追踪理解系统行为的能力”。"
+      },
+      "ollie": {
+        "w": "Ollie",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "文中提到的调试助手，用于解释 Agent 失败原因。",
+        "eg": "Trace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace",
+        "egzh": "例句说明：该词在原文中用于表达“文中提到的调试助手，用于解释 Agent 失败原因”。"
+      },
+      "opik": {
+        "w": "Opik",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "一个用于 AI Agent 和 LLM 应用观测、调试与评估的平台。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“一个用于 AI Agent 和 LLM 应用观测、调试与评估的平台”。"
+      },
+      "sandbox": {
+        "w": "sandbox",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "沙箱；隔离执行环境，用于限制风险。",
+        "eg": "Opik's Agent Sandbox runs the fully instrumented agent end-to-end inside the UI.",
+        "egzh": "例句说明：该词在原文中用于表达“沙箱；隔离执行环境，用于限制风险”。"
+      },
+      "token": {
+        "w": "token",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "词元；模型处理文本时使用的基本单位。",
+        "eg": "You get a clean trace of the run, every model call and tool that fired, how long each step took, and what it cost in tokens.",
+        "egzh": "例句说明：该词在原文中用于表达“词元；模型处理文本时使用的基本单位”。"
+      },
+      "tokens": {
+        "w": "tokens",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "词元集合；模型上下文长度和成本常用单位。",
+        "eg": "You get a clean trace of the run, every model call and tool that fired, how long each step took, and what it cost in tokens.",
+        "egzh": "例句说明：该词在原文中用于表达“词元集合；模型上下文长度和成本常用单位”。"
+      },
+      "tracing": {
+        "w": "tracing",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "链路追踪；记录请求或任务执行过程的机制。",
+        "eg": "The whole stack ships in the open, Tracing, Ollie, Test Suites, the Agent Sandbox, a 6-algorithm Agent Optimizer, and 50+ framework integrations, with the project past 19.3K stars on GitHub.",
+        "egzh": "例句说明：该词在原文中用于表达“链路追踪；记录请求或任务执行过程的机制”。"
+      },
+      "causal_chain": {
+        "w": "causal chain",
+        "ipa": "/ˈkɔːzəl tʃeɪn/",
+        "pos": "",
+        "level": "C1",
+        "def": "因果链；从原因到结果的一系列关联。",
+        "eg": "Without any code access, Ollie reads span trees, identifies failure modes, and explains the causal chain across every LLM call.",
+        "egzh": "例句说明：该词在原文中用于表达“因果链；从原因到结果的一系列关联”。"
+      },
+      "failure_modes": {
+        "w": "failure modes",
+        "ipa": "/ˈfeɪljər moʊdz/",
+        "pos": "",
+        "level": "C1",
+        "def": "失败模式；系统常见的出错类型或表现。",
+        "eg": "Then a new model ships with a fresh batch of failure modes, and you run that whole manual loop from the top.",
+        "egzh": "例句说明：该词在原文中用于表达“失败模式；系统常见的出错类型或表现”。"
+      },
+      "root_cause": {
+        "w": "root cause",
+        "ipa": "/ruːt kɔːz/",
+        "pos": "",
+        "level": "C1",
+        "def": "根因；导致问题发生的根本原因。",
+        "eg": "Ask it, \"why did the final answer ignore the retrieved context?\" It walks the full span tree and surfaces the root cause.",
+        "egzh": "例句说明：该词在原文中用于表达“根因；导致问题发生的根本原因”。"
+      },
+      "instrumented": {
+        "w": "instrumented",
+        "ipa": "/ˈɪnstrəmentɪd/",
+        "pos": "adj",
+        "level": "C1",
+        "def": "已插桩的；已加入观测或记录机制的。",
+        "eg": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "egzh": "例句说明：该词在原文中用于表达“已插桩的；已加入观测或记录机制的”。"
+      },
+      "regression": {
+        "w": "regression",
+        "ipa": "/rɪˈɡreʃən/",
+        "pos": "n",
+        "level": "C1",
+        "def": "回归；修改后旧功能再次出错的情况。",
+        "eg": "Trace → Ollie diagnoses → Ollie proposes a fix → fix is applied and verified → Test Suite locks the failure as a regression test → back to Trace",
+        "egzh": "例句说明：该词在原文中用于表达“回归；修改后旧功能再次出错的情况”。"
+      },
+      "final_answer": {
+        "w": "final answer",
+        "ipa": "/ˈfaɪnl ˈænsər/",
+        "pos": "",
+        "level": "B2",
+        "def": "最终答案；系统交付给用户的最后输出。",
+        "eg": "Ask it, \"why did the final answer ignore the retrieved context?\" It walks the full span tree and surfaces the root cause.",
+        "egzh": "例句说明：该词在原文中用于表达“最终答案；系统交付给用户的最后输出”。"
+      },
+      "open_source": {
+        "w": "open-source",
+        "ipa": "/ˌoʊpən ˈsɔːrs/",
+        "pos": "",
+        "level": "B2",
+        "def": "开源的；源代码公开可查看或贡献的。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“开源的；源代码公开可查看或贡献的”。"
+      },
+      "dataset": {
+        "w": "dataset",
+        "ipa": "/ˈdeɪtəset/",
+        "pos": "n",
+        "level": "B2",
+        "def": "数据集；用于训练、评估或分析的一组数据。",
+        "eg": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "egzh": "例句说明：该词在原文中用于表达“数据集；用于训练、评估或分析的一组数据”。"
+      },
+      "debugging": {
+        "w": "debugging",
+        "ipa": "/ˌdiːˈbʌɡɪŋ/",
+        "pos": "n",
+        "level": "B2",
+        "def": "调试；定位并修复系统问题的过程。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“调试；定位并修复系统问题的过程”。"
+      },
+      "failure": {
+        "w": "failure",
+        "ipa": "/ˈfeɪljər/",
+        "pos": "n",
+        "level": "B2",
+        "def": "失败；系统未达到预期结果的情况。",
+        "eg": "Then a new model ships with a fresh batch of failure modes, and you run that whole manual loop from the top.",
+        "egzh": "例句说明：该词在原文中用于表达“失败；系统未达到预期结果的情况”。"
+      },
+      "latency": {
+        "w": "latency",
+        "ipa": "/ˈleɪtənsi/",
+        "pos": "n",
+        "level": "B2",
+        "def": "延迟；请求到响应之间的等待时间。",
+        "eg": "You get a span tree, latency numbers, token costs, and a dashboard.",
+        "egzh": "例句说明：该词在原文中用于表达“延迟；请求到响应之间的等待时间”。"
+      },
+      "logging": {
+        "w": "logging",
+        "ipa": "/ˈlɔːɡɪŋ/",
+        "pos": "n",
+        "level": "B2",
+        "def": "日志记录；保存系统运行事件和数据。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“日志记录；保存系统运行事件和数据”。"
+      },
+      "metric": {
+        "w": "metric",
+        "ipa": "/ˈmetrɪk/",
+        "pos": "n",
+        "level": "B2",
+        "def": "指标；衡量系统表现的量化标准。",
+        "eg": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "egzh": "例句说明：该词在原文中用于表达“指标；衡量系统表现的量化标准”。"
+      },
+      "optimization": {
+        "w": "optimization",
+        "ipa": "/ˌɑːptɪməˈzeɪʃən/",
+        "pos": "n",
+        "level": "B2",
+        "def": "优化；提升系统效果、速度或稳定性。",
+        "eg": "Opik is an open-source logging, debugging, and optimization platform for AI agents and LLM applications.",
+        "egzh": "例句说明：该词在原文中用于表达“优化；提升系统效果、速度或稳定性”。"
+      },
+      "production": {
+        "w": "production",
+        "ipa": "/prəˈdʌkʃən/",
+        "pos": "n",
+        "level": "B2",
+        "def": "生产环境；面向真实用户运行的系统状态。",
+        "eg": "When an AI agent fails in production, your observability tool shows you exactly what it did and almost nothing about how to fix it.",
+        "egzh": "例句说明：该词在原文中用于表达“生产环境；面向真实用户运行的系统状态”。"
+      },
+      "repair": {
+        "w": "repair",
+        "ipa": "/rɪˈper/",
+        "pos": "n",
+        "level": "B2",
+        "def": "修复；纠正错误或恢复正常状态。",
+        "eg": "The harness gets more complex faster than any team can manually track and repair.",
+        "egzh": "例句说明：该词在原文中用于表达“修复；纠正错误或恢复正常状态”。"
+      },
+      "retrieval": {
+        "w": "retrieval",
+        "ipa": "/rɪˈtriːvəl/",
+        "pos": "n",
+        "level": "B2",
+        "def": "检索；从外部来源取回相关信息。",
+        "eg": "Every LLM call, tool invocation, and retrieval step is instrumented automatically with a single decorator.",
+        "egzh": "例句说明：该词在原文中用于表达“检索；从外部来源取回相关信息”。"
+      },
+      "workflow": {
+        "w": "workflow",
+        "ipa": "/ˈwɜːrkfloʊ/",
+        "pos": "n",
+        "level": "B2",
+        "def": "工作流；按步骤组织的任务执行过程。",
+        "eg": "Opik's architecture is one connected workflow.",
+        "egzh": "例句说明：该词在原文中用于表达“工作流；按步骤组织的任务执行过程”。"
+      },
+      "workflows": {
+        "w": "workflows",
+        "ipa": "/ˈwɜːrkfloʊz/",
+        "pos": "n",
+        "level": "B2",
+        "def": "多个工作流；由步骤和决策组成的任务执行过程。",
+        "eg": "Most eval workflows: build a labeled dataset, define a numerical metric, compare floats.",
+        "egzh": "例句说明：该词在原文中用于表达“多个工作流；由步骤和决策组成的任务执行过程”。"
+      }
+    },
+    "autowrap": [
+      [
+        "\\bagent\\ optimizer\\b",
+        "i",
+        "agent_optimizer"
+      ],
+      [
+        "\\bAI\\ agents\\b",
+        "i",
+        "ai_agents"
+      ],
+      [
+        "\\bframework\\ integrations\\b",
+        "i",
+        "framework_integrations"
+      ],
+      [
+        "\\blabeled\\ dataset\\b",
+        "i",
+        "labeled_dataset"
+      ],
+      [
+        "\\bLLM\\ applications\\b",
+        "i",
+        "llm_applications"
+      ],
+      [
+        "\\bnumerical\\ metric\\b",
+        "i",
+        "numerical_metric"
+      ],
+      [
+        "\\bopen\\-source\\ logging\\b",
+        "i",
+        "open_source_logging"
+      ],
+      [
+        "\\bspan\\ tree\\b",
+        "i",
+        "span_tree"
+      ],
+      [
+        "\\bspan\\ trees\\b",
+        "i",
+        "span_trees"
+      ],
+      [
+        "\\btest\\ suites\\b",
+        "i",
+        "test_suites"
+      ],
+      [
+        "\\btool\\ invocation\\b",
+        "i",
+        "tool_invocation"
+      ],
+      [
+        "\\b(?:decorators|decorator)\\b",
+        "i",
+        "decorator"
+      ],
+      [
+        "\\b(?:harnesses|harness)\\b",
+        "i",
+        "harness"
+      ],
+      [
+        "\\b(?:observabilities|observability)\\b",
+        "i",
+        "observability"
+      ],
+      [
+        "\\b(?:Ollies|Ollie)\\b",
+        "i",
+        "ollie"
+      ],
+      [
+        "\\b(?:Opiks|Opik)\\b",
+        "i",
+        "opik"
+      ],
+      [
+        "\\b(?:sandboxes|sandbox)\\b",
+        "i",
+        "sandbox"
+      ],
+      [
+        "\\b(?:tokens|token)\\b",
+        "i",
+        "token"
+      ],
+      [
+        "\\b(?:tokenses|tokens)\\b",
+        "i",
+        "tokens"
+      ],
+      [
+        "\\b(?:tracings|tracing)\\b",
+        "i",
+        "tracing"
+      ],
+      [
+        "\\bcausal\\ chain\\b",
+        "i",
+        "causal_chain"
+      ],
+      [
+        "\\bfailure\\ modes\\b",
+        "i",
+        "failure_modes"
+      ],
+      [
+        "\\broot\\ cause\\b",
+        "i",
+        "root_cause"
+      ],
+      [
+        "\\b(?:instrumented)\\b",
+        "i",
+        "instrumented"
+      ],
+      [
+        "\\b(?:regressions|regression)\\b",
+        "i",
+        "regression"
+      ],
+      [
+        "\\bfinal\\ answer\\b",
+        "i",
+        "final_answer"
+      ],
+      [
+        "\\bopen\\-source\\b",
+        "i",
+        "open_source"
+      ],
+      [
+        "\\b(?:datasets|dataset)\\b",
+        "i",
+        "dataset"
+      ],
+      [
+        "\\b(?:debuggings|debugging)\\b",
+        "i",
+        "debugging"
+      ],
+      [
+        "\\b(?:failures|failure)\\b",
+        "i",
+        "failure"
+      ],
+      [
+        "\\b(?:latencies|latency)\\b",
+        "i",
+        "latency"
+      ],
+      [
+        "\\b(?:loggings|logging)\\b",
+        "i",
+        "logging"
+      ],
+      [
+        "\\b(?:metrics|metric)\\b",
+        "i",
+        "metric"
+      ],
+      [
+        "\\b(?:optimizations|optimization)\\b",
+        "i",
+        "optimization"
+      ],
+      [
+        "\\b(?:productions|production)\\b",
+        "i",
+        "production"
+      ],
+      [
+        "\\b(?:repairing|repaired|repairs|repair)\\b",
+        "i",
+        "repair"
+      ],
+      [
+        "\\b(?:retrievals|retrieval)\\b",
+        "i",
+        "retrieval"
+      ],
+      [
+        "\\b(?:workflows|workflow)\\b",
+        "i",
+        "workflow"
+      ],
+      [
+        "\\b(?:workflowses|workflows)\\b",
+        "i",
+        "workflows"
+      ]
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://x.com/akshay_pachaar/status/2064051835636498924",
+    "sourceText": "Your Agent Harness Should Repair Itself"
+  }
+}

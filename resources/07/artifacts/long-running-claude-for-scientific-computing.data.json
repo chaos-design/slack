@@ -1,0 +1,1775 @@
+{
+  "metadata": {
+    "title": "Long-running Claude for scientific computing",
+    "sourceUrl": "https://www.anthropic.com/research/long-running-Claude",
+    "fetchedAt": "2026-06-21 18:05:29"
+  },
+  "article": {
+    "title": "Long-running Claude for scientific computing",
+    "sourceUrl": "https://www.anthropic.com/research/long-running-Claude",
+    "fetchedAt": "2026-06-21 18:05:29",
+    "tags": [
+      "Claude Code",
+      "Scientific Computing",
+      "AI Agent",
+      "Long-running Agents"
+    ],
+    "anchors": [
+      {
+        "id": "og-1",
+        "label": "Premise"
+      },
+      {
+        "id": "og-2",
+        "label": "Task Shape"
+      },
+      {
+        "id": "og-3",
+        "label": "Concrete Example"
+      },
+      {
+        "id": "og-4",
+        "label": "Scientific Infrastructure"
+      },
+      {
+        "id": "og-5",
+        "label": "Why It Is Hard"
+      },
+      {
+        "id": "og-6",
+        "label": "Execution Setup"
+      },
+      {
+        "id": "og-7",
+        "label": "Memory and Oracle"
+      },
+      {
+        "id": "og-8",
+        "label": "Coordination and Loop"
+      },
+      {
+        "id": "og-9",
+        "label": "Ralph Loop and Result"
+      }
+    ]
+  },
+  "hero": {
+    "title": "Long-running Claude：面向科学计算的长任务 Agent 工作流",
+    "meta": "Anthropic Research · 2026-03-23",
+    "en": "The article explains how to run multi-day Claude Code workflows for scientific computing using memory, test oracles, and orchestration.",
+    "zh": "文章说明如何用记忆文件、测试判据和编排循环，把 Claude Code 用于跨天运行的科学计算任务。"
+  },
+  "summary": {
+    "lead": "这篇文章的重点不是让 Agent 盲目自治，而是为长时间科学计算任务建立可恢复、可验证、可监督的运行框架。",
+    "cards": [
+      {
+        "icon": "01",
+        "title": "任务要有判据",
+        "body": "适合 Agent 的科学任务通常范围清晰、成功标准明确，并且可以对照 reference implementation 或测试套件验证。"
+      },
+      {
+        "icon": "02",
+        "title": "记忆必须外置",
+        "body": "CHANGELOG.md 把进展、失败路线、精度表和限制沉淀为可携带长期记忆，避免重复走死路。"
+      },
+      {
+        "icon": "03",
+        "title": "运行要可恢复",
+        "body": "Git、tmux、SLURM 和提交规则把无人值守运行变成可观察、可恢复的工程流程。"
+      },
+      {
+        "icon": "04",
+        "title": "编排补足能力",
+        "body": "Ralph loop 等模式在模型能力不足时提供脚手架，防止过早声称完成。"
+      }
+    ],
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "长任务 Agent 的可靠性来自明确目标、测试判据、持久记忆和可恢复执行环境。"
+      },
+      {
+        "label": "边界条件",
+        "text": "这种方法适合成功标准清楚的工程化科学任务，不等同于开放式科学发现自动化。"
+      },
+      {
+        "label": "实践收益",
+        "text": "在合适问题上，Agent-driven development 可以把研究者数月到数年的实现工作压缩到数天级别。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "长任务 Claude 科学计算框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "定义目标",
+        "summary": "在 CLAUDE.md 写清 deliverables、上下文和成功标准。"
+      },
+      {
+        "id": "fw-2",
+        "label": "建立记忆",
+        "summary": "用 CHANGELOG.md 记录进展、失败路线和精度检查点。"
+      },
+      {
+        "id": "fw-3",
+        "label": "设置判据",
+        "summary": "用 reference implementation、quantifiable objective 或 test suite 判断进展。"
+      },
+      {
+        "id": "fw-4",
+        "label": "持续执行",
+        "summary": "在 HPC/tmux 环境中运行，并用 Git 保存可恢复历史。"
+      },
+      {
+        "id": "fw-5",
+        "label": "循环纠偏",
+        "summary": "用 Ralph loop 或人工检查防止过早停止。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "前提",
+      "title": "科学家从紧控对话转向长任务 Agent",
+      "rows": [
+        {
+          "en": "Most scientists currently using AI agents work in a conversational loop, managing each step on a tight leash.",
+          "zh": "多数科学家仍以对话方式紧控每一步。"
+        },
+        {
+          "en": "As models improve at long-horizon tasks, users can specify a high-level objective and let a team of agents work autonomously.",
+          "zh": "随着模型长程能力提升，用户可以指定高层目标，让 Agent 团队自主推进。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "适合任务",
+      "title": "哪些科学计算任务适合长时间 Agent",
+      "rows": [
+        {
+          "en": "Reimplementing a numerical solver, converting old Fortran software, and debugging against a reference implementation are good fits.",
+          "zh": "重写数值求解器、迁移旧 Fortran 软件、对照参考实现调试，都是适合场景。"
+        },
+        {
+          "en": "The key prerequisites are well-scoped work, clear success criteria, and occasional rather than continuous human oversight.",
+          "zh": "关键前提是范围清晰、成功标准明确，且不需要持续人工监督。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "案例",
+      "title": "从 C 编译器到宇宙学 Boltzmann solver",
+      "rows": [
+        {
+          "en": "Claude previously worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.",
+          "zh": "Claude 曾跨约 2,000 个 session 构建可编译 Linux kernel 的 C 编译器。"
+        },
+        {
+          "en": "The article's concrete example is a differentiable cosmological Boltzmann solver in JAX.",
+          "zh": "本文案例是在 JAX 中实现可微分的宇宙学 Boltzmann solver。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "科学价值",
+      "title": "为什么 differentiable solver 有意义",
+      "rows": [
+        {
+          "en": "CLASS and CAMB are core scientific infrastructure for constraining cosmological models.",
+          "zh": "CLASS 和 CAMB 是约束宇宙学模型的核心科学基础设施。"
+        },
+        {
+          "en": "A differentiable solver propagates gradients and enables gradient-based inference, speeding up parameter estimation.",
+          "zh": "可微分 solver 能传播梯度，支持基于梯度的推断，并加速参数估计。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "执行框架",
+      "title": "长任务 Agent 的三个支点",
+      "rows": [
+        {
+          "en": "CLAUDE.md carries instructions and context for the overall plan.",
+          "zh": "CLAUDE.md 承载总体计划和规则。"
+        },
+        {
+          "en": "CHANGELOG.md acts as portable long-term memory and lab notes.",
+          "zh": "CHANGELOG.md 是可携带长期记忆和实验记录。"
+        },
+        {
+          "en": "A test oracle tells the agent whether scientific code is actually making progress.",
+          "zh": "test oracle 告诉 Agent 科学代码是否真的在进步。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "协调",
+      "title": "用 Git、tmux 和 SLURM 管理无人值守运行",
+      "rows": [
+        {
+          "en": "Git makes progress visible, recoverable, and less likely to be lost when compute allocation ends.",
+          "zh": "Git 让进展可见、可恢复，也降低计算资源结束时丢失工作的风险。"
+        },
+        {
+          "en": "tmux lets Claude Code keep running on a compute node while the human detaches and checks occasionally.",
+          "zh": "tmux 让 Claude Code 在计算节点上持续运行，人类可断开后偶尔查看。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "Ralph loop",
+      "title": "反复确认完成状态的编排模式",
+      "rows": [
+        {
+          "en": "The Ralph loop asks whether the agent is really done when it claims completion.",
+          "zh": "Ralph loop 在 Agent 声称完成时追问是否真的完成。"
+        },
+        {
+          "en": "The Ralph loop can be useful for long-running tasks since the agent will admit the task is not up to spec, and continue working until it is.",
+          "zh": "Ralph loop 对长任务有用，因为 Agent 会承认任务尚未达到规格，并继续工作直到达标。"
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "toc": "结果",
+      "title": "能力边界与机会成本",
+      "rows": [
+        {
+          "en": "Claude reached sub-percent agreement across outputs, though the resulting solver was not production-grade.",
+          "zh": "Claude 在多个输出上达到亚百分比一致性，但结果并非生产级。"
+        },
+        {
+          "en": "The article argues that not running agents now carries an opportunity cost when projects have well-defined success criteria.",
+          "zh": "文章认为，当项目有清晰成功标准时，不运行 Agent 本身也有机会成本。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "文章认为哪类科学计算任务更适合长时间 Agent？",
+      "options": [
+        "成功标准清晰、可对照验证的任务",
+        "没有任何参考实现的开放式发现",
+        "只能由人类持续手动控制的任务"
+      ],
+      "answer": 0,
+      "explain": "原文明确提到 well-scoped、success criteria clear，并给出 reference implementation 和 test suite。",
+      "wrongReason": "其他选项缺少原文支持，或与文章强调的验证条件相反。",
+      "sourceAnchor": "Task Shape"
+    },
+    {
+      "question": "CHANGELOG.md 在流程中的角色是什么？",
+      "options": [
+        "便携长期记忆和实验记录",
+        "最终论文正文",
+        "替代测试套件的证明"
+      ],
+      "answer": 0,
+      "explain": "原文称 progress file 是 portable long-term memory，acting as lab notes。",
+      "wrongReason": "它记录进展和失败路线，但不替代 test oracle。",
+      "sourceAnchor": "Memory and Oracle"
+    },
+    {
+      "question": "Ralph loop 主要解决什么问题？",
+      "options": [
+        "Agent 过早声称完成",
+        "GPU 显存不足",
+        "JAX 自动微分失败"
+      ],
+      "answer": 0,
+      "explain": "原文把 Ralph loop 用来把声称完成的 Agent 拉回上下文，追问是否真的完成。",
+      "wrongReason": "其作用是编排和纠偏，不是底层数值计算优化。",
+      "sourceAnchor": "Ralph Loop"
+    }
+  ],
+  "original": {
+    "title": "Long-running Claude for scientific computing",
+    "meta": "Anthropic Research · 2026-03-23",
+    "groups": [
+      {
+        "group": "Premise · 前提",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tasks even outside of one's domain.",
+            "zh": "本文中，Discovery 团队研究员 Siddharth Mishra-Sharma 解释了如何把 multi-day agentic coding workflows、test oracles、persistent memory 和 orchestration patterns 应用到科学计算任务中，即使这些任务不在自己的核心领域。",
+            "html": "<p>In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tasks even outside of one's domain.</p>",
+            "zhHtml": "<p>本文中，Discovery 团队研究员 Siddharth Mishra-Sharma 解释了如何把 multi-day agentic coding workflows、test oracles、persistent memory 和 orchestration patterns 应用到科学计算任务中，即使这些任务不在自己的核心领域。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged: specify the high-level objective and set a team of agents loose to work autonomously.",
+            "zh": "目前多数使用 AI agents 的科学家仍处在 conversational loop 中，紧紧控制流程中的每一步。随着模型在 long-horizon tasks 上显著变强，一种新工作方式出现了：指定 high-level objective，然后让一组 agents 自主工作。",
+            "html": "<p>Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged: specify the high-level objective and set a team of agents loose to work autonomously.</p>",
+            "zhHtml": "<p>目前多数使用 AI agents 的科学家仍处在 conversational loop 中，紧紧控制流程中的每一步。随着模型在 long-horizon tasks 上显著变强，一种新工作方式出现了：指定 high-level objective，然后让一组 agents 自主工作。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Task Shape · 任务形态",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large codebase against a reference implementation.",
+            "zh": "某些科学任务很适合这种模式，例如 reimplementing a numerical solver，把用旧 Fortran 方言写成的 legacy scientific software 转换为现代语言，或对照 reference implementation 调试大型代码库。",
+            "html": "<p>Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large codebase against a reference implementation.</p>",
+            "zhHtml": "<p>某些科学任务很适合这种模式，例如 reimplementing a numerical solver，把用旧 Fortran 方言写成的 legacy scientific software 转换为现代语言，或对照 reference implementation 调试大型代码库。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+            "zh": "这些任务的共同特点是：工作范围 well-scoped，success criteria 清晰，human oversight 可以是偶发式而不是持续式。",
+            "html": "<p>These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.</p>",
+            "zhHtml": "<p>这些任务的共同特点是：工作范围 well-scoped，success criteria 清晰，human oversight 可以是偶发式而不是持续式。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Concrete Example · 具体案例",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Anthropic's C compiler project demonstrated a version of this, where Claude worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.",
+            "zh": "Anthropic 的 C compiler project 展示了这种模式：Claude 跨 roughly 2,000 sessions 工作，构建了一个能够编译 Linux kernel 的 C 编译器。",
+            "html": "<p>Anthropic's C compiler project demonstrated a version of this, where Claude worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.</p>",
+            "zhHtml": "<p>Anthropic 的 C compiler project 展示了这种模式：Claude 跨 roughly 2,000 sessions 工作，构建了一个能够编译 Linux kernel 的 C 编译器。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolving coupled equations for photons, baryons, neutrinos, and dark matter through the early universe.",
+            "zh": "文章演示了如何使用 Claude Opus 4.6 实现 cosmological Boltzmann solver 的 differentiable 版本。这类 numerical code 通过演化早期宇宙中 photons、baryons、neutrinos 和 dark matter 的耦合方程，预测 Cosmic Microwave Background 的统计性质。",
+            "html": "<p>The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolving coupled equations for photons, baryons, neutrinos, and dark matter through the early universe.</p>",
+            "zhHtml": "<p>文章演示了如何使用 Claude Opus 4.6 实现 cosmological Boltzmann solver 的 differentiable 版本。这类 numerical code 通过演化早期宇宙中 photons、baryons、neutrinos 和 dark matter 的耦合方程，预测 Cosmic Microwave Background 的统计性质。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Scientific Infrastructure · 科学基础设施",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+            "zh": "CLASS 和 CAMB 等 Boltzmann solvers 是宇宙学中的核心 scientific infrastructure，使研究者能够用 Planck 和 Simons Observatory 等巡天数据约束 cosmological models。",
+            "html": "<p>Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.</p>",
+            "zhHtml": "<p>CLASS 和 CAMB 等 Boltzmann solvers 是宇宙学中的核心 scientific infrastructure，使研究者能够用 Planck 和 Simons Observatory 等巡天数据约束 cosmological models。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiation and compatibility with accelerators such as GPUs.",
+            "zh": "一个 differentiable 版本可以让 gradients 贯穿整个 solver，从而使用 gradient-based inference methods，并加速 parameter estimation。用 JAX 编写则自然获得 automatic differentiation，并兼容 GPUs 等 accelerators。",
+            "html": "<p>A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiation and compatibility with accelerators such as GPUs.</p>",
+            "zhHtml": "<p>一个 differentiable 版本可以让 gradients 贯穿整个 solver，从而使用 gradient-based inference methods，并加速 parameter estimation。用 JAX 编写则自然获得 automatic differentiation，并兼容 GPUs 等 accelerators。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Why It Is Hard · 为什么难",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The task was not in the author's core scientific domain: he had high-level familiarity but not the expertise to complete it himself in any reasonable time frame. The point was to see if an agent could go further with minimal steering from a non-domain expert.",
+            "zh": "这个任务并不在作者的 core scientific domain 中：他有高层次熟悉度，但没有能力在合理时间内独立完成。实验目的在于观察：在 non-domain expert 的 minimal steering 下，Agent 能否推进得更远。",
+            "html": "<p>The task was not in the author's core scientific domain: he had high-level familiarity but not the expertise to complete it himself in any reasonable time frame. The point was to see if an agent could go further with minimal steering from a non-domain expert.</p>",
+            "zhHtml": "<p>这个任务并不在作者的 core scientific domain 中：他有高层次熟悉度，但没有能力在合理时间内独立完成。实验目的在于观察：在 non-domain expert 的 minimal steering 下，Agent 能否推进得更远。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+            "zh": "Boltzmann solver 是 deeply coupled pipeline。建模早期宇宙 recombines 过程时，一个 small numerical error 或 poor approximation 都可能微妙地影响下游所有结果。",
+            "html": "<p>A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.</p>",
+            "zhHtml": "<p>Boltzmann solver 是 deeply coupled pipeline。建模早期宇宙 recombines 过程时，一个 small numerical error 或 poor approximation 都可能微妙地影响下游所有结果。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Execution Setup · 执行设置",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+            "zh": "核心思想是 progress file、test oracle，以及带明确规则的 agent prompt。作者使用运行 SLURM job scheduler 的 HPC cluster，但这些想法并不依赖 Claude Code 的具体运行环境。",
+            "html": "<p>The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.</p>",
+            "zhHtml": "<p>核心思想是 progress file、test oracle，以及带明确规则的 agent prompt。作者使用运行 SLURM job scheduler 的 HPC cluster，但这些想法并不依赖 Claude Code 的具体运行环境。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The instructions should live in a CLAUDE.md file in the root directory. Claude treats this file specially, keeping it in context and referencing it for the overall plan, and can edit these instructions as it works.",
+            "zh": "指令应放在根目录的 CLAUDE.md 文件中。Claude 会特殊对待这个文件，把它保持在上下文中并作为总体计划参考，也可以在工作过程中更新这些指令。",
+            "html": "<p>The instructions should live in a CLAUDE.md file in the root directory. Claude treats this file specially, keeping it in context and referencing it for the overall plan, and can edit these instructions as it works.</p>",
+            "zhHtml": "<p>指令应放在根目录的 CLAUDE.md 文件中。Claude 会特殊对待这个文件，把它保持在上下文中并作为总体计划参考，也可以在工作过程中更新这些指令。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Memory and Oracle · 记忆与判据",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The progress file, conventionally CHANGELOG.md here, is the agent's portable long-term memory, acting as lab notes. It should track current status, completed tasks, failed approaches and why they did not work, accuracy tables, and known limitations.",
+            "zh": "这里约定的 progress file 是 CHANGELOG.md，它是 Agent 的 portable long-term memory，类似 lab notes。它应记录当前状态、已完成任务、failed approaches 及其失败原因、accuracy tables 和 known limitations。",
+            "html": "<p>The progress file, conventionally CHANGELOG.md here, is the agent's portable long-term memory, acting as lab notes. It should track current status, completed tasks, failed approaches and why they did not work, accuracy tables, and known limitations.</p>",
+            "zhHtml": "<p>这里约定的 progress file 是 CHANGELOG.md，它是 Agent 的 portable long-term memory，类似 lab notes。它应记录当前状态、已完成任务、failed approaches 及其失败原因、accuracy tables 和 known limitations。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Long-running autonomous scientific work depends on the agent having a way to know whether it is making progress. For scientific code, this could be a reference implementation, a quantifiable objective, or an existing test suite.",
+            "zh": "长时间自主科学工作依赖一个前提：Agent 必须知道自己是否在进步。对科学代码而言，这可以是 reference implementation、quantifiable objective，或 existing test suite。",
+            "html": "<p>Long-running autonomous scientific work depends on the agent having a way to know whether it is making progress. For scientific code, this could be a reference implementation, a quantifiable objective, or an existing test suite.</p>",
+            "zhHtml": "<p>长时间自主科学工作依赖一个前提：Agent 必须知道自己是否在进步。对科学代码而言，这可以是 reference implementation、quantifiable objective，或 existing test suite。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Coordination and Loop · 协调与循环",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Git can be a good way to monitor and coordinate the agent's progress. The agent should commit and push after every meaningful unit of work, run tests before every commit, and never commit code that breaks existing passing tests.",
+            "zh": "Git 可以用来 monitor and coordinate Agent 的进展。Agent 应在每个 meaningful unit of work 后 commit and push，在每次提交前运行 tests，并且 never commit 会破坏现有通过测试的代码。",
+            "html": "<p>Git can be a good way to monitor and coordinate the agent's progress. The agent should commit and push after every meaningful unit of work, run tests before every commit, and never commit code that breaks existing passing tests.</p>",
+            "zhHtml": "<p>Git 可以用来 monitor and coordinate Agent 的进展。Agent 应在每个 meaningful unit of work 后 commit and push，在每次提交前运行 tests，并且 never commit 会破坏现有通过测试的代码。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The execution loop starts by iterating on the plan locally, then launching a Claude Code session inside tmux on a compute node. Because the session runs inside tmux, the human can detach and occasionally check progress.",
+            "zh": "execution loop 先在本地迭代计划，然后在 compute node 的 tmux 中启动 Claude Code session。由于会话运行在 tmux 中，人类可以 detach，之后偶尔检查进度。",
+            "html": "<p>The execution loop starts by iterating on the plan locally, then launching a Claude Code session inside tmux on a compute node. Because the session runs inside tmux, the human can detach and occasionally check progress.</p>",
+            "zhHtml": "<p>execution loop 先在本地迭代计划，然后在 compute node 的 tmux 中启动 Claude Code session。由于会话运行在 tmux 中，人类可以 detach，之后偶尔检查进度。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Ralph Loop and Result · Ralph 循环与结果",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The Ralph loop is an orchestration pattern that kicks the agent back into context when it claims completion and asks if it is really done. It helps counter agentic laziness and can keep the agent working until the success criterion is met.",
+            "zh": "Ralph loop 是一种 orchestration pattern：当 Agent 声称完成时，把它踢回上下文，并追问是否真的完成。它用于对抗 agentic laziness，让 Agent 持续工作直到满足 success criterion。",
+            "html": "<p>The Ralph loop is an orchestration pattern that kicks the agent back into context when it claims completion and asks if it is really done. It helps counter agentic laziness and can keep the agent working until the success criterion is met.</p>",
+            "zhHtml": "<p>Ralph loop 是一种 orchestration pattern：当 Agent 声称完成时，把它踢回上下文，并追问是否真的完成。它用于对抗 agentic laziness，让 Agent 持续工作直到满足 success criterion。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Claude worked on the project from scratch over a few days, reaching sub-percent agreement with the reference CLASS implementation across its outputs. The result is not production-grade, but it demonstrates that agent-driven development can compress months or years of researcher work into days.",
+            "zh": "Claude 从零开始在几天内推进项目，使多个输出与 reference CLASS implementation 达到 sub-percent agreement。结果并非 production-grade，但它展示了 agent-driven development 可以把数月甚至数年的 researcher work 压缩到几天。",
+            "html": "<p>Claude worked on the project from scratch over a few days, reaching sub-percent agreement with the reference CLASS implementation across its outputs. The result is not production-grade, but it demonstrates that agent-driven development can compress months or years of researcher work into days.</p>",
+            "zhHtml": "<p>Claude 从零开始在几天内推进项目，使多个输出与 reference CLASS implementation 达到 sub-percent agreement。结果并非 production-grade，但它展示了 agent-driven development 可以把数月甚至数年的 researcher work 压缩到几天。</p>"
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "entries": [
+      {
+        "word": "scientific computing",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "scientific computing 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "exampleZh": "原文围绕 scientific computing 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "multi-day agentic coding workflows",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "multi-day agentic coding workflows 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "exampleZh": "原文围绕 multi-day agentic coding workflows 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "test oracles",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "test oracles 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "exampleZh": "原文围绕 test oracles 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "persistent memory",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "persistent memory 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "exampleZh": "原文围绕 persistent memory 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "orchestration patterns",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "orchestration patterns 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "exampleZh": "原文围绕 orchestration patterns 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "conversational loop",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "conversational loop 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "exampleZh": "原文围绕 conversational loop 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "tight leash",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "tight leash 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "exampleZh": "原文围绕 tight leash 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "long-horizon tasks",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "long-horizon tasks 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "exampleZh": "原文围绕 long-horizon tasks 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "high-level objective",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "high-level objective 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "exampleZh": "原文围绕 high-level objective 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "autonomously",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "autonomously 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "exampleZh": "原文围绕 autonomously 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "reimplementing",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "reimplementing 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "exampleZh": "原文围绕 reimplementing 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "numerical solver",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "numerical solver 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "exampleZh": "原文围绕 numerical solver 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "legacy scientific software",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "legacy scientific software 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "exampleZh": "原文围绕 legacy scientific software 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Fortran",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Fortran 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "exampleZh": "原文围绕 Fortran 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "debugging",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "debugging 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "exampleZh": "原文围绕 debugging 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "reference implementation",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "reference implementation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "exampleZh": "原文围绕 reference implementation 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "well-scoped",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "well-scoped 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+        "exampleZh": "原文围绕 well-scoped 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "success criteria",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "success criteria 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+        "exampleZh": "原文围绕 success criteria 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "human oversight",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "human oversight 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+        "exampleZh": "原文围绕 human oversight 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "C compiler project",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "C compiler project 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Anthropic's C compiler project demonstrated a version of this, where Claude worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.",
+        "exampleZh": "原文围绕 C compiler project 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Linux kernel",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Linux kernel 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Anthropic's C compiler project demonstrated a version of this, where Claude worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.",
+        "exampleZh": "原文围绕 Linux kernel 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Claude Code",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "Claude Code 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "exampleZh": "原文围绕 Claude Code 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "differentiable",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "differentiable 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 differentiable 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "cosmological Boltzmann solver",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "cosmological Boltzmann solver 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 cosmological Boltzmann solver 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Cosmic Microwave Background",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Cosmic Microwave Background 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 Cosmic Microwave Background 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "photons",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "photons 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 photons 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "baryons",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "baryons 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 baryons 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "neutrinos",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "neutrinos 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 neutrinos 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "dark matter",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "dark matter 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "exampleZh": "原文围绕 dark matter 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "CLASS",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "CLASS 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "exampleZh": "原文围绕 CLASS 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "CAMB",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "CAMB 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "exampleZh": "原文围绕 CAMB 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "scientific infrastructure",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "scientific infrastructure 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "exampleZh": "原文围绕 scientific infrastructure 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "cosmological models",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "cosmological models 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "exampleZh": "原文围绕 cosmological models 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Planck",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Planck 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "exampleZh": "原文围绕 Planck 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Simons Observatory",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Simons Observatory 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "exampleZh": "原文围绕 Simons Observatory 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "gradients",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "gradients 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 gradients 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "gradient-based inference",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "gradient-based inference 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 gradient-based inference 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "parameter estimation",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "parameter estimation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 parameter estimation 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "JAX",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "JAX 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 JAX 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "automatic differentiation",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "automatic differentiation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 automatic differentiation 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "accelerators",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "accelerators 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 accelerators 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "GPUs",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "GPUs 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "exampleZh": "原文围绕 GPUs 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "minimal steering",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "minimal steering 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The task was not in the author's core scientific domain: he had high-level familiarity but not the expertise to complete it himself in any reasonable time frame. The point was to see if an agent could go further with min",
+        "exampleZh": "原文围绕 minimal steering 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "non-domain expert",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "non-domain expert 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The task was not in the author's core scientific domain: he had high-level familiarity but not the expertise to complete it himself in any reasonable time frame. The point was to see if an agent could go further with min",
+        "exampleZh": "原文围绕 non-domain expert 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "deeply coupled pipeline",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "deeply coupled pipeline 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "exampleZh": "原文围绕 deeply coupled pipeline 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "numerical error",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "numerical error 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "exampleZh": "原文围绕 numerical error 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "poor approximation",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "poor approximation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "exampleZh": "原文围绕 poor approximation 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "recombines",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "recombines 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "exampleZh": "原文围绕 recombines 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "HPC cluster",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "HPC cluster 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "exampleZh": "原文围绕 HPC cluster 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "SLURM",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "SLURM 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "exampleZh": "原文围绕 SLURM 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "progress file",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "progress file 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "exampleZh": "原文围绕 progress file 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "lab notes",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "lab notes 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The progress file, conventionally CHANGELOG.md here, is the agent's portable long-term memory, acting as lab notes. It should track current status, completed tasks, failed approaches and why they did not work, accuracy t",
+        "exampleZh": "原文围绕 lab notes 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "failed approaches",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "failed approaches 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The progress file, conventionally CHANGELOG.md here, is the agent's portable long-term memory, acting as lab notes. It should track current status, completed tasks, failed approaches and why they did not work, accuracy t",
+        "exampleZh": "原文围绕 failed approaches 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "test oracle",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "test oracle 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "exampleZh": "原文围绕 test oracle 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Git",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Git 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Git can be a good way to monitor and coordinate the agent's progress. The agent should commit and push after every meaningful unit of work, run tests before every commit, and never commit code that breaks existing passin",
+        "exampleZh": "原文围绕 Git 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "commit and push",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "commit and push 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Git can be a good way to monitor and coordinate the agent's progress. The agent should commit and push after every meaningful unit of work, run tests before every commit, and never commit code that breaks existing passin",
+        "exampleZh": "原文围绕 commit and push 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "tmux",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "tmux 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The execution loop starts by iterating on the plan locally, then launching a Claude Code session inside tmux on a compute node. Because the session runs inside tmux, the human can detach and occasionally check progress.",
+        "exampleZh": "原文围绕 tmux 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "compute node",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "compute node 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The execution loop starts by iterating on the plan locally, then launching a Claude Code session inside tmux on a compute node. Because the session runs inside tmux, the human can detach and occasionally check progress.",
+        "exampleZh": "原文围绕 compute node 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "Ralph loop",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "Ralph loop 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The Ralph loop is an orchestration pattern that kicks the agent back into context when it claims completion and asks if it is really done. It helps counter agentic laziness and can keep the agent working until the succes",
+        "exampleZh": "原文围绕 Ralph loop 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "agentic laziness",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "agentic laziness 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "The Ralph loop is an orchestration pattern that kicks the agent back into context when it claims completion and asks if it is really done. It helps counter agentic laziness and can keep the agent working until the succes",
+        "exampleZh": "原文围绕 agentic laziness 展开长任务 Agent 的科学计算实践。"
+      },
+      {
+        "word": "sub-percent agreement",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "术语",
+        "definitionZh": "sub-percent agreement 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "collocationExample": "Claude worked on the project from scratch over a few days, reaching sub-percent agreement with the reference CLASS implementation across its outputs. The result is not production-grade, but it demonstrates that agent-dri",
+        "exampleZh": "原文围绕 sub-percent agreement 展开长任务 Agent 的科学计算实践。"
+      }
+    ],
+    "dict": {
+      "scientific-computing": {
+        "w": "scientific computing",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "scientific computing 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "egzh": "原文围绕 scientific computing 展开长任务 Agent 的科学计算实践。"
+      },
+      "multi-day-agentic-coding-workflows": {
+        "w": "multi-day agentic coding workflows",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "multi-day agentic coding workflows 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "egzh": "原文围绕 multi-day agentic coding workflows 展开长任务 Agent 的科学计算实践。"
+      },
+      "test-oracles": {
+        "w": "test oracles",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "test oracles 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "egzh": "原文围绕 test oracles 展开长任务 Agent 的科学计算实践。"
+      },
+      "persistent-memory": {
+        "w": "persistent memory",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "persistent memory 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "egzh": "原文围绕 persistent memory 展开长任务 Agent 的科学计算实践。"
+      },
+      "orchestration-patterns": {
+        "w": "orchestration patterns",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "orchestration patterns 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "egzh": "原文围绕 orchestration patterns 展开长任务 Agent 的科学计算实践。"
+      },
+      "conversational-loop": {
+        "w": "conversational loop",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "conversational loop 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "egzh": "原文围绕 conversational loop 展开长任务 Agent 的科学计算实践。"
+      },
+      "tight-leash": {
+        "w": "tight leash",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "tight leash 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "egzh": "原文围绕 tight leash 展开长任务 Agent 的科学计算实践。"
+      },
+      "long-horizon-tasks": {
+        "w": "long-horizon tasks",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "long-horizon tasks 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "egzh": "原文围绕 long-horizon tasks 展开长任务 Agent 的科学计算实践。"
+      },
+      "high-level-objective": {
+        "w": "high-level objective",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "high-level objective 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "egzh": "原文围绕 high-level objective 展开长任务 Agent 的科学计算实践。"
+      },
+      "autonomously": {
+        "w": "autonomously",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "autonomously 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Most scientists currently using AI agents work in a conversational loop, managing each step of the process on a tight leash. As models have become significantly better at long-horizon tasks, a new way of working emerged:",
+        "egzh": "原文围绕 autonomously 展开长任务 Agent 的科学计算实践。"
+      },
+      "reimplementing": {
+        "w": "reimplementing",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "reimplementing 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "egzh": "原文围绕 reimplementing 展开长任务 Agent 的科学计算实践。"
+      },
+      "numerical-solver": {
+        "w": "numerical solver",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "numerical solver 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "egzh": "原文围绕 numerical solver 展开长任务 Agent 的科学计算实践。"
+      },
+      "legacy-scientific-software": {
+        "w": "legacy scientific software",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "legacy scientific software 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "egzh": "原文围绕 legacy scientific software 展开长任务 Agent 的科学计算实践。"
+      },
+      "fortran": {
+        "w": "Fortran",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Fortran 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "egzh": "原文围绕 Fortran 展开长任务 Agent 的科学计算实践。"
+      },
+      "debugging": {
+        "w": "debugging",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "debugging 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "egzh": "原文围绕 debugging 展开长任务 Agent 的科学计算实践。"
+      },
+      "reference-implementation": {
+        "w": "reference implementation",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "reference implementation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Certain types of scientific tasks fit well within this model, such as reimplementing a numerical solver, converting legacy scientific software written in an old Fortran dialect to a modern language, and debugging a large",
+        "egzh": "原文围绕 reference implementation 展开长任务 Agent 的科学计算实践。"
+      },
+      "well-scoped": {
+        "w": "well-scoped",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "well-scoped 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+        "egzh": "原文围绕 well-scoped 展开长任务 Agent 的科学计算实践。"
+      },
+      "success-criteria": {
+        "w": "success criteria",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "success criteria 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+        "egzh": "原文围绕 success criteria 展开长任务 Agent 的科学计算实践。"
+      },
+      "human-oversight": {
+        "w": "human oversight",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "human oversight 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "These are tasks where the work is well-scoped, the success criteria are clear, and human oversight can be occasional rather than continuous.",
+        "egzh": "原文围绕 human oversight 展开长任务 Agent 的科学计算实践。"
+      },
+      "c-compiler-project": {
+        "w": "C compiler project",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "C compiler project 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Anthropic's C compiler project demonstrated a version of this, where Claude worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.",
+        "egzh": "原文围绕 C compiler project 展开长任务 Agent 的科学计算实践。"
+      },
+      "linux-kernel": {
+        "w": "Linux kernel",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Linux kernel 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Anthropic's C compiler project demonstrated a version of this, where Claude worked across roughly 2,000 sessions to build a C compiler capable of compiling the Linux kernel.",
+        "egzh": "原文围绕 Linux kernel 展开长任务 Agent 的科学计算实践。"
+      },
+      "claude-code": {
+        "w": "Claude Code",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "Claude Code 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "egzh": "原文围绕 Claude Code 展开长任务 Agent 的科学计算实践。"
+      },
+      "differentiable": {
+        "w": "differentiable",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "differentiable 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 differentiable 展开长任务 Agent 的科学计算实践。"
+      },
+      "cosmological-boltzmann-solver": {
+        "w": "cosmological Boltzmann solver",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "cosmological Boltzmann solver 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 cosmological Boltzmann solver 展开长任务 Agent 的科学计算实践。"
+      },
+      "cosmic-microwave-background": {
+        "w": "Cosmic Microwave Background",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Cosmic Microwave Background 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 Cosmic Microwave Background 展开长任务 Agent 的科学计算实践。"
+      },
+      "photons": {
+        "w": "photons",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "photons 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 photons 展开长任务 Agent 的科学计算实践。"
+      },
+      "baryons": {
+        "w": "baryons",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "baryons 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 baryons 展开长任务 Agent 的科学计算实践。"
+      },
+      "neutrinos": {
+        "w": "neutrinos",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "neutrinos 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 neutrinos 展开长任务 Agent 的科学计算实践。"
+      },
+      "dark-matter": {
+        "w": "dark matter",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "dark matter 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The post walks through using Claude Opus 4.6 to implement a differentiable version of a cosmological Boltzmann solver. This numerical code predicts the statistical properties of the Cosmic Microwave Background by evolvin",
+        "egzh": "原文围绕 dark matter 展开长任务 Agent 的科学计算实践。"
+      },
+      "class": {
+        "w": "CLASS",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "CLASS 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "egzh": "原文围绕 CLASS 展开长任务 Agent 的科学计算实践。"
+      },
+      "camb": {
+        "w": "CAMB",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "CAMB 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "egzh": "原文围绕 CAMB 展开长任务 Agent 的科学计算实践。"
+      },
+      "scientific-infrastructure": {
+        "w": "scientific infrastructure",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "scientific infrastructure 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "egzh": "原文围绕 scientific infrastructure 展开长任务 Agent 的科学计算实践。"
+      },
+      "cosmological-models": {
+        "w": "cosmological models",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "cosmological models 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "egzh": "原文围绕 cosmological models 展开长任务 Agent 的科学计算实践。"
+      },
+      "planck": {
+        "w": "Planck",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Planck 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "egzh": "原文围绕 Planck 展开长任务 Agent 的科学计算实践。"
+      },
+      "simons-observatory": {
+        "w": "Simons Observatory",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Simons Observatory 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Boltzmann solvers like CLASS and CAMB are core pieces of scientific infrastructure in cosmology, allowing researchers to constrain cosmological models using data from surveys like Planck and the Simons Observatory.",
+        "egzh": "原文围绕 Simons Observatory 展开长任务 Agent 的科学计算实践。"
+      },
+      "gradients": {
+        "w": "gradients",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "gradients 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 gradients 展开长任务 Agent 的科学计算实践。"
+      },
+      "gradient-based-inference": {
+        "w": "gradient-based inference",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "gradient-based inference 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 gradient-based inference 展开长任务 Agent 的科学计算实践。"
+      },
+      "parameter-estimation": {
+        "w": "parameter estimation",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "parameter estimation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 parameter estimation 展开长任务 Agent 的科学计算实践。"
+      },
+      "jax": {
+        "w": "JAX",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "JAX 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 JAX 展开长任务 Agent 的科学计算实践。"
+      },
+      "automatic-differentiation": {
+        "w": "automatic differentiation",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "automatic differentiation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 automatic differentiation 展开长任务 Agent 的科学计算实践。"
+      },
+      "accelerators": {
+        "w": "accelerators",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "accelerators 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 accelerators 展开长任务 Agent 的科学计算实践。"
+      },
+      "gpus": {
+        "w": "GPUs",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "GPUs 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A differentiable version, one that can propagate gradients through the full solver, enables the use of gradient-based inference methods and speeds up parameter estimation. Writing it in JAX gives automatic differentiatio",
+        "egzh": "原文围绕 GPUs 展开长任务 Agent 的科学计算实践。"
+      },
+      "minimal-steering": {
+        "w": "minimal steering",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "minimal steering 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The task was not in the author's core scientific domain: he had high-level familiarity but not the expertise to complete it himself in any reasonable time frame. The point was to see if an agent could go further with min",
+        "egzh": "原文围绕 minimal steering 展开长任务 Agent 的科学计算实践。"
+      },
+      "non-domain-expert": {
+        "w": "non-domain expert",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "non-domain expert 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The task was not in the author's core scientific domain: he had high-level familiarity but not the expertise to complete it himself in any reasonable time frame. The point was to see if an agent could go further with min",
+        "egzh": "原文围绕 non-domain expert 展开长任务 Agent 的科学计算实践。"
+      },
+      "deeply-coupled-pipeline": {
+        "w": "deeply coupled pipeline",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "deeply coupled pipeline 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "egzh": "原文围绕 deeply coupled pipeline 展开长任务 Agent 的科学计算实践。"
+      },
+      "numerical-error": {
+        "w": "numerical error",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "numerical error 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "egzh": "原文围绕 numerical error 展开长任务 Agent 的科学计算实践。"
+      },
+      "poor-approximation": {
+        "w": "poor approximation",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "poor approximation 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "egzh": "原文围绕 poor approximation 展开长任务 Agent 的科学计算实践。"
+      },
+      "recombines": {
+        "w": "recombines",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "recombines 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "A Boltzmann solver is a deeply coupled pipeline. A small numerical error or poor approximation in modeling how the early universe recombines can subtly shift everything downstream.",
+        "egzh": "原文围绕 recombines 展开长任务 Agent 的科学计算实践。"
+      },
+      "hpc-cluster": {
+        "w": "HPC cluster",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "HPC cluster 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "egzh": "原文围绕 HPC cluster 展开长任务 Agent 的科学计算实践。"
+      },
+      "slurm": {
+        "w": "SLURM",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "SLURM 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "egzh": "原文围绕 SLURM 展开长任务 Agent 的科学计算实践。"
+      },
+      "progress-file": {
+        "w": "progress file",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "progress file 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The core ideas are a progress file, a test oracle, and an agent prompt with clear rules. The author uses an HPC cluster running the SLURM job scheduler, but the ideas apply regardless of where Claude Code runs.",
+        "egzh": "原文围绕 progress file 展开长任务 Agent 的科学计算实践。"
+      },
+      "lab-notes": {
+        "w": "lab notes",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "lab notes 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The progress file, conventionally CHANGELOG.md here, is the agent's portable long-term memory, acting as lab notes. It should track current status, completed tasks, failed approaches and why they did not work, accuracy t",
+        "egzh": "原文围绕 lab notes 展开长任务 Agent 的科学计算实践。"
+      },
+      "failed-approaches": {
+        "w": "failed approaches",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "failed approaches 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The progress file, conventionally CHANGELOG.md here, is the agent's portable long-term memory, acting as lab notes. It should track current status, completed tasks, failed approaches and why they did not work, accuracy t",
+        "egzh": "原文围绕 failed approaches 展开长任务 Agent 的科学计算实践。"
+      },
+      "test-oracle": {
+        "w": "test oracle",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "test oracle 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "In this post, Siddharth Mishra-Sharma, a researcher on the Discovery team, explains how to apply multi-day agentic coding workflows, test oracles, persistent memory, and orchestration patterns to scientific computing tas",
+        "egzh": "原文围绕 test oracle 展开长任务 Agent 的科学计算实践。"
+      },
+      "git": {
+        "w": "Git",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Git 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Git can be a good way to monitor and coordinate the agent's progress. The agent should commit and push after every meaningful unit of work, run tests before every commit, and never commit code that breaks existing passin",
+        "egzh": "原文围绕 Git 展开长任务 Agent 的科学计算实践。"
+      },
+      "commit-and-push": {
+        "w": "commit and push",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "commit and push 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Git can be a good way to monitor and coordinate the agent's progress. The agent should commit and push after every meaningful unit of work, run tests before every commit, and never commit code that breaks existing passin",
+        "egzh": "原文围绕 commit and push 展开长任务 Agent 的科学计算实践。"
+      },
+      "tmux": {
+        "w": "tmux",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "tmux 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The execution loop starts by iterating on the plan locally, then launching a Claude Code session inside tmux on a compute node. Because the session runs inside tmux, the human can detach and occasionally check progress.",
+        "egzh": "原文围绕 tmux 展开长任务 Agent 的科学计算实践。"
+      },
+      "compute-node": {
+        "w": "compute node",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "compute node 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The execution loop starts by iterating on the plan locally, then launching a Claude Code session inside tmux on a compute node. Because the session runs inside tmux, the human can detach and occasionally check progress.",
+        "egzh": "原文围绕 compute node 展开长任务 Agent 的科学计算实践。"
+      },
+      "ralph-loop": {
+        "w": "Ralph loop",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "Ralph loop 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The Ralph loop is an orchestration pattern that kicks the agent back into context when it claims completion and asks if it is really done. It helps counter agentic laziness and can keep the agent working until the succes",
+        "egzh": "原文围绕 Ralph loop 展开长任务 Agent 的科学计算实践。"
+      },
+      "agentic-laziness": {
+        "w": "agentic laziness",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "agentic laziness 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "The Ralph loop is an orchestration pattern that kicks the agent back into context when it claims completion and asks if it is really done. It helps counter agentic laziness and can keep the agent working until the succes",
+        "egzh": "原文围绕 agentic laziness 展开长任务 Agent 的科学计算实践。"
+      },
+      "sub-percent-agreement": {
+        "w": "sub-percent agreement",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "B2",
+        "def": "sub-percent agreement 在本文中用于说明长时间科学计算 Agent 工作流的关键概念或工程部件。",
+        "eg": "Claude worked on the project from scratch over a few days, reaching sub-percent agreement with the reference CLASS implementation across its outputs. The result is not production-grade, but it demonstrates that agent-dri",
+        "egzh": "原文围绕 sub-percent agreement 展开长任务 Agent 的科学计算实践。"
+      }
+    },
+    "autowrap": [
+      [
+        "scientific computing",
+        "i",
+        "scientific-computing"
+      ],
+      [
+        "multi-day agentic coding workflows",
+        "i",
+        "multi-day-agentic-coding-workflows"
+      ],
+      [
+        "test oracles",
+        "i",
+        "test-oracles"
+      ],
+      [
+        "persistent memory",
+        "i",
+        "persistent-memory"
+      ],
+      [
+        "orchestration patterns",
+        "i",
+        "orchestration-patterns"
+      ],
+      [
+        "conversational loop",
+        "i",
+        "conversational-loop"
+      ],
+      [
+        "tight leash",
+        "i",
+        "tight-leash"
+      ],
+      [
+        "long-horizon tasks",
+        "i",
+        "long-horizon-tasks"
+      ],
+      [
+        "high-level objective",
+        "i",
+        "high-level-objective"
+      ],
+      [
+        "autonomously",
+        "i",
+        "autonomously"
+      ],
+      [
+        "reimplementing",
+        "i",
+        "reimplementing"
+      ],
+      [
+        "numerical solver",
+        "i",
+        "numerical-solver"
+      ],
+      [
+        "legacy scientific software",
+        "i",
+        "legacy-scientific-software"
+      ],
+      [
+        "Fortran",
+        "i",
+        "fortran"
+      ],
+      [
+        "debugging",
+        "i",
+        "debugging"
+      ],
+      [
+        "reference implementation",
+        "i",
+        "reference-implementation"
+      ],
+      [
+        "well-scoped",
+        "i",
+        "well-scoped"
+      ],
+      [
+        "success criteria",
+        "i",
+        "success-criteria"
+      ],
+      [
+        "human oversight",
+        "i",
+        "human-oversight"
+      ],
+      [
+        "C compiler project",
+        "i",
+        "c-compiler-project"
+      ],
+      [
+        "Linux kernel",
+        "i",
+        "linux-kernel"
+      ],
+      [
+        "Claude Code",
+        "i",
+        "claude-code"
+      ],
+      [
+        "differentiable",
+        "i",
+        "differentiable"
+      ],
+      [
+        "cosmological Boltzmann solver",
+        "i",
+        "cosmological-boltzmann-solver"
+      ],
+      [
+        "Cosmic Microwave Background",
+        "i",
+        "cosmic-microwave-background"
+      ],
+      [
+        "photons",
+        "i",
+        "photons"
+      ],
+      [
+        "baryons",
+        "i",
+        "baryons"
+      ],
+      [
+        "neutrinos",
+        "i",
+        "neutrinos"
+      ],
+      [
+        "dark matter",
+        "i",
+        "dark-matter"
+      ],
+      [
+        "CLASS",
+        "i",
+        "class"
+      ],
+      [
+        "CAMB",
+        "i",
+        "camb"
+      ],
+      [
+        "scientific infrastructure",
+        "i",
+        "scientific-infrastructure"
+      ],
+      [
+        "cosmological models",
+        "i",
+        "cosmological-models"
+      ],
+      [
+        "Planck",
+        "i",
+        "planck"
+      ],
+      [
+        "Simons Observatory",
+        "i",
+        "simons-observatory"
+      ]
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://www.anthropic.com/research/long-running-Claude",
+    "sourceText": "Long-running Claude for scientific computing"
+  }
+}

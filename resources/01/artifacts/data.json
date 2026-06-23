@@ -1,0 +1,1451 @@
+{
+  "metadata": {
+    "title": "Building effective agents",
+    "sourceUrl": "https://www.anthropic.com/engineering/building-effective-agents",
+    "fetchedAt": "2026-06-19 21:18:03"
+  },
+  "article": {
+    "title": "Building effective agents",
+    "sourceUrl": "https://www.anthropic.com/engineering/building-effective-agents",
+    "fetchedAt": "2026-06-19 21:18:03",
+    "tags": [
+      "AI",
+      "Agent",
+      "工程实践",
+      "安全护栏"
+    ],
+    "anchors": [
+      {
+        "id": "og-1",
+        "label": "Building Effective AI Agents \\ Anthropic"
+      },
+      {
+        "id": "og-2",
+        "label": "What are agents?"
+      },
+      {
+        "id": "og-3",
+        "label": "When (and when not) to use agents"
+      },
+      {
+        "id": "og-4",
+        "label": "When and how to use frameworks"
+      },
+      {
+        "id": "og-5",
+        "label": "Building blocks, workflows, and agents"
+      },
+      {
+        "id": "og-6",
+        "label": "Combining and customizing these patterns"
+      },
+      {
+        "id": "og-7",
+        "label": "Summary"
+      },
+      {
+        "id": "og-8",
+        "label": "Appendix 1: Agents in practice"
+      },
+      {
+        "id": "og-9",
+        "label": "Appendix 2: Prompt engineering your tools"
+      }
+    ]
+  },
+  "hero": {
+    "title": "Building effective agents",
+    "meta": "Source Article",
+    "en": "Source Basis We've worked with dozens of teams building LLM agents across industries. Consistently, the most successful implementations use simple, composable patterns rather than complex frameworks. Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries. Consistently, the most successful implementations weren't using complex frameworks or specialized libraries. Instead, they were building with simple, composable patterns.",
+    "zh": "本文是 Anthropic 关于构建高效 AI agent 的工程实践总结：最成功的实现往往不依赖复杂框架，而是使用简单、可组合的模式；应先用最简单的方案，仅在评估证明确有必要时才逐步增加复杂度。"
+  },
+  "summary": {
+    "lead": "本文是 Anthropic 关于构建高效 AI agent 的工程实践总结：最成功的实现往往不依赖复杂框架，而是使用简单、可组合的模式；应先用最简单的方案，仅在评估证明确有必要时才逐步增加复杂度。",
+    "cards": [
+      {
+        "icon": "01",
+        "title": "Introduction",
+        "body": "过去一年与数十个团队合作的经验表明，最成功的 LLM agent 实现使用的是简单、可组合的模式，而非复杂框架或专门库。"
+      },
+      {
+        "icon": "02",
+        "title": "What are agents?",
+        "body": "Anthropic 把各种实现统称为 agentic 系统，并区分 workflow（预定义代码路径编排）与 agent（模型动态主导流程与工具）。"
+      },
+      {
+        "icon": "03",
+        "title": "When (and when not) to use agents",
+        "body": "建议先找最简单的方案，仅在需要时增加复杂度；agentic 系统以延迟和成本换取更好表现，需权衡这种取舍。"
+      },
+      {
+        "icon": "04",
+        "title": "When and how to use frameworks",
+        "body": "框架便于起步，但会增加抽象层、遮蔽底层提示词与响应、加大调试难度；建议先直接用 LLM API，并理解底层代码。"
+      },
+      {
+        "icon": "05",
+        "title": "Building blocks, workflows, and agents",
+        "body": "从基础构建块——增强型 LLM——开始，逐级介绍 prompt chaining、routing、parallelization、orchestrator-workers、evaluator-optimizer 直到自主 agent。"
+      },
+      {
+        "icon": "06",
+        "title": "Building block: The augmented LLM",
+        "body": "agentic 系统的基本构建块是带检索、工具与记忆等增强能力的 LLM；建议按用例量身定制能力，并提供文档完善的接口（如 MCP）。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "Introduction",
+        "summary": "我们与数十个跨行业团队合作构建 LLM agent。我们始终发现，最成功的实现采用的是简单、可组合的模式，而不是复杂的框架。"
+      },
+      {
+        "id": "fw-2",
+        "label": "What are agents?",
+        "summary": "\"Agent\" 可以有多种定义。一些客户把 agent 定义为完全自主的系统，它们能在较长时间内独立运行，使用各种工具完成复杂任务。另一些人则用这个词来描述遵循预定义工作流的、更具规定性的实现。在 Anthropic，我们把所有这些变体都归类为 agentic 系统，但在架构上对 workflow 与 agent 做出了重要区分："
+      },
+      {
+        "id": "fw-3",
+        "label": "When (and when not) to u",
+        "summary": "在用 LLM 构建应用时，我们建议尽可能找到最简单的解决方案，只有在需要时才增加复杂度。这可能意味着根本不去构建 agentic 系统。Agentic 系统通常以延迟和成本为代价来换取更好的任务表现，你应当权衡这种取舍在什么时候才划算。"
+      },
+      {
+        "id": "fw-4",
+        "label": "When and how to use fram",
+        "summary": "有许多框架可以让 agentic 系统更易于实现，包括："
+      },
+      {
+        "id": "fw-5",
+        "label": "Building blocks, workflo",
+        "summary": "在本节中，我们将探讨我们在生产环境中见到的 agentic 系统常见模式。我们会从最基础的构建块——增强型 LLM——开始，然后逐步增加复杂度，从简单的组合式 workflow 一直讲到自主 agent。"
+      },
+      {
+        "id": "fw-6",
+        "label": "Building block: The augm",
+        "summary": "agentic 系统的基本构建块是一个经过增强的 LLM，这些增强能力包括检索、工具和记忆。我们当前的模型能够主动使用这些能力——自行生成搜索查询、选择合适的工具，并决定要保留哪些信息。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "Introduction",
+      "title": "Introduction",
+      "rows": [
+        {
+          "en": "Source Basis We've worked with dozens of teams building LLM agents across industries. Consistently, the most successful implementations use simple, composable patterns rather than complex frameworks. Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries. Consistently, the most successful implementations weren't using complex frameworks or specialized libraries. Instead, they were building with simple, composable patterns.",
+          "zh": "我们与数十个跨行业团队合作构建 LLM agent。我们始终发现，最成功的实现采用的是简单、可组合的模式，而不是复杂的框架。"
+        },
+        {
+          "en": "Source Basis We've worked with dozens of teams building LLM agents across industries. Consistently, the most successful implementations use simple, composable patterns rather than complex frameworks. Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries. Consistently, the most successful implementations weren't using complex frameworks or specialized libraries. Instead, they were building with simple, composable patterns.",
+          "zh": "过去一年，我们与数十个跨行业团队合作构建大语言模型（LLM）agent。我们始终发现，最成功的实现并没有使用复杂的框架或专门的库，相反，它们是用简单、可组合的模式构建的。"
+        },
+        {
+          "en": "Source Basis We've worked with dozens of teams building LLM agents across industries. Consistently, the most successful implementations use simple, composable patterns rather than complex frameworks. Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries. Consistently, the most successful implementations weren't using complex frameworks or specialized libraries. Instead, they were building with simple, composable patterns.",
+          "zh": "在这篇文章中，我们分享了与客户合作以及自己构建 agent 过程中学到的经验，并为开发者提供构建高效 agent 的实用建议。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "What are agents?",
+      "title": "What are agents?",
+      "rows": [
+        {
+          "en": "Source Basis \"Agent\" can be defined in several ways. Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks. Others use the term to describe more prescriptive implementations that follow predefined workflows. At Anthropic, we categorize all these variations as agentic systems, but draw an important architectural distinction between workflows and agents: Workflows are systems where LLMs and tools are orchestrated through predefined code paths. Agents, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.",
+          "zh": "\"Agent\" 可以有多种定义。一些客户把 agent 定义为完全自主的系统，它们能在较长时间内独立运行，使用各种工具完成复杂任务。另一些人则用这个词来描述遵循预定义工作流的、更具规定性的实现。在 Anthropic，我们把所有这些变体都归类为 agentic 系统，但在架构上对 workflow 与 agent 做出了重要区分："
+        },
+        {
+          "en": "Source Basis \"Agent\" can be defined in several ways. Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks. Others use the term to describe more prescriptive implementations that follow predefined workflows. At Anthropic, we categorize all these variations as agentic systems, but draw an important architectural distinction between workflows and agents: Workflows are systems where LLMs and tools are orchestrated through predefined code paths. Agents, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.",
+          "zh": "Workflow 是指 LLM 和工具通过预定义代码路径来编排的系统。而 agent 则是指 LLM 动态地主导自身流程和工具使用、并自主掌控如何完成任务的系统。"
+        },
+        {
+          "en": "Source Basis \"Agent\" can be defined in several ways. Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks. Others use the term to describe more prescriptive implementations that follow predefined workflows. At Anthropic, we categorize all these variations as agentic systems, but draw an important architectural distinction between workflows and agents: Workflows are systems where LLMs and tools are orchestrated through predefined code paths. Agents, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.",
+          "zh": "下面，我们将详细探讨这两类 agentic 系统。在附录 1（\"Agents in Practice\"）中，我们描述了客户在使用这类系统时发现特别有价值的两个领域。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "When (and when not) to use agents",
+      "title": "When (and when not) to use agents",
+      "rows": [
+        {
+          "en": "Source Basis When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed. This might mean not building agentic systems at all. Agentic systems often trade latency and cost for better task performance, and you should consider when this tradeoff makes sense. When more complexity is warranted, workflows offer predictability and consistency for well-defined tasks, whereas agents are the better option when flexibility and model-driven decision-making are needed at scale. For many applications, however, optimizing single LLM calls with retrieval and in-context examples is usually enough.",
+          "zh": "在用 LLM 构建应用时，我们建议尽可能找到最简单的解决方案，只有在需要时才增加复杂度。这可能意味着根本不去构建 agentic 系统。Agentic 系统通常以延迟和成本为代价来换取更好的任务表现，你应当权衡这种取舍在什么时候才划算。"
+        },
+        {
+          "en": "Source Basis When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed. This might mean not building agentic systems at all. Agentic systems often trade latency and cost for better task performance, and you should consider when this tradeoff makes sense. When more complexity is warranted, workflows offer predictability and consistency for well-defined tasks, whereas agents are the better option when flexibility and model-driven decision-making are needed at scale. For many applications, however, optimizing single LLM calls with retrieval and in-context examples is usually enough.",
+          "zh": "当确实需要更高的复杂度时，对于定义明确的任务，workflow 能提供可预测性和一致性；而当需要在规模化场景中实现灵活性和由模型驱动的决策时，agent 则是更好的选择。不过，对许多应用来说，用检索和上下文示例来优化单次 LLM 调用通常就已足够。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "When and how to use frameworks",
+      "title": "When and how to use frameworks",
+      "rows": [
+        {
+          "en": "Source Basis There are many frameworks that make agentic systems easier to implement, including: The Claude Agent SDK; Strands Agents SDK by AWS; Rivet, a drag and drop GUI LLM workflow builder; and Vellum, another GUI tool for building and testing complex workflows.",
+          "zh": "有许多框架可以让 agentic 系统更易于实现，包括："
+        },
+        {
+          "en": "Source Basis There are many frameworks that make agentic systems easier to implement, including: The Claude Agent SDK; Strands Agents SDK by AWS; Rivet, a drag and drop GUI LLM workflow builder; and Vellum, another GUI tool for building and testing complex workflows.",
+          "zh": "Claude Agent SDK；AWS 的 Strands Agents SDK；Rivet，一款拖拽式的图形化 LLM 工作流构建器；以及 Vellum，另一款用于构建和测试复杂工作流的图形化工具。"
+        },
+        {
+          "en": "Source Basis There are many frameworks that make agentic systems easier to implement, including: The Claude Agent SDK; Strands Agents SDK by AWS; Rivet, a drag and drop GUI LLM workflow builder; and Vellum, another GUI tool for building and testing complex workflows.",
+          "zh": "这些框架通过简化诸如调用 LLM、定义和解析工具、把多次调用串联起来等标准的底层任务，让你更容易上手。然而，它们往往会引入额外的抽象层，遮蔽底层的提示词和响应，使调试变得更困难。它们还会让人忍不住在更简单的方案本已够用时去增加复杂度。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "Building blocks, workflows, and agents",
+      "title": "Building blocks, workflows, and agents",
+      "rows": [
+        {
+          "en": "Source Basis In this section, we’ll explore the common patterns for agentic systems we’ve seen in production. We'll start with our foundational building block—the augmented LLM—and progressively increase complexity, from simple compositional workflows to autonomous agents.",
+          "zh": "在本节中，我们将探讨我们在生产环境中见到的 agentic 系统常见模式。我们会从最基础的构建块——增强型 LLM——开始，然后逐步增加复杂度，从简单的组合式 workflow 一直讲到自主 agent。"
+        },
+        {
+          "en": "Source Basis In this section, we’ll explore the common patterns for agentic systems we’ve seen in production. We'll start with our foundational building block—the augmented LLM—and progressively increase complexity, from simple compositional workflows to autonomous agents.",
+          "zh": "在本节中，我们将探讨我们在生产环境中见到的 agentic 系统常见模式。我们会从最基础的构建块——增强型 LLM——开始，然后逐步增加复杂度，从简单的组合式 workflow 一直讲到自主 agent。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "Building block: The augmented LLM",
+      "title": "Building block: The augmented LLM",
+      "rows": [
+        {
+          "en": "Source Basis The basic building block of agentic systems is an LLM enhanced with augmentations such as retrieval, tools, and memory. Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain. We recommend focusing on two key aspects of the implementation: tailoring these capabilities to your specific use case and ensuring they provide an easy, well-documented interface for your LLM. While there are many ways to implement these augmentations, one approach is through our recently released Model Context Protocol, which allows developers to integrate with a growing ecosystem of third-party tools with a simple client implementation.",
+          "zh": "agentic 系统的基本构建块是一个经过增强的 LLM，这些增强能力包括检索、工具和记忆。我们当前的模型能够主动使用这些能力——自行生成搜索查询、选择合适的工具，并决定要保留哪些信息。"
+        },
+        {
+          "en": "Source Basis The basic building block of agentic systems is an LLM enhanced with augmentations such as retrieval, tools, and memory. Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain. We recommend focusing on two key aspects of the implementation: tailoring these capabilities to your specific use case and ensuring they provide an easy, well-documented interface for your LLM. While there are many ways to implement these augmentations, one approach is through our recently released Model Context Protocol, which allows developers to integrate with a growing ecosystem of third-party tools with a simple client implementation.",
+          "zh": "我们建议在实现时重点关注两个方面：根据你的具体用例量身定制这些能力，以及确保它们为你的 LLM 提供简单、文档完善的接口。实现这些增强能力的方法有很多，其中一种是通过我们最近发布的 Model Context Protocol，它让开发者只需一个简单的客户端实现，就能接入不断壮大的第三方工具生态。"
+        },
+        {
+          "en": "Source Basis The basic building block of agentic systems is an LLM enhanced with augmentations such as retrieval, tools, and memory. Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain. We recommend focusing on two key aspects of the implementation: tailoring these capabilities to your specific use case and ensuring they provide an easy, well-documented interface for your LLM. While there are many ways to implement these augmentations, one approach is through our recently released Model Context Protocol, which allows developers to integrate with a growing ecosystem of third-party tools with a simple client implementation.",
+          "zh": "在本文余下部分，我们将假设每一次 LLM 调用都能使用这些增强能力。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "Workflow: Prompt chaining",
+      "title": "Workflow: Prompt chaining",
+      "rows": [
+        {
+          "en": "Source Basis Prompt chaining decomposes a task into a sequence of steps, where each LLM call processes the output of the previous one. You can add programmatic checks (see \"gate” in the diagram below) on any intermediate steps to ensure that the process is still on track. When to use this workflow: This workflow is ideal for situations where the task can be easily and cleanly decomposed into fixed subtasks. The main goal is to trade off latency for higher accuracy, by making each LLM call an easier task.",
+          "zh": "Prompt chaining 把一个任务拆解成一连串步骤，每次 LLM 调用都处理前一步的输出。你可以在任意中间步骤上加入程序化检查（见下图中的 \"gate\"），以确保整个流程仍在正轨上。"
+        },
+        {
+          "en": "Source Basis Prompt chaining decomposes a task into a sequence of steps, where each LLM call processes the output of the previous one. You can add programmatic checks (see \"gate” in the diagram below) on any intermediate steps to ensure that the process is still on track. When to use this workflow: This workflow is ideal for situations where the task can be easily and cleanly decomposed into fixed subtasks. The main goal is to trade off latency for higher accuracy, by making each LLM call an easier task.",
+          "zh": "何时使用此 workflow：当任务能够被轻松、干净地拆分为固定子任务时，这种 workflow 最为理想。它的主要目标是通过让每次 LLM 调用都更简单，以延迟换取更高的准确率。"
+        },
+        {
+          "en": "Source Basis Prompt chaining decomposes a task into a sequence of steps, where each LLM call processes the output of the previous one. You can add programmatic checks (see \"gate” in the diagram below) on any intermediate steps to ensure that the process is still on track. When to use this workflow: This workflow is ideal for situations where the task can be easily and cleanly decomposed into fixed subtasks. The main goal is to trade off latency for higher accuracy, by making each LLM call an easier task.",
+          "zh": "Prompt chaining 适用的示例："
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "toc": "Workflow: Routing",
+      "title": "Workflow: Routing",
+      "rows": [
+        {
+          "en": "Source Basis Routing classifies an input and directs it to a specialized followup task. This workflow allows for separation of concerns, and building more specialized prompts. Without this workflow, optimizing for one kind of input can hurt performance on other inputs. When to use this workflow: Routing works well for complex tasks where there are distinct categories that are better handled separately, and where classification can be handled accurately, either by an LLM or a more traditional classification model/algorithm.",
+          "zh": "Routing 对输入进行分类，并将其导向专门的后续任务。这种 workflow 实现了关注点分离，并能构建更专门的提示词。如果没有这种 workflow，针对某一类输入做优化可能会损害对其他输入的表现。"
+        },
+        {
+          "en": "Source Basis Routing classifies an input and directs it to a specialized followup task. This workflow allows for separation of concerns, and building more specialized prompts. Without this workflow, optimizing for one kind of input can hurt performance on other inputs. When to use this workflow: Routing works well for complex tasks where there are distinct categories that are better handled separately, and where classification can be handled accurately, either by an LLM or a more traditional classification model/algorithm.",
+          "zh": "何时使用此 workflow：当复杂任务存在适合分开处理的不同类别，且分类可以由 LLM 或更传统的分类模型/算法准确完成时，Routing 表现良好。"
+        },
+        {
+          "en": "Source Basis Routing classifies an input and directs it to a specialized followup task. This workflow allows for separation of concerns, and building more specialized prompts. Without this workflow, optimizing for one kind of input can hurt performance on other inputs. When to use this workflow: Routing works well for complex tasks where there are distinct categories that are better handled separately, and where classification can be handled accurately, either by an LLM or a more traditional classification model/algorithm.",
+          "zh": "Routing 适用的示例："
+        }
+      ]
+    },
+    {
+      "num": "9",
+      "toc": "Workflow: Parallelization",
+      "title": "Workflow: Parallelization",
+      "rows": [
+        {
+          "en": "Source Basis LLMs can sometimes work simultaneously on a task and have their outputs aggregated programmatically. This workflow, parallelization, manifests in two key variations: Sectioning: Breaking a task into independent subtasks run in parallel. Voting: Running the same task multiple times to get diverse outputs.",
+          "zh": "LLM 有时可以同时处理一个任务，并通过程序把它们的输出汇总起来。这种 workflow——parallelization（并行化）——主要表现为两种形式："
+        },
+        {
+          "en": "Source Basis LLMs can sometimes work simultaneously on a task and have their outputs aggregated programmatically. This workflow, parallelization, manifests in two key variations: Sectioning: Breaking a task into independent subtasks run in parallel. Voting: Running the same task multiple times to get diverse outputs.",
+          "zh": "分区（Sectioning）：把一个任务拆成多个相互独立、可并行运行的子任务。投票（Voting）：对同一个任务多次运行，以获得多样化的输出。"
+        },
+        {
+          "en": "Source Basis LLMs can sometimes work simultaneously on a task and have their outputs aggregated programmatically. This workflow, parallelization, manifests in two key variations: Sectioning: Breaking a task into independent subtasks run in parallel. Voting: Running the same task multiple times to get diverse outputs.",
+          "zh": "何时使用此 workflow：当拆分出的子任务可以并行执行以提升速度，或者当需要多个视角或多次尝试来获得更高置信度的结果时，parallelization 很有效。对于涉及多重考量的复杂任务，让每一项考量由单独的 LLM 调用来处理通常表现更好，因为这能让模型专注于每个具体方面。"
+        }
+      ]
+    },
+    {
+      "num": "10",
+      "toc": "Workflow: Orchestrator-workers",
+      "title": "Workflow: Orchestrator-workers",
+      "rows": [
+        {
+          "en": "Source Basis In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results. When to use this workflow: This workflow is well-suited for complex tasks where you can’t predict the subtasks needed (in coding, for example, the number of files that need to be changed and the nature of the change in each file likely depend on the task). Whereas it’s topographically similar, the key difference from parallelization is its flexibility—subtasks aren't pre-defined, but determined by the orchestrator based on the specific input.",
+          "zh": "在 orchestrator-workers（编排者-工作者）workflow 中，一个中心 LLM 动态地拆解任务，把它们委派给作为 worker 的 LLM，并综合这些 worker 的结果。"
+        },
+        {
+          "en": "Source Basis In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results. When to use this workflow: This workflow is well-suited for complex tasks where you can’t predict the subtasks needed (in coding, for example, the number of files that need to be changed and the nature of the change in each file likely depend on the task). Whereas it’s topographically similar, the key difference from parallelization is its flexibility—subtasks aren't pre-defined, but determined by the orchestrator based on the specific input.",
+          "zh": "何时使用此 workflow：当复杂任务所需的子任务无法预先预测时，这种 workflow 非常合适（例如在编码中，需要改动的文件数量以及每个文件改动的性质，往往取决于具体任务）。虽然它在结构上与 parallelization 类似，但关键区别在于灵活性——子任务不是预先定义好的，而是由编排者根据具体输入来决定的。"
+        },
+        {
+          "en": "Source Basis In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results. When to use this workflow: This workflow is well-suited for complex tasks where you can’t predict the subtasks needed (in coding, for example, the number of files that need to be changed and the nature of the change in each file likely depend on the task). Whereas it’s topographically similar, the key difference from parallelization is its flexibility—subtasks aren't pre-defined, but determined by the orchestrator based on the specific input.",
+          "zh": "Orchestrator-workers 适用的示例："
+        }
+      ]
+    },
+    {
+      "num": "11",
+      "toc": "Workflow: Evaluator-optimizer",
+      "title": "Workflow: Evaluator-optimizer",
+      "rows": [
+        {
+          "en": "Source Basis In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop. When to use this workflow: This workflow is particularly effective when we have clear evaluation criteria, and when iterative refinement provides measurable value. The two signs of good fit are, first, that LLM responses can be demonstrably improved when a human articulates their feedback; and second, that the LLM can provide such feedback. This is analogous to the iterative writing process a human writer might go through when producing a polished document.",
+          "zh": "在 evaluator-optimizer（评估者-优化者）workflow 中，一个 LLM 调用生成响应，另一个 LLM 调用则在循环中提供评估和反馈。"
+        },
+        {
+          "en": "Source Basis In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop. When to use this workflow: This workflow is particularly effective when we have clear evaluation criteria, and when iterative refinement provides measurable value. The two signs of good fit are, first, that LLM responses can be demonstrably improved when a human articulates their feedback; and second, that the LLM can provide such feedback. This is analogous to the iterative writing process a human writer might go through when producing a polished document.",
+          "zh": "何时使用此 workflow：当我们有清晰的评估标准、且迭代式打磨能带来可衡量的价值时，这种 workflow 特别有效。两个适配良好的标志是：第一，当人类把反馈清楚地表述出来时，LLM 的响应能够明显改进；第二，LLM 自身能够提供这样的反馈。这类似于人类作者打磨一篇成稿文档时所经历的反复修改过程。"
+        },
+        {
+          "en": "Source Basis In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop. When to use this workflow: This workflow is particularly effective when we have clear evaluation criteria, and when iterative refinement provides measurable value. The two signs of good fit are, first, that LLM responses can be demonstrably improved when a human articulates their feedback; and second, that the LLM can provide such feedback. This is analogous to the iterative writing process a human writer might go through when producing a polished document.",
+          "zh": "Evaluator-optimizer 适用的示例："
+        }
+      ]
+    },
+    {
+      "num": "12",
+      "toc": "Agents",
+      "title": "Agents",
+      "rows": [
+        {
+          "en": "Source Basis Agents are emerging in production as LLMs mature in key capabilities—understanding complex inputs, engaging in reasoning and planning, using tools reliably, and recovering from errors. Agents begin their work with either a command from, or interactive discussion with, the human user. Once the task is clear, agents plan and operate independently, potentially returning to the human for further information or judgement. During execution, it's crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress. Agents can then pause for human feedback at checkpoints or when encountering blockers. The task often terminates upon completion, but it’s also common to include stopping conditions (such as a maximum number of iterations) to maintain control. Agents can handle sophisticated tasks, but their implementation is often straightforward. They are typically just LLMs using tools based on environmental feedback in a loop. It is therefore crucial to design toolsets and their documentation clearly and thoughtfully. We expand on best practices for tool development in Appendix 2 (\"Prompt Engineering your Tools\").",
+          "zh": "随着 LLM 在一些关键能力上日益成熟——理解复杂输入、进行推理和规划、可靠地使用工具、以及从错误中恢复——agent 正在生产环境中崭露头角。Agent 的工作始于来自人类用户的指令，或与用户的交互式讨论。一旦任务明确，agent 便会独立地规划和执行，必要时会回到人类那里获取更多信息或判断。在执行过程中，agent 在每一步从环境中获得\"真实反馈\"（ground truth，例如工具调用结果或代码执行结果）至关重要，以此评估自身进展。Agent 随后可以在检查点处、或遇到障碍时暂停以获取人类反馈。任务通常在完成时终止，但加入停止条件（例如最大迭代次数）以保持可控，也很常见。"
+        },
+        {
+          "en": "Source Basis Agents are emerging in production as LLMs mature in key capabilities—understanding complex inputs, engaging in reasoning and planning, using tools reliably, and recovering from errors. Agents begin their work with either a command from, or interactive discussion with, the human user. Once the task is clear, agents plan and operate independently, potentially returning to the human for further information or judgement. During execution, it's crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress. Agents can then pause for human feedback at checkpoints or when encountering blockers. The task often terminates upon completion, but it’s also common to include stopping conditions (such as a maximum number of iterations) to maintain control. Agents can handle sophisticated tasks, but their implementation is often straightforward. They are typically just LLMs using tools based on environmental feedback in a loop. It is therefore crucial to design toolsets and their documentation clearly and thoughtfully. We expand on best practices for tool development in Appendix 2 (\"Prompt Engineering your Tools\").",
+          "zh": "Agent 能够处理复杂任务，但它们的实现往往很直接。它们通常只是 LLM 在一个循环中、根据环境反馈来使用工具。因此，清晰而周到地设计工具集及其文档至关重要。我们在附录 2（\"Prompt Engineering your Tools\"）中详细展开了工具开发的最佳实践。"
+        },
+        {
+          "en": "Source Basis Agents are emerging in production as LLMs mature in key capabilities—understanding complex inputs, engaging in reasoning and planning, using tools reliably, and recovering from errors. Agents begin their work with either a command from, or interactive discussion with, the human user. Once the task is clear, agents plan and operate independently, potentially returning to the human for further information or judgement. During execution, it's crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress. Agents can then pause for human feedback at checkpoints or when encountering blockers. The task often terminates upon completion, but it’s also common to include stopping conditions (such as a maximum number of iterations) to maintain control. Agents can handle sophisticated tasks, but their implementation is often straightforward. They are typically just LLMs using tools based on environmental feedback in a loop. It is therefore crucial to design toolsets and their documentation clearly and thoughtfully. We expand on best practices for tool development in Appendix 2 (\"Prompt Engineering your Tools\").",
+          "zh": "何时使用 agent：agent 适用于开放式问题——这类问题难以甚至无法预测所需步骤数量，也无法硬编码出一条固定路径。LLM 可能会运行很多个回合，因此你必须对它的决策有一定程度的信任。Agent 的自主性使它们非常适合在可信环境中规模化地执行任务。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "关于「Introduction」，哪一项最符合原文？",
+      "options": [
+        "我们与数十个跨行业团队合作构建 LLM agent。我们始终发现，最成功的实现采用的是简单、可组合的模式，而不是复杂的框架。",
+        "这是一个未被原文支持的泛化判断。",
+        "该内容与本文主题无关。"
+      ],
+      "answer": 0,
+      "explain": "依据对应精读段落和原文对照。",
+      "wrongReason": "该选项缺少来源文本支撑或偏离主题。",
+      "sourceAnchor": "Introduction"
+    }
+  ],
+  "original": {
+    "title": "Building Effective AI Agents Anthropic",
+    "meta": "https://www.anthropic.com/engineering/building-effective-agents",
+    "groups": [
+      {
+        "id": "og-1",
+        "group": "Building Effective AI Agents Anthropic",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries. Consistently, the most successful implementations weren't using complex frameworks or specialized libraries. Instead, they were building with simple, composable patterns.",
+            "zh": "过去一年，我们与数十个跨行业构建大语言模型（LLM）agent 的团队合作。我们始终发现，最成功的实现并没有使用复杂框架或专门库；相反，它们是用简单、可组合的模式构建的。",
+            "html": "<p>Over the past year, we&#x27;ve worked with dozens of teams building large language model (LLM) agents across industries. Consistently, the most successful implementations weren&#x27;t using complex frameworks or specialized libraries. Instead, they were building with simple, composable patterns.</p>",
+            "zhHtml": "<p>过去一年，我们与数十个跨行业构建大语言模型（LLM）agent 的团队合作。我们始终发现，最成功的实现并没有使用复杂框架或专门库；相反，它们是用简单、可组合的模式构建的。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "In this post, we share what we’ve learned from working with our customers and building agents ourselves, and give practical advice for developers on building effective agents.",
+            "zh": "在这篇文章中，我们会分享从客户合作以及我们自己构建 agent 的过程中学到的经验，并为开发者提供构建高效 agent 的实用建议。",
+            "html": "<p>In this post, we share what we’ve learned from working with our customers and building agents ourselves, and give practical advice for developers on building effective agents.</p>",
+            "zhHtml": "<p>在这篇文章中，我们会分享从客户合作以及我们自己构建 agent 的过程中学到的经验，并为开发者提供构建高效 agent 的实用建议。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-2",
+        "group": "What are agents?",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "\"Agent\" can be defined in several ways. Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks. Others use the term to describe more prescriptive implementations that follow predefined workflows. At Anthropic, we categorize all these variations as **agentic systems**, but draw an important architectural distinction between **workflows**and**agents**:\n\n**Workflows** are systems where LLMs and tools are orchestrated through predefined code paths.\n\n**Agents**, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.",
+            "zh": "\"Agent\" 可以有多种定义。一些客户把 agent 定义为完全自主的系统，它们能在较长时间内独立运行，并使用各种工具完成复杂任务。另一些客户则用这个词描述遵循预定义 workflow 的、更具规定性的实现。在 Anthropic，我们把所有这些变体都归类为 agentic 系统，但会在架构上对 workflow 和 agent 作出重要区分：\n\nWorkflow 是 LLM 和工具通过预定义代码路径进行编排的系统。\n\n而 agent 则是由 LLM 动态地主导自身流程和工具使用，并持续掌控如何完成任务的系统。",
+            "html": "<p>&quot;Agent&quot; can be defined in several ways. Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks. Others use the term to describe more prescriptive implementations that follow predefined workflows. At Anthropic, we categorize all these variations as <strong>agentic systems</strong>, but draw an important architectural distinction between <strong>workflows</strong>and<strong>agents</strong>:</p>\n<p><strong>Workflows</strong> are systems where LLMs and tools are orchestrated through predefined code paths.</p>\n<p><strong>Agents</strong>, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.</p>",
+            "zhHtml": "<p>&quot;Agent&quot; 可以有多种定义。一些客户把 <strong>agent</strong> 定义为完全自主的系统，它们能在较长时间内独立运行，并使用各种工具完成复杂任务。另一些客户则用这个词描述遵循预定义 <strong>workflow</strong> 的、更具规定性的实现。在 Anthropic，我们把所有这些变体都归类为 <strong>agentic 系统</strong>，但会在架构上对 workflow 和 agent 作出重要区分：</p>\n<p><strong>Workflow 是 LLM 和工具通过预定义代码路径进行编排的系统</strong>。</p>\n<p><strong>而 agent 则是由 LLM 动态地主导自身流程和工具使用</strong>，并持续掌控如何完成任务的系统。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Below, we will explore both types of agentic systems in detail. In Appendix 1 (“Agents in Practice”), we describe two domains where customers have found particular value in using these kinds of systems.",
+            "zh": "下面，我们将详细探讨这两类 agentic 系统。在附录 1（“Agents in Practice”）中，我们会描述客户发现这类系统尤其有价值的两个领域。",
+            "html": "<p>Below, we will explore both types of agentic systems in detail. In Appendix 1 (“Agents in Practice”), we describe two domains where customers have found particular value in using these kinds of systems.</p>",
+            "zhHtml": "<p>下面，我们将详细探讨这两类 agentic 系统。在附录 1（“Agents in Practice”）中，我们会描述客户发现这类系统尤其有价值的两个领域。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-3",
+        "group": "When (and when not) to use agents",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed. This might mean not building agentic systems at all. Agentic systems often trade latency and cost for better task performance, and you should consider when this tradeoff makes sense.",
+            "zh": "在用 LLM 构建应用时，我们建议尽可能寻找最简单的解决方案，只在需要时才增加复杂度。这可能意味着根本不构建 agentic 系统。Agentic 系统通常会用延迟和成本换取更好的任务表现，你应当考虑这种取舍在什么时候才合理。",
+            "html": "<p>When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed. This might mean not building agentic systems at all. Agentic systems often trade latency and cost for better task performance, and you should consider when this tradeoff makes sense.</p>",
+            "zhHtml": "<p>在用 LLM 构建应用时，我们建议尽可能寻找最简单的解决方案，只在需要时才增加复杂度。这可能意味着根本不构建 agentic 系统。Agentic 系统通常会用延迟和成本换取更好的任务表现，你应当考虑这种取舍在什么时候才合理。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "When more complexity is warranted, workflows offer predictability and consistency for well-defined tasks, whereas agents are the better option when flexibility and model-driven decision-making are needed at scale. For many applications, however, optimizing single LLM calls with retrieval and in-context examples is usually enough.",
+            "zh": "当确实需要更高复杂度时，对于定义明确的任务，workflow 能提供可预测性和一致性；而当需要在规模化场景中实现灵活性和模型驱动的决策时，agent 是更好的选择。不过，对许多应用来说，用检索和上下文示例来优化单次 LLM 调用通常已经足够。",
+            "html": "<p>When more complexity is warranted, workflows offer predictability and consistency for well-defined tasks, whereas agents are the better option when flexibility and model-driven decision-making are needed at scale. For many applications, however, optimizing single LLM calls with retrieval and in-context examples is usually enough.</p>",
+            "zhHtml": "<p>当确实需要更高复杂度时，对于定义明确的任务，workflow 能提供可预测性和一致性；而当需要在规模化场景中实现灵活性和模型驱动的决策时，agent 是更好的选择。不过，对许多应用来说，用检索和上下文示例来优化单次 LLM 调用通常已经足够。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-4",
+        "group": "When and how to use frameworks",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "There are many frameworks that make agentic systems easier to implement, including:\n\nThe [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview);\n\n[Strands Agents SDK by AWS](https://strandsagents.com/latest/);\n\n[Rivet](https://rivet.ironcladapp.com/), a drag and drop GUI LLM workflow builder; and\n\n[Vellum](https://www.vellum.ai/), another GUI tool for building and testing complex workflows.",
+            "zh": "有许多框架可以让 agentic 系统更容易实现，包括：\n\nClaude Agent SDK 工具包；\n\nAWS 的 Strands Agents SDK；\n\nRivet，一款拖拽式 GUI LLM workflow 构建器；以及\n\nVellum，另一款用于构建和测试复杂 workflow 的 GUI 工具。",
+            "html": "<p>There are many frameworks that make agentic systems easier to implement, including:</p>\n<p>The <a href=\"https://platform.claude.com/docs/en/agent-sdk/overview\" target=\"_blank\" rel=\"noopener\">Claude Agent SDK</a>;</p>\n<p><a href=\"https://strandsagents.com/latest/\" target=\"_blank\" rel=\"noopener\">Strands Agents SDK by AWS</a>;</p>\n<p><a href=\"https://rivet.ironcladapp.com/\" target=\"_blank\" rel=\"noopener\">Rivet</a>, a drag and drop GUI LLM workflow builder; and</p>\n<p><a href=\"https://www.vellum.ai/\" target=\"_blank\" rel=\"noopener\">Vellum</a>, another GUI tool for building and testing complex workflows.</p>",
+            "zhHtml": "<p>有许多框架可以让 agentic 系统更容易实现，包括：</p>\n<p><a href=\"https://platform.claude.com/docs/en/agent-sdk/overview\" target=\"_blank\" rel=\"noopener\">Claude Agent SDK</a> 工具包；</p>\n<p>AWS 的 <a href=\"https://strandsagents.com/latest/\" target=\"_blank\" rel=\"noopener\">Strands Agents SDK</a>；</p>\n<p><a href=\"https://rivet.ironcladapp.com/\" target=\"_blank\" rel=\"noopener\">Rivet</a>，一款拖拽式 GUI LLM workflow 构建器；以及</p>\n<p><a href=\"https://www.vellum.ai/\" target=\"_blank\" rel=\"noopener\">Vellum</a>，另一款用于构建和测试复杂 workflow 的 GUI 工具。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "These frameworks make it easy to get started by simplifying standard low-level tasks like calling LLMs, defining and parsing tools, and chaining calls together. However, they often create extra layers of abstraction that can obscure the underlying prompts ​​and responses, making them harder to debug. They can also make it tempting to add complexity when a simpler setup would suffice.",
+            "zh": "这些框架通过简化标准的低层任务，让上手变得容易，例如调用 LLM、定义和解析工具，以及把调用串联起来。不过，它们往往会产生额外的抽象层，遮蔽底层提示词和响应，使调试更困难。它们也可能让人在简单设置已经足够时，仍忍不住增加复杂度。",
+            "html": "<p>These frameworks make it easy to get started by simplifying standard low-level tasks like calling LLMs, defining and parsing tools, and chaining calls together. However, they often create extra layers of abstraction that can obscure the underlying prompts ​​and responses, making them harder to debug. They can also make it tempting to add complexity when a simpler setup would suffice.</p>",
+            "zhHtml": "<p>这些框架通过简化标准的低层任务，让上手变得容易，例如调用 LLM、定义和解析工具，以及把调用串联起来。不过，它们往往会产生额外的抽象层，遮蔽底层提示词和响应，使调试更困难。它们也可能让人在简单设置已经足够时，仍忍不住增加复杂度。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "We suggest that developers start by using LLM APIs directly: many patterns can be implemented in a few lines of code. If you do use a framework, ensure you understand the underlying code. Incorrect assumptions about what's under the hood are a common source of customer error.\n\nSee our [cookbook](https://platform.claude.com/cookbook/patterns-agents-basic-workflows) for some sample implementations.",
+            "zh": "我们建议开发者先从直接使用 LLM API 开始：许多模式只需几行代码就能实现。如果你确实使用框架，请确保自己理解底层代码。对内部实现的错误假设，是客户出错的常见来源。\n\n一些示例实现可参见我们的 cookbook。",
+            "html": "<p>We suggest that developers start by using LLM APIs directly: many patterns can be implemented in a few lines of code. If you do use a framework, ensure you understand the underlying code. Incorrect assumptions about what&#x27;s under the hood are a common source of customer error.</p>\n<p>See our <a href=\"https://platform.claude.com/cookbook/patterns-agents-basic-workflows\" target=\"_blank\" rel=\"noopener\">cookbook</a> for some sample implementations.</p>",
+            "zhHtml": "<p>我们建议开发者先从直接使用 LLM API 开始：许多模式只需几行代码就能实现。如果你确实使用框架，请确保自己理解底层代码。对内部实现的错误假设，是客户出错的常见来源。</p>\n<p>一些示例实现可参见我们的 <a href=\"https://platform.claude.com/cookbook/patterns-agents-basic-workflows\" target=\"_blank\" rel=\"noopener\">cookbook</a>。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-5",
+        "group": "Building blocks, workflows, and agents",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "In this section, we’ll explore the common patterns for agentic systems we’ve seen in production. We'll start with our foundational building block—the augmented LLM—and progressively increase complexity, from simple compositional workflows to autonomous agents.\n\nBuilding block: The augmented LLM",
+            "zh": "在本节中，我们将探讨我们在生产环境中见到的 agentic 系统常见模式。我们会从基础构建块——增强型 LLM——开始，并逐步提高复杂度，从简单的组合式 workflow 一直讲到自主 agent。\n\n构建块：增强型 LLM",
+            "html": "<p>In this section, we’ll explore the common patterns for agentic systems we’ve seen in production. We&#x27;ll start with our foundational building block—the augmented LLM—and progressively increase complexity, from simple compositional workflows to autonomous agents.</p>\n<p>Building block: The augmented LLM</p>",
+            "zhHtml": "<p>在本节中，我们将探讨我们在生产环境中见到的 agentic 系统常见模式。我们会从基础构建块——增强型 LLM——开始，并逐步提高复杂度，从简单的组合式 workflow 一直讲到自主 agent。</p>\n<p>构建块：增强型 LLM</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The basic building block of agentic systems is an LLM enhanced with augmentations such as retrieval, tools, and memory. Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain.",
+            "zh": "Agentic 系统的基本构建块，是一个通过检索、工具、记忆等能力增强过的 LLM。我们当前的模型能够主动使用这些能力——自行生成搜索查询、选择合适的工具，并决定要保留哪些信息。",
+            "html": "<p>The basic building block of agentic systems is an LLM enhanced with augmentations such as retrieval, tools, and memory. Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain.</p>",
+            "zhHtml": "<p>Agentic 系统的基本构建块，是一个通过检索、工具、记忆等能力增强过的 LLM。我们当前的模型能够主动使用这些能力——自行生成搜索查询、选择合适的工具，并决定要保留哪些信息。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fd3083d3f40bb2b6f477901cc9a240738d3dd1371-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "The augmented LLM",
+            "zh": "增强型 LLM",
+            "html": "<p>The augmented LLM</p>",
+            "zhHtml": "<p>增强型 LLM</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "We recommend focusing on two key aspects of the implementation: tailoring these capabilities to your specific use case and ensuring they provide an easy, well-documented interface for your LLM. While there are many ways to implement these augmentations, one approach is through our recently released [Model Context Protocol](https://www.anthropic.com/news/model-context-protocol), which allows developers to integrate with a growing ecosystem of third-party tools with a simple [client implementation](https://modelcontextprotocol.io/tutorials/building-a-client#building-mcp-clients).",
+            "zh": "我们建议在实现时关注两个关键方面：根据你的具体用例定制这些能力，并确保它们为 LLM 提供简单且文档完善的接口。实现这些增强能力有许多方式，其中一种方式是使用我们最近发布的 Model Context Protocol。它让开发者只需一个简单的客户端实现，就能接入不断壮大的第三方工具生态。",
+            "html": "<p>We recommend focusing on two key aspects of the implementation: tailoring these capabilities to your specific use case and ensuring they provide an easy, well-documented interface for your LLM. While there are many ways to implement these augmentations, one approach is through our recently released <a href=\"https://www.anthropic.com/news/model-context-protocol\" target=\"_blank\" rel=\"noopener\">Model Context Protocol</a>, which allows developers to integrate with a growing ecosystem of third-party tools with a simple <a href=\"https://modelcontextprotocol.io/tutorials/building-a-client#building-mcp-clients\" target=\"_blank\" rel=\"noopener\">client implementation</a>.</p>",
+            "zhHtml": "<p>我们建议在实现时关注两个关键方面：根据你的具体用例定制这些能力，并确保它们为 LLM 提供简单且文档完善的接口。实现这些增强能力有许多方式，其中一种方式是使用我们最近发布的 <a href=\"https://www.anthropic.com/news/model-context-protocol\" target=\"_blank\" rel=\"noopener\">Model Context Protocol</a>。它让开发者只需一个简单的<a href=\"https://modelcontextprotocol.io/tutorials/building-a-client#building-mcp-clients\" target=\"_blank\" rel=\"noopener\">客户端实现</a>，就能接入不断壮大的第三方工具生态。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "For the remainder of this post, we'll assume each LLM call has access to these augmented capabilities.\n\nWorkflow: Prompt chaining",
+            "zh": "在本文余下部分，我们将假设每一次 LLM 调用都能访问这些增强能力。\n\nWorkflow：提示链",
+            "html": "<p>For the remainder of this post, we&#x27;ll assume each LLM call has access to these augmented capabilities.</p>\n<p>Workflow: Prompt chaining</p>",
+            "zhHtml": "<p>在本文余下部分，我们将假设每一次 LLM 调用都能访问这些增强能力。</p>\n<p>Workflow：提示链</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Prompt chaining decomposes a task into a sequence of steps, where each LLM call processes the output of the previous one. You can add programmatic checks (see \"gate” in the diagram below) on any intermediate steps to ensure that the process is still on track.",
+            "zh": "Prompt chaining 会把任务分解成一系列步骤，每次 LLM 调用都处理前一次调用的输出。你可以在任意中间步骤加入程序化检查（见下图中的 “gate”），以确保流程仍在正轨上。",
+            "html": "<p>Prompt chaining decomposes a task into a sequence of steps, where each LLM call processes the output of the previous one. You can add programmatic checks (see &quot;gate” in the diagram below) on any intermediate steps to ensure that the process is still on track.</p>",
+            "zhHtml": "<p>Prompt chaining 会把任务分解成一系列步骤，每次 LLM 调用都处理前一次调用的输出。你可以在任意中间步骤加入程序化检查（见下图中的 “gate”），以确保流程仍在正轨上。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F7418719e3dab222dccb379b8879e1dc08ad34c78-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "The prompt chaining workflow\n\n**When to use this workflow:** This workflow is ideal for situations where the task can be easily and cleanly decomposed into fixed subtasks. The main goal is to trade off latency for higher accuracy, by making each LLM call an easier task.\n\n**Examples where prompt chaining is useful:**\n\nGenerating Marketing copy, then translating it into a different language.\n\nWriting an outline of a document, checking that the outline meets certain criteria, then writing the document based on the outline.",
+            "zh": "提示链工作流\n\n何时使用这种 workflow：当任务可以轻松、清晰地分解为固定子任务时，这种 workflow 非常理想。它的主要目标是让每次 LLM 调用承担更简单的任务，从而用延迟换取更高准确率。\n\nPrompt chaining 有用的示例：\n\n先生成营销文案，再把它翻译成另一种语言。\n\n先撰写文档大纲，检查大纲是否满足特定标准，然后基于该大纲撰写文档。",
+            "html": "<p>The prompt chaining workflow</p>\n<p><strong>When to use this workflow:</strong> This workflow is ideal for situations where the task can be easily and cleanly decomposed into fixed subtasks. The main goal is to trade off latency for higher accuracy, by making each LLM call an easier task.</p>\n<p><strong>Examples where prompt chaining is useful:</strong></p>\n<ul><li>Generating Marketing copy, then translating it into a different language.</li></ul>\n<ul><li>Writing an outline of a document, checking that the outline meets certain criteria, then writing the document based on the outline.</li></ul>",
+            "zhHtml": "<p>提示链工作流</p>\n<p><strong>何时使用这种 workflow</strong>：当任务可以轻松、清晰地分解为固定子任务时，这种 workflow 非常理想。它的主要目标是让每次 LLM 调用承担更简单的任务，从而用延迟换取更高准确率。</p>\n<p><strong>Prompt chaining 有用的示例</strong>：</p>\n<ul><li>先生成营销文案，再把它翻译成另一种语言。</li></ul>\n<ul><li>先撰写文档大纲，检查大纲是否满足特定标准，然后基于该大纲撰写文档。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Workflow: Routing",
+            "zh": "Workflow：路由",
+            "html": "<p>Workflow: Routing</p>",
+            "zhHtml": "<p>Workflow：路由</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Routing classifies an input and directs it to a specialized followup task. This workflow allows for separation of concerns, and building more specialized prompts. Without this workflow, optimizing for one kind of input can hurt performance on other inputs.",
+            "zh": "Routing 会对输入进行分类，并将其导向专门的后续任务。这种 workflow 可以实现关注点分离，并构建更专门的提示词。没有这种 workflow 时，针对某类输入进行优化可能会损害其他输入上的表现。",
+            "html": "<p>Routing classifies an input and directs it to a specialized followup task. This workflow allows for separation of concerns, and building more specialized prompts. Without this workflow, optimizing for one kind of input can hurt performance on other inputs.</p>",
+            "zhHtml": "<p>Routing 会对输入进行分类，并将其导向专门的后续任务。这种 workflow 可以实现关注点分离，并构建更专门的提示词。没有这种 workflow 时，针对某类输入进行优化可能会损害其他输入上的表现。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F5c0c0e9fe4def0b584c04d37849941da55e5e71c-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "The routing workflow\n\n**When to use this workflow:** Routing works well for complex tasks where there are distinct categories that are better handled separately, and where classification can be handled accurately, either by an LLM or a more traditional classification model/algorithm.\n\n**Examples where routing is useful:**\n\nDirecting different types of customer service queries (general questions, refund requests, technical support) into different downstream processes, prompts, and tools.",
+            "zh": "路由工作流\n\n何时使用这种 workflow：当复杂任务中存在适合分开处理的不同类别，并且分类可以由 LLM 或更传统的分类模型/算法准确完成时，routing 表现良好。\n\nRouting 有用的示例：\n\n把不同类型的客服查询（一般问题、退款请求、技术支持）导向不同的下游流程、提示词和工具。",
+            "html": "<p>The routing workflow</p>\n<p><strong>When to use this workflow:</strong> Routing works well for complex tasks where there are distinct categories that are better handled separately, and where classification can be handled accurately, either by an LLM or a more traditional classification model/algorithm.</p>\n<p><strong>Examples where routing is useful:</strong></p>\n<ul><li>Directing different types of customer service queries (general questions, refund requests, technical support) into different downstream processes, prompts, and tools.</li></ul>",
+            "zhHtml": "<p>路由工作流</p>\n<p><strong>何时使用这种 workflow</strong>：当复杂任务中存在适合分开处理的不同类别，并且分类可以由 LLM 或更传统的分类模型/算法准确完成时，routing 表现良好。</p>\n<p><strong>Routing 有用的示例</strong>：</p>\n<ul><li>把不同类型的客服查询（一般问题、退款请求、技术支持）导向不同的下游流程、提示词和工具。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Routing easy/common questions to smaller, cost-efficient models like Claude Haiku 4.5 and hard/unusual questions to more capable models like Claude Sonnet 4.5 to optimize for best performance.\n\nWorkflow: Parallelization",
+            "zh": "将简单/常见问题路由到 Claude Haiku 4.5 这类更小且成本更低的模型，将困难/少见问题路由到 Claude Sonnet 4.5 这类能力更强的模型，以优化整体表现。\n\nWorkflow：并行化",
+            "html": "<ul><li>Routing easy/common questions to smaller, cost-efficient models like Claude Haiku 4.5 and hard/unusual questions to more capable models like Claude Sonnet 4.5 to optimize for best performance.</li></ul>\n<p>Workflow: Parallelization</p>",
+            "zhHtml": "<ul><li>将简单/常见问题路由到 Claude Haiku 4.5 这类更小且成本更低的模型，将困难/少见问题路由到 Claude Sonnet 4.5 这类能力更强的模型，以优化整体表现。</li></ul>\n<p>Workflow：并行化</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "LLMs can sometimes work simultaneously on a task and have their outputs aggregated programmatically. This workflow, parallelization, manifests in two key variations:\n\n**Sectioning**: Breaking a task into independent subtasks run in parallel.\n\n**Voting:** Running the same task multiple times to get diverse outputs.",
+            "zh": "LLM 有时可以同时处理一个任务，并通过程序化方式汇总它们的输出。这种 workflow，即 parallelization，主要表现为两种变体：\n\n分区（Sectioning）：把一个任务拆成相互独立、可并行运行的子任务。\n\n投票（Voting）：多次运行同一个任务，以获得多样化输出。",
+            "html": "<p>LLMs can sometimes work simultaneously on a task and have their outputs aggregated programmatically. This workflow, parallelization, manifests in two key variations:</p>\n<p><strong>Sectioning</strong>: Breaking a task into independent subtasks run in parallel.</p>\n<p><strong>Voting:</strong> Running the same task multiple times to get diverse outputs.</p>",
+            "zhHtml": "<p>LLM 有时可以同时处理一个任务，并通过程序化方式汇总它们的输出。这种 workflow，即 parallelization，主要表现为两种变体：</p>\n<p><strong>分区（<strong>Sectioning</strong>）</strong>：把一个任务拆成相互独立、可并行运行的子任务。</p>\n<p><strong>投票（Voting）</strong>：多次运行同一个任务，以获得多样化输出。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F406bb032ca007fd1624f261af717d70e6ca86286-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "The parallelization workflow\n\n**When to use this workflow:** Parallelization is effective when the divided subtasks can be parallelized for speed, or when multiple perspectives or attempts are needed for higher confidence results. For complex tasks with multiple considerations, LLMs generally perform better when each consideration is handled by a separate LLM call, allowing focused attention on each specific aspect.\n\n**Examples where parallelization is useful:**\n\n**Sectioning**:\n\nImplementing guardrails where one model instance processes user queries while another screens them for inappropriate content or requests. This tends to perform better than having the same LLM call handle both guardrails and the core response.",
+            "zh": "并行化工作流\n\n何时使用这种 workflow：当拆分出的子任务可以并行执行以提升速度，或者需要多个视角或多次尝试来获得更高置信度的结果时，parallelization 很有效。对于涉及多重考量的复杂任务，让每项考量由单独的 LLM 调用处理通常表现更好，因为这样可以让模型专注于每个具体方面。\n\nParallelization 有用的示例：\n\n分区：\n\n实现护栏时，让一个模型实例处理用户查询，同时让另一个模型实例筛查不当内容或请求。这通常比让同一次 LLM 调用同时处理护栏和核心响应表现更好。",
+            "html": "<p>The parallelization workflow</p>\n<p><strong>When to use this workflow:</strong> Parallelization is effective when the divided subtasks can be parallelized for speed, or when multiple perspectives or attempts are needed for higher confidence results. For complex tasks with multiple considerations, LLMs generally perform better when each consideration is handled by a separate LLM call, allowing focused attention on each specific aspect.</p>\n<p><strong>Examples where parallelization is useful:</strong></p>\n<p><strong>Sectioning</strong>:</p>\n<ul><li>Implementing guardrails where one model instance processes user queries while another screens them for inappropriate content or requests. This tends to perform better than having the same LLM call handle both guardrails and the core response.</li></ul>",
+            "zhHtml": "<p>并行化工作流</p>\n<p><strong>何时使用这种 workflow</strong>：当拆分出的子任务可以并行执行以提升速度，或者需要多个视角或多次尝试来获得更高置信度的结果时，parallelization 很有效。对于涉及多重考量的复杂任务，让每项考量由单独的 LLM 调用处理通常表现更好，因为这样可以让模型专注于每个具体方面。</p>\n<p><strong>Parallelization 有用的示例</strong>：</p>\n<p><strong>分区</strong>：</p>\n<ul><li>实现护栏时，让一个模型实例处理用户查询，同时让另一个模型实例筛查不当内容或请求。这通常比让同一次 LLM 调用同时处理护栏和核心响应表现更好。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Automating evals for evaluating LLM performance, where each LLM call evaluates a different aspect of the model’s performance on a given prompt.\n\n**Voting**:\n\nReviewing a piece of code for vulnerabilities, where several different prompts review and flag the code if they find a problem.",
+            "zh": "自动化评测 LLM 表现时，让每次 LLM 调用评估模型在给定提示词下表现的不同方面。\n\n投票：\n\n审查一段代码是否存在漏洞时，使用多个不同提示词进行审查，并在发现问题时标记代码。",
+            "html": "<ul><li>Automating evals for evaluating LLM performance, where each LLM call evaluates a different aspect of the model’s performance on a given prompt.</li></ul>\n<p><strong>Voting</strong>:</p>\n<ul><li>Reviewing a piece of code for vulnerabilities, where several different prompts review and flag the code if they find a problem.</li></ul>",
+            "zhHtml": "<ul><li>自动化评测 LLM 表现时，让每次 LLM 调用评估模型在给定提示词下表现的不同方面。</li></ul>\n<p><strong>投票</strong>：</p>\n<ul><li>审查一段代码是否存在漏洞时，使用多个不同提示词进行审查，并在发现问题时标记代码。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Evaluating whether a given piece of content is inappropriate, with multiple prompts evaluating different aspects or requiring different vote thresholds to balance false positives and negatives.\n\nWorkflow: Orchestrator-workers\n\nIn the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results.",
+            "zh": "评估某段内容是否不合适时，用多个提示词评估不同方面，或要求不同的投票阈值，以平衡误报和漏报。\n\nWorkflow：编排器-工作者\n\n在 orchestrator-workers workflow 中，一个中心 LLM 会动态拆解任务，将任务委派给 worker LLM，并综合它们的结果。",
+            "html": "<ul><li>Evaluating whether a given piece of content is inappropriate, with multiple prompts evaluating different aspects or requiring different vote thresholds to balance false positives and negatives.</li></ul>\n<p>Workflow: Orchestrator-workers</p>\n<p>In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results.</p>",
+            "zhHtml": "<ul><li>评估某段内容是否不合适时，用多个提示词评估不同方面，或要求不同的投票阈值，以平衡误报和漏报。</li></ul>\n<p>Workflow：编排器-工作者</p>\n<p>在 orchestrator-workers workflow 中，一个中心 LLM 会动态拆解任务，将任务委派给 worker LLM，并综合它们的结果。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F8985fc683fae4780fb34eab1365ab78c7e51bc8e-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "The orchestrator-workers workflow\n\n**When to use this workflow:** This workflow is well-suited for complex tasks where you can’t predict the subtasks needed (in coding, for example, the number of files that need to be changed and the nature of the change in each file likely depend on the task). Whereas it’s topographically similar, the key difference from parallelization is its flexibility—subtasks aren't pre-defined, but determined by the orchestrator based on the specific input.\n\n**Example where orchestrator-workers is useful:**\n\nCoding products that make complex changes to multiple files each time.",
+            "zh": "编排器-工作者工作流\n\n何时使用这种 workflow：当复杂任务所需的子任务无法预先预测时，这种 workflow 非常合适（例如在编码中，需要改动的文件数量以及每个文件的改动性质，很可能取决于具体任务）。虽然它在结构上与 parallelization 相似，但关键区别在于灵活性——子任务不是预先定义的，而是由编排者根据具体输入决定。\n\nOrchestrator-workers 有用的示例：\n\n每次都需要对多个文件做复杂修改的编码产品。",
+            "html": "<p>The orchestrator-workers workflow</p>\n<p><strong>When to use this workflow:</strong> This workflow is well-suited for complex tasks where you can’t predict the subtasks needed (in coding, for example, the number of files that need to be changed and the nature of the change in each file likely depend on the task). Whereas it’s topographically similar, the key difference from parallelization is its flexibility—subtasks aren&#x27;t pre-defined, but determined by the orchestrator based on the specific input.</p>\n<p><strong>Example where orchestrator-workers is useful:</strong></p>\n<ul><li>Coding products that make complex changes to multiple files each time.</li></ul>",
+            "zhHtml": "<p>编排器-工作者工作流</p>\n<p><strong>何时使用这种 workflow</strong>：当复杂任务所需的子任务无法预先预测时，这种 workflow 非常合适（例如在编码中，需要改动的文件数量以及每个文件的改动性质，很可能取决于具体任务）。虽然它在结构上与 parallelization 相似，但关键区别在于灵活性——子任务不是预先定义的，而是由编排者根据具体输入决定。</p>\n<p><strong>Orchestrator-workers 有用的示例</strong>：</p>\n<ul><li>每次都需要对多个文件做复杂修改的编码产品。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Search tasks that involve gathering and analyzing information from multiple sources for possible relevant information.\n\nWorkflow: Evaluator-optimizer\n\nIn the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+            "zh": "需要从多个来源收集和分析信息，以寻找可能相关信息的搜索任务。\n\nWorkflow：评估者-优化器\n\n在 evaluator-optimizer workflow 中，一个 LLM 调用生成响应，另一个 LLM 调用则在循环中提供评估和反馈。",
+            "html": "<ul><li>Search tasks that involve gathering and analyzing information from multiple sources for possible relevant information.</li></ul>\n<p>Workflow: Evaluator-optimizer</p>\n<p>In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.</p>",
+            "zhHtml": "<ul><li>需要从多个来源收集和分析信息，以寻找可能相关信息的搜索任务。</li></ul>\n<p>Workflow：评估者-优化器</p>\n<p>在 evaluator-optimizer workflow 中，一个 LLM 调用生成响应，另一个 LLM 调用则在循环中提供评估和反馈。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F14f51e6406ccb29e695da48b17017e899a6119c7-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "The evaluator-optimizer workflow\n\n**When to use this workflow:** This workflow is particularly effective when we have clear evaluation criteria, and when iterative refinement provides measurable value. The two signs of good fit are, first, that LLM responses can be demonstrably improved when a human articulates their feedback; and second, that the LLM can provide such feedback. This is analogous to the iterative writing process a human writer might go through when producing a polished document.\n\n**Examples where evaluator-optimizer is useful:**\n\nLiterary translation where there are nuances that the translator LLM might not capture initially, but where an evaluator LLM can provide useful critiques.",
+            "zh": "评估器-优化器工作流\n\n何时使用这种 workflow：当我们有清晰的评估标准，并且迭代式改进能带来可衡量的价值时，这种 workflow 特别有效。适配良好的两个标志是：第一，当人类把反馈清楚表述出来时，LLM 的响应能够明显改进；第二，LLM 能够提供这样的反馈。这类似于人类作者在产出打磨后的文档时经历的迭代写作过程。\n\nEvaluator-optimizer 有用的示例：\n\n文学翻译，其中存在翻译 LLM 起初可能没有捕捉到的细微差别，而评估 LLM 能提供有用的批评意见。",
+            "html": "<p>The evaluator-optimizer workflow</p>\n<p><strong>When to use this workflow:</strong> This workflow is particularly effective when we have clear evaluation criteria, and when iterative refinement provides measurable value. The two signs of good fit are, first, that LLM responses can be demonstrably improved when a human articulates their feedback; and second, that the LLM can provide such feedback. This is analogous to the iterative writing process a human writer might go through when producing a polished document.</p>\n<p><strong>Examples where evaluator-optimizer is useful:</strong></p>\n<ul><li>Literary translation where there are nuances that the translator LLM might not capture initially, but where an evaluator LLM can provide useful critiques.</li></ul>",
+            "zhHtml": "<p>评估器-优化器工作流</p>\n<p><strong>何时使用这种 workflow</strong>：当我们有清晰的评估标准，并且迭代式改进能带来可衡量的价值时，这种 workflow 特别有效。适配良好的两个标志是：第一，当人类把反馈清楚表述出来时，LLM 的响应能够明显改进；第二，LLM 能够提供这样的反馈。这类似于人类作者在产出打磨后的文档时经历的迭代写作过程。</p>\n<p><strong>Evaluator-optimizer 有用的示例</strong>：</p>\n<ul><li>文学翻译，其中存在翻译 LLM 起初可能没有捕捉到的细微差别，而评估 LLM 能提供有用的批评意见。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Complex search tasks that require multiple rounds of searching and analysis to gather comprehensive information, where the evaluator decides whether further searches are warranted.\n\nAgents",
+            "zh": "复杂搜索任务，需要多轮搜索和分析来收集全面信息，并由评估者决定是否有必要继续搜索。\n\nAgent 系统",
+            "html": "<ul><li>Complex search tasks that require multiple rounds of searching and analysis to gather comprehensive information, where the evaluator decides whether further searches are warranted.</li></ul>\n<p>Agents</p>",
+            "zhHtml": "<ul><li>复杂搜索任务，需要多轮搜索和分析来收集全面信息，并由评估者决定是否有必要继续搜索。</li></ul>\n<p>Agent 系统</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Agents are emerging in production as LLMs mature in key capabilities—understanding complex inputs, engaging in reasoning and planning, using tools reliably, and recovering from errors. Agents begin their work with either a command from, or interactive discussion with, the human user. Once the task is clear, agents plan and operate independently, potentially returning to the human for further information or judgement. During execution, it's crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress. Agents can then pause for human feedback at checkpoints or when encountering blockers. The task often terminates upon completion, but it’s also common to include stopping conditions (such as a maximum number of iterations) to maintain control.",
+            "zh": "随着 LLM 在关键能力上日益成熟——理解复杂输入、进行推理和规划、可靠地使用工具，以及从错误中恢复——agent 正在生产环境中出现。Agent 的工作始于人类用户给出的指令，或与人类用户的交互式讨论。一旦任务明确，agent 会独立规划和执行，并可能回到人类那里获取更多信息或判断。在执行过程中，agent 必须在每一步从环境中获得“真实反馈”（例如工具调用结果或代码执行结果），以评估自身进展。Agent 随后可以在检查点或遇到阻碍时暂停，获取人类反馈。任务通常在完成时终止，但也常见加入停止条件（例如最大迭代次数）以保持控制。",
+            "html": "<p>Agents are emerging in production as LLMs mature in key capabilities—understanding complex inputs, engaging in reasoning and planning, using tools reliably, and recovering from errors. Agents begin their work with either a command from, or interactive discussion with, the human user. Once the task is clear, agents plan and operate independently, potentially returning to the human for further information or judgement. During execution, it&#x27;s crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress. Agents can then pause for human feedback at checkpoints or when encountering blockers. The task often terminates upon completion, but it’s also common to include stopping conditions (such as a maximum number of iterations) to maintain control.</p>",
+            "zhHtml": "<p>随着 LLM 在关键能力上日益成熟——理解复杂输入、进行推理和规划、可靠地使用工具，以及从错误中恢复——agent 正在生产环境中出现。Agent 的工作始于人类用户给出的指令，或与人类用户的交互式讨论。一旦任务明确，agent 会独立规划和执行，并可能回到人类那里获取更多信息或判断。在执行过程中，agent 必须在每一步从环境中获得“真实反馈”（例如工具调用结果或代码执行结果），以评估自身进展。Agent 随后可以在检查点或遇到阻碍时暂停，获取人类反馈。任务通常在完成时终止，但也常见加入停止条件（例如最大迭代次数）以保持控制。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Agents can handle sophisticated tasks, but their implementation is often straightforward. They are typically just LLMs using tools based on environmental feedback in a loop. It is therefore crucial to design toolsets and their documentation clearly and thoughtfully. We expand on best practices for tool development in Appendix 2 (\"Prompt Engineering your Tools\").",
+            "zh": "Agent 能够处理复杂任务，但它们的实现往往很直接。它们通常只是 LLM 在循环中根据环境反馈使用工具。因此，清晰且周到地设计工具集及其文档至关重要。我们会在附录 2（“Prompt Engineering your Tools”）中展开说明工具开发的最佳实践。",
+            "html": "<p>Agents can handle sophisticated tasks, but their implementation is often straightforward. They are typically just LLMs using tools based on environmental feedback in a loop. It is therefore crucial to design toolsets and their documentation clearly and thoughtfully. We expand on best practices for tool development in Appendix 2 (&quot;Prompt Engineering your Tools&quot;).</p>",
+            "zhHtml": "<p>Agent 能够处理复杂任务，但它们的实现往往很直接。它们通常只是 LLM 在循环中根据环境反馈使用工具。因此，清晰且周到地设计工具集及其文档至关重要。我们会在附录 2（“Prompt Engineering your Tools”）中展开说明工具开发的最佳实践。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F58d9f10c985c4eb5d53798dea315f7bb5ab6249e-2401x1000.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "Autonomous agent\n\n**When to use agents:** Agents can be used for open-ended problems where it’s difficult or impossible to predict the required number of steps, and where you can’t hardcode a fixed path. The LLM will potentially operate for many turns, and you must have some level of trust in its decision-making. Agents' autonomy makes them ideal for scaling tasks in trusted environments.",
+            "zh": "自主 agent\n\n何时使用 agent：agent 可用于开放式问题，这类问题难以甚至无法预测所需步骤数量，也无法硬编码固定路径。LLM 可能会运行很多轮，因此你必须对它的决策有一定程度的信任。Agent 的自主性使其非常适合在可信环境中规模化执行任务。",
+            "html": "<p>Autonomous agent</p>\n<p><strong>When to use agents:</strong> Agents can be used for open-ended problems where it’s difficult or impossible to predict the required number of steps, and where you can’t hardcode a fixed path. The LLM will potentially operate for many turns, and you must have some level of trust in its decision-making. Agents&#x27; autonomy makes them ideal for scaling tasks in trusted environments.</p>",
+            "zhHtml": "<p>自主 agent</p>\n<p><strong>何时使用 agent</strong>：agent 可用于开放式问题，这类问题难以甚至无法预测所需步骤数量，也无法硬编码固定路径。LLM 可能会运行很多轮，因此你必须对它的决策有一定程度的信任。Agent 的自主性使其非常适合在可信环境中规模化执行任务。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The autonomous nature of agents means higher costs, and the potential for compounding errors. We recommend extensive testing in sandboxed environments, along with the appropriate guardrails.\n\n**Examples where agents are useful:**\n\nThe following examples are from our own implementations:\n\nA coding Agent to resolve [SWE-bench tasks](https://www.anthropic.com/research/swe-bench-sonnet), which involve edits to many files based on a task description;\n\nOur [“computer use” reference implementation](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo), where Claude uses a computer to accomplish tasks.",
+            "zh": "Agent 的自主性意味着更高成本，也意味着错误累积的可能性。我们建议在沙盒环境中进行充分测试，并配备适当的护栏。\n\nAgent 有用的示例：\n\n以下示例来自我们自己的实现：\n\n用于解决 SWE-bench 任务的编码 agent，这类任务需要根据任务描述编辑许多文件；\n\n我们的“computer use”参考实现，其中 Claude 会使用计算机来完成任务。",
+            "html": "<p>The autonomous nature of agents means higher costs, and the potential for compounding errors. We recommend extensive testing in sandboxed environments, along with the appropriate guardrails.</p>\n<p><strong>Examples where agents are useful:</strong></p>\n<p>The following examples are from our own implementations:</p>\n<p>A coding Agent to resolve <a href=\"https://www.anthropic.com/research/swe-bench-sonnet\" target=\"_blank\" rel=\"noopener\">SWE-bench tasks</a>, which involve edits to many files based on a task description;</p>\n<p>Our <a href=\"https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo\" target=\"_blank\" rel=\"noopener\">“computer use” reference implementation</a>, where Claude uses a computer to accomplish tasks.</p>",
+            "zhHtml": "<p>Agent 的自主性意味着更高成本，也意味着错误累积的可能性。我们建议在沙盒环境中进行充分测试，并配备适当的护栏。</p>\n<p><strong>Agent 有用的示例</strong>：</p>\n<p>以下示例来自我们自己的实现：</p>\n<p>用于解决 <a href=\"https://www.anthropic.com/research/swe-bench-sonnet\" target=\"_blank\" rel=\"noopener\">SWE-bench 任务</a>的编码 agent，这类任务需要根据任务描述编辑许多文件；</p>\n<p>我们的“<a href=\"https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo\" target=\"_blank\" rel=\"noopener\">computer use</a>”参考实现，其中 Claude 会使用计算机来完成任务。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F4b9a1f4eb63d5962a6e1746ac26bbc857cf3474f-2400x1666.png&w=3840&q=75",
+            "alt": "",
+            "caption": ""
+          },
+          {
+            "type": "bilingual",
+            "en": "High-level flow of a coding agent",
+            "zh": "编码 agent 的高层流程",
+            "html": "<p>High-level flow of a coding agent</p>",
+            "zhHtml": "<p>编码 agent 的高层流程</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-6",
+        "group": "Combining and customizing these patterns",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "These building blocks aren't prescriptive. They're common patterns that developers can shape and combine to fit different use cases. The key to success, as with any LLM features, is measuring performance and iterating on implementations. To repeat: you should consider adding complexity *only* when it demonstrably improves outcomes.",
+            "zh": "这些构建块不是规定性的。它们是常见模式，开发者可以根据不同用例进行调整和组合。和任何 LLM 功能一样，成功的关键在于衡量表现并迭代实现。再强调一次：只有在复杂度能够明显改善结果时，才应考虑增加复杂度。",
+            "html": "<p>These building blocks aren&#x27;t prescriptive. They&#x27;re common patterns that developers can shape and combine to fit different use cases. The key to success, as with any LLM features, is measuring performance and iterating on implementations. To repeat: you should consider adding complexity *only* when it demonstrably improves outcomes.</p>",
+            "zhHtml": "<p>这些构建块不是规定性的。它们是常见模式，开发者可以根据不同用例进行调整和组合。和任何 LLM 功能一样，成功的关键在于衡量表现并迭代实现。再强调一次：只有在复杂度能够明显改善结果时，才应考虑增加复杂度。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-7",
+        "group": "Summary",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Success in the LLM space isn't about building the most sophisticated system. It's about building the *right* system for your needs. Start with simple prompts, optimize them with comprehensive evaluation, and add multi-step agentic systems only when simpler solutions fall short.\n\nWhen implementing agents, we try to follow three core principles:\n\nMaintain **simplicity** in your agent's design.\n\nPrioritize **transparency** by explicitly showing the agent’s planning steps.",
+            "zh": "在 LLM 领域，成功不在于构建最复杂的系统，而在于构建适合你需求的系统。从简单提示词开始，用全面评估来优化它们，只有当更简单的方案不足时，才加入多步骤 agentic 系统。\n\n在实现 agent 时，我们尽量遵循三项核心原则：\n\n保持 agent 设计的简洁性。\n\n通过明确展示 agent 的规划步骤，优先保证透明度。",
+            "html": "<p>Success in the LLM space isn&#x27;t about building the most sophisticated system. It&#x27;s about building the *right* system for your needs. Start with simple prompts, optimize them with comprehensive evaluation, and add multi-step agentic systems only when simpler solutions fall short.</p>\n<p>When implementing agents, we try to follow three core principles:</p>\n<p>Maintain <strong>simplicity</strong> in your agent&#x27;s design.</p>\n<p>Prioritize <strong>transparency</strong> by explicitly showing the agent’s planning steps.</p>",
+            "zhHtml": "<p>在 LLM 领域，成功不在于构建最复杂的系统，而在于构建适合你需求的系统。从简单提示词开始，用全面评估来优化它们，只有当更简单的方案不足时，才加入多步骤 agentic 系统。</p>\n<p>在实现 agent 时，我们尽量遵循三项核心原则：</p>\n<p><strong>保持 agent 设计的简洁性</strong>。</p>\n<p><strong>通过明确展示 agent 的规划步骤</strong>，优先保证透明度。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Carefully craft your agent-computer interface (ACI) through thorough tool **documentation and testing**.",
+            "zh": "通过详尽的工具文档和测试，仔细打造你的 agent-computer interface（ACI）。",
+            "html": "<p>Carefully craft your agent-computer interface (ACI) through thorough tool <strong>documentation and testing</strong>.</p>",
+            "zhHtml": "<p><strong>通过详尽的工具文档和测试</strong>，仔细打造你的 agent-computer interface（ACI）。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Frameworks can help you get started quickly, but don't hesitate to reduce abstraction layers and build with basic components as you move to production. By following these principles, you can create agents that are not only powerful but also reliable, maintainable, and trusted by their users.\n\nAcknowledgements",
+            "zh": "框架可以帮助你快速上手，但在走向生产环境时，不要犹豫于减少抽象层，并用基础组件进行构建。遵循这些原则，你就能创建不仅强大，而且可靠、可维护，并受用户信任的 agent。\n\n致谢",
+            "html": "<p>Frameworks can help you get started quickly, but don&#x27;t hesitate to reduce abstraction layers and build with basic components as you move to production. By following these principles, you can create agents that are not only powerful but also reliable, maintainable, and trusted by their users.</p>\n<p>Acknowledgements</p>",
+            "zhHtml": "<p>框架可以帮助你快速上手，但在走向生产环境时，不要犹豫于减少抽象层，并用基础组件进行构建。遵循这些原则，你就能创建不仅强大，而且可靠、可维护，并受用户信任的 agent。</p>\n<p>致谢</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Written by Erik S. and Barry Zhang. This work draws upon our experiences building agents at Anthropic and the valuable insights shared by our customers, for which we're deeply grateful.",
+            "zh": "作者：Erik S. 和 Barry Zhang。本文借鉴了我们在 Anthropic 构建 agent 的经验，以及客户分享的宝贵洞见；对此我们深表感谢。",
+            "html": "<p>Written by Erik S. and Barry Zhang. This work draws upon our experiences building agents at Anthropic and the valuable insights shared by our customers, for which we&#x27;re deeply grateful.</p>",
+            "zhHtml": "<p>作者：Erik S. 和 Barry Zhang。本文借鉴了我们在 Anthropic 构建 agent 的经验，以及客户分享的宝贵洞见；对此我们深表感谢。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-8",
+        "group": "Appendix 1: Agents in practice",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Our work with customers has revealed two particularly promising applications for AI agents that demonstrate the practical value of the patterns discussed above. Both applications illustrate how agents add the most value for tasks that require both conversation and action, have clear success criteria, enable feedback loops, and integrate meaningful human oversight.\n\nA. Customer support",
+            "zh": "我们与客户的合作揭示了 AI agent 的两个特别有前景的应用，它们展示了上文所讨论模式的实践价值。这两个应用都说明，对于既需要对话又需要行动、有清晰成功标准、能形成反馈循环，并且融入有意义人工监督的任务，agent 最能创造价值。\n\nA. 客户支持",
+            "html": "<p>Our work with customers has revealed two particularly promising applications for AI agents that demonstrate the practical value of the patterns discussed above. Both applications illustrate how agents add the most value for tasks that require both conversation and action, have clear success criteria, enable feedback loops, and integrate meaningful human oversight.</p>\n<p>A. Customer support</p>",
+            "zhHtml": "<p>我们与客户的合作揭示了 AI agent 的两个特别有前景的应用，它们展示了上文所讨论模式的实践价值。这两个应用都说明，对于既需要对话又需要行动、有清晰成功标准、能形成反馈循环，并且融入有意义人工监督的任务，agent 最能创造价值。</p>\n<p>A. 客户支持</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Customer support combines familiar chatbot interfaces with enhanced capabilities through tool integration. This is a natural fit for more open-ended agents because:\n\nSupport interactions naturally follow a conversation flow while requiring access to external information and actions;\n\nTools can be integrated to pull customer data, order history, and knowledge base articles;\n\nActions such as issuing refunds or updating tickets can be handled programmatically; and\n\nSuccess can be clearly measured through user-defined resolutions.",
+            "zh": "客户支持把人们熟悉的聊天机器人界面，与通过工具集成获得的增强能力结合起来。这天然适合更开放式的 agent，因为：\n\n支持交互天然遵循对话流程，同时又需要访问外部信息并执行外部动作；\n\n可以集成工具来拉取客户数据、订单历史和知识库文章；\n\n发放退款或更新工单等动作可以通过程序处理；并且\n\n成功可以通过用户定义的解决结果来清晰衡量。",
+            "html": "<p>Customer support combines familiar chatbot interfaces with enhanced capabilities through tool integration. This is a natural fit for more open-ended agents because:</p>\n<ul><li>Support interactions naturally follow a conversation flow while requiring access to external information and actions;</li></ul>\n<ul><li>Tools can be integrated to pull customer data, order history, and knowledge base articles;</li></ul>\n<ul><li>Actions such as issuing refunds or updating tickets can be handled programmatically; and</li></ul>\n<ul><li>Success can be clearly measured through user-defined resolutions.</li></ul>",
+            "zhHtml": "<p>客户支持把人们熟悉的聊天机器人界面，与通过工具集成获得的增强能力结合起来。这天然适合更开放式的 agent，因为：</p>\n<ul><li>支持交互天然遵循对话流程，同时又需要访问外部信息并执行外部动作；</li></ul>\n<ul><li>可以集成工具来拉取客户数据、订单历史和知识库文章；</li></ul>\n<ul><li>发放退款或更新工单等动作可以通过程序处理；并且</li></ul>\n<ul><li>成功可以通过用户定义的解决结果来清晰衡量。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Several companies have demonstrated the viability of this approach through usage-based pricing models that charge only for successful resolutions, showing confidence in their agents' effectiveness.\n\nB. Coding agents",
+            "zh": "几家公司已经通过按使用量计费的模式证明了这种方法的可行性：它们只对成功解决的问题收费，显示出对自身 agent 有效性的信心。\n\nB. 编码 agent",
+            "html": "<p>Several companies have demonstrated the viability of this approach through usage-based pricing models that charge only for successful resolutions, showing confidence in their agents&#x27; effectiveness.</p>\n<p>B. Coding agents</p>",
+            "zhHtml": "<p>几家公司已经通过按使用量计费的模式证明了这种方法的可行性：它们只对成功解决的问题收费，显示出对自身 agent 有效性的信心。</p>\n<p>B. 编码 agent</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The software development space has shown remarkable potential for LLM features, with capabilities evolving from code completion to autonomous problem-solving. Agents are particularly effective because:\n\nCode solutions are verifiable through automated tests;\n\nAgents can iterate on solutions using test results as feedback;\n\nThe problem space is well-defined and structured; and\n\nOutput quality can be measured objectively.",
+            "zh": "软件开发领域已经展现出 LLM 功能的显著潜力，其能力正从代码补全演进到自主解决问题。Agent 在这里特别有效，因为：\n\n代码方案可以通过自动化测试验证；\n\nAgent 可以利用测试结果作为反馈来迭代方案；\n\n问题空间定义清晰且结构化；并且\n\n输出质量可以被客观衡量。",
+            "html": "<p>The software development space has shown remarkable potential for LLM features, with capabilities evolving from code completion to autonomous problem-solving. Agents are particularly effective because:</p>\n<ul><li>Code solutions are verifiable through automated tests;</li></ul>\n<ul><li>Agents can iterate on solutions using test results as feedback;</li></ul>\n<ul><li>The problem space is well-defined and structured; and</li></ul>\n<ul><li>Output quality can be measured objectively.</li></ul>",
+            "zhHtml": "<p>软件开发领域已经展现出 LLM 功能的显著潜力，其能力正从代码补全演进到自主解决问题。Agent 在这里特别有效，因为：</p>\n<ul><li>代码方案可以通过自动化测试验证；</li></ul>\n<ul><li>Agent 可以利用测试结果作为反馈来迭代方案；</li></ul>\n<ul><li>问题空间定义清晰且结构化；并且</li></ul>\n<ul><li>输出质量可以被客观衡量。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "In our own implementation, agents can now solve real GitHub issues in the [SWE-bench Verified](https://www.anthropic.com/research/swe-bench-sonnet) benchmark based on the pull request description alone. However, whereas automated testing helps verify functionality, human review remains crucial for ensuring solutions align with broader system requirements.",
+            "zh": "在我们自己的实现中，agent 现在已经能够仅根据 pull request 描述，解决 SWE-bench Verified 基准中的真实 GitHub issue。不过，虽然自动化测试有助于验证功能，人类审查对于确保方案符合更广泛的系统需求仍然至关重要。",
+            "html": "<p>In our own implementation, agents can now solve real GitHub issues in the <a href=\"https://www.anthropic.com/research/swe-bench-sonnet\" target=\"_blank\" rel=\"noopener\">SWE-bench Verified</a> benchmark based on the pull request description alone. However, whereas automated testing helps verify functionality, human review remains crucial for ensuring solutions align with broader system requirements.</p>",
+            "zhHtml": "<p>在我们自己的实现中，agent 现在已经能够仅根据 pull request 描述，解决 <a href=\"https://www.anthropic.com/research/swe-bench-sonnet\" target=\"_blank\" rel=\"noopener\">SWE-bench Verified</a> 基准中的真实 GitHub issue。不过，虽然自动化测试有助于验证功能，人类审查对于确保方案符合更广泛的系统需求仍然至关重要。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-9",
+        "group": "Appendix 2: Prompt engineering your tools",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "No matter which agentic system you're building, tools will likely be an important part of your agent. [Tools](https://www.anthropic.com/news/tool-use-ga) enable Claude to interact with external services and APIs by specifying their exact structure and definition in our API. When Claude responds, it will include a [tool use block](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#example-api-response-with-a-tool-use-content-block) in the API response if it plans to invoke a tool. Tool definitions and specifications should be given just as much prompt engineering attention as your overall prompts. In this brief appendix, we describe how to prompt engineer your tools.",
+            "zh": "无论你在构建哪种 agentic 系统，工具很可能都是 agent 的重要组成部分。工具通过在我们的 API 中指定其精确结构和定义，使 Claude 能够与外部服务和 API 交互。当 Claude 响应时，如果它计划调用某个工具，API 响应中会包含一个工具使用块。工具定义和规范应当获得与整体提示词同等程度的提示工程关注。在这个简短附录中，我们会说明如何对工具进行提示工程。",
+            "html": "<p>No matter which agentic system you&#x27;re building, tools will likely be an important part of your agent. <a href=\"https://www.anthropic.com/news/tool-use-ga\" target=\"_blank\" rel=\"noopener\">Tools</a> enable Claude to interact with external services and APIs by specifying their exact structure and definition in our API. When Claude responds, it will include a <a href=\"https://docs.anthropic.com/en/docs/build-with-claude/tool-use#example-api-response-with-a-tool-use-content-block\" target=\"_blank\" rel=\"noopener\">tool use block</a> in the API response if it plans to invoke a tool. Tool definitions and specifications should be given just as much prompt engineering attention as your overall prompts. In this brief appendix, we describe how to prompt engineer your tools.</p>",
+            "zhHtml": "<p>无论你在构建哪种 agentic 系统，<a href=\"https://www.anthropic.com/news/tool-use-ga\" target=\"_blank\" rel=\"noopener\">工具</a>很可能都是 agent 的重要组成部分。工具通过在我们的 API 中指定其精确结构和定义，使 Claude 能够与外部服务和 API 交互。当 Claude 响应时，如果它计划调用某个工具，API 响应中会包含一个<a href=\"https://docs.anthropic.com/en/docs/build-with-claude/tool-use#example-api-response-with-a-tool-use-content-block\" target=\"_blank\" rel=\"noopener\">工具使用块</a>。工具定义和规范应当获得与整体提示词同等程度的提示工程关注。在这个简短附录中，我们会说明如何对工具进行提示工程。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "There are often several ways to specify the same action. For instance, you can specify a file edit by writing a diff, or by rewriting the entire file. For structured output, you can return code inside markdown or inside JSON. In software engineering, differences like these are cosmetic and can be converted losslessly from one to the other. However, some formats are much more difficult for an LLM to write than others. Writing a diff requires knowing how many lines are changing in the chunk header before the new code is written. Writing code inside JSON (compared to markdown) requires extra escaping of newlines and quotes.",
+            "zh": "同一个动作通常有多种指定方式。例如，你可以通过编写 diff 来指定文件编辑，也可以重写整个文件。对于结构化输出，你可以把代码放在 Markdown 中返回，也可以放在 JSON 中返回。在软件工程中，这类差异只是形式上的，可以在彼此之间无损转换。然而，对 LLM 来说，有些格式比另一些格式难写得多。编写 diff 要求在写出新代码之前，就知道块头中有多少行发生变化。与 Markdown 相比，在 JSON 中编写代码还需要额外转义换行符和引号。",
+            "html": "<p>There are often several ways to specify the same action. For instance, you can specify a file edit by writing a diff, or by rewriting the entire file. For structured output, you can return code inside markdown or inside JSON. In software engineering, differences like these are cosmetic and can be converted losslessly from one to the other. However, some formats are much more difficult for an LLM to write than others. Writing a diff requires knowing how many lines are changing in the chunk header before the new code is written. Writing code inside JSON (compared to markdown) requires extra escaping of newlines and quotes.</p>",
+            "zhHtml": "<p>同一个动作通常有多种指定方式。例如，你可以通过编写 diff 来指定文件编辑，也可以重写整个文件。对于结构化输出，你可以把代码放在 Markdown 中返回，也可以放在 JSON 中返回。在软件工程中，这类差异只是形式上的，可以在彼此之间无损转换。然而，对 LLM 来说，有些格式比另一些格式难写得多。编写 diff 要求在写出新代码之前，就知道块头中有多少行发生变化。与 Markdown 相比，在 JSON 中编写代码还需要额外转义换行符和引号。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Our suggestions for deciding on tool formats are the following:\n\nGive the model enough tokens to \"think\" before it writes itself into a corner.\n\nKeep the format close to what the model has seen naturally occurring in text on the internet.\n\nMake sure there's no formatting \"overhead\" such as having to keep an accurate count of thousands of lines of code, or string-escaping any code it writes.",
+            "zh": "我们关于决定工具格式的建议如下：\n\n给模型足够的 token 用来“思考”，避免它在写作过程中把自己逼入死角。\n\n让格式尽量接近模型在互联网上自然出现的文本中见过的形式。\n\n确保没有格式上的“额外负担”，例如必须准确统计数千行代码的行数，或对它写出的任何代码进行字符串转义。",
+            "html": "<p>Our suggestions for deciding on tool formats are the following:</p>\n<ul><li>Give the model enough tokens to &quot;think&quot; before it writes itself into a corner.</li></ul>\n<ul><li>Keep the format close to what the model has seen naturally occurring in text on the internet.</li></ul>\n<ul><li>Make sure there&#x27;s no formatting &quot;overhead&quot; such as having to keep an accurate count of thousands of lines of code, or string-escaping any code it writes.</li></ul>",
+            "zhHtml": "<p>我们关于决定工具格式的建议如下：</p>\n<ul><li>给模型足够的 token 用来“思考”，避免它在写作过程中把自己逼入死角。</li></ul>\n<ul><li>让格式尽量接近模型在互联网上自然出现的文本中见过的形式。</li></ul>\n<ul><li>确保没有格式上的“额外负担”，例如必须准确统计数千行代码的行数，或对它写出的任何代码进行字符串转义。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "One rule of thumb is to think about how much effort goes into human-computer interfaces (HCI), and plan to invest just as much effort in creating good *agent*-computer interfaces (ACI). Here are some thoughts on how to do so:\n\nPut yourself in the model's shoes. Is it obvious how to use this tool, based on the description and parameters, or would you need to think carefully about it? If so, then it’s probably also true for the model. A good tool definition often includes example usage, edge cases, input format requirements, and clear boundaries from other tools.",
+            "zh": "一个经验法则是：想想人机界面（HCI）需要投入多少心力，然后计划投入同样多的心力来创建良好的 agent-computer interface（ACI）。下面是一些做法：\n\n站在模型的角度思考。仅根据描述和参数，这个工具该如何使用是否显而易见，还是需要仔细琢磨？如果是后者，那么对模型来说很可能也是如此。好的工具定义通常包括示例用法、边界情况、输入格式要求，以及与其他工具之间的清晰边界。",
+            "html": "<p>One rule of thumb is to think about how much effort goes into human-computer interfaces (HCI), and plan to invest just as much effort in creating good *agent*-computer interfaces (ACI). Here are some thoughts on how to do so:</p>\n<ul><li>Put yourself in the model&#x27;s shoes. Is it obvious how to use this tool, based on the description and parameters, or would you need to think carefully about it? If so, then it’s probably also true for the model. A good tool definition often includes example usage, edge cases, input format requirements, and clear boundaries from other tools.</li></ul>",
+            "zhHtml": "<p>一个经验法则是：想想人机界面（HCI）需要投入多少心力，然后计划投入同样多的心力来创建良好的 agent-computer interface（ACI）。下面是一些做法：</p>\n<ul><li>站在模型的角度思考。仅根据描述和参数，这个工具该如何使用是否显而易见，还是需要仔细琢磨？如果是后者，那么对模型来说很可能也是如此。好的工具定义通常包括示例用法、边界情况、输入格式要求，以及与其他工具之间的清晰边界。</li></ul>"
+          },
+          {
+            "type": "bilingual",
+            "en": "How can you change parameter names or descriptions to make things more obvious? Think of this as writing a great docstring for a junior developer on your team. This is especially important when using many similar tools.\n\nTest how the model uses your tools: Run many example inputs in our [workbench](https://console.anthropic.com/workbench) to see what mistakes the model makes, and iterate.\n\n[Poka-yoke](https://en.wikipedia.org/wiki/Poka-yoke) your tools. Change the arguments so that it is harder to make mistakes.",
+            "zh": "你可以如何修改参数名称或描述，让事情更显而易见？可以把这看作是为团队中的初级开发者编写优秀的 docstring。当使用许多相似工具时，这一点尤其重要。\n\n测试模型如何使用你的工具：在我们的 workbench 中运行许多示例输入，观察模型会犯什么错误，然后迭代。\n\n对工具做防错设计。调整参数，让犯错变得更难。",
+            "html": "<ul><li>How can you change parameter names or descriptions to make things more obvious? Think of this as writing a great docstring for a junior developer on your team. This is especially important when using many similar tools.</li></ul>\n<p>Test how the model uses your tools: Run many example inputs in our <a href=\"https://console.anthropic.com/workbench\" target=\"_blank\" rel=\"noopener\">workbench</a> to see what mistakes the model makes, and iterate.</p>\n<p><a href=\"https://en.wikipedia.org/wiki/Poka-yoke\" target=\"_blank\" rel=\"noopener\">Poka-yoke</a> your tools. Change the arguments so that it is harder to make mistakes.</p>",
+            "zhHtml": "<ul><li>你可以如何修改参数名称或描述，让事情更显而易见？可以把这看作是为团队中的初级开发者编写优秀的 docstring。当使用许多相似工具时，这一点尤其重要。</li></ul>\n<p>测试模型如何使用你的工具：在我们的 <a href=\"https://console.anthropic.com/workbench\" target=\"_blank\" rel=\"noopener\">workbench</a> 中运行许多示例输入，观察模型会犯什么错误，然后迭代。</p>\n<p><a href=\"https://en.wikipedia.org/wiki/Poka-yoke\" target=\"_blank\" rel=\"noopener\">对工具做防错设计</a>。调整参数，让犯错变得更难。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "While building our agent for [SWE-bench](https://www.anthropic.com/research/swe-bench-sonnet), we actually spent more time optimizing our tools than the overall prompt. For example, we found that the model would make mistakes with tools using relative filepaths after the agent had moved out of the root directory. To fix this, we changed the tool to always require absolute filepaths—and we found that the model used this method flawlessly.",
+            "zh": "在为 SWE-bench 构建 agent 时，我们实际花在优化工具上的时间比优化整体提示词还多。例如，我们发现，当 agent 已经离开根目录后，模型在使用依赖相对文件路径的工具时会出错。为了解决这个问题，我们把工具改为始终要求绝对文件路径，并发现模型能够完美地使用这种方法。",
+            "html": "<p>While building our agent for <a href=\"https://www.anthropic.com/research/swe-bench-sonnet\" target=\"_blank\" rel=\"noopener\">SWE-bench</a>, we actually spent more time optimizing our tools than the overall prompt. For example, we found that the model would make mistakes with tools using relative filepaths after the agent had moved out of the root directory. To fix this, we changed the tool to always require absolute filepaths—and we found that the model used this method flawlessly.</p>",
+            "zhHtml": "<p>在为 <a href=\"https://www.anthropic.com/research/swe-bench-sonnet\" target=\"_blank\" rel=\"noopener\">SWE-bench</a> 构建 agent 时，我们实际花在优化工具上的时间比优化整体提示词还多。例如，我们发现，当 agent 已经离开根目录后，模型在使用依赖相对文件路径的工具时会出错。为了解决这个问题，我们把工具改为始终要求绝对文件路径，并发现模型能够完美地使用这种方法。</p>"
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "entries": [
+      {
+        "word": "agentic systems",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "具备智能体能力的一类系统，可能包括工作流和更自主的 Agent。",
+        "collocationExample": "At Anthropic, we categorize all these variations as agentic systems , but draw an important architectural distinction between workflows and agents : Workflows are systems where LLMs and tools are orchestrated through predefined code paths.",
+        "exampleZh": "例句说明：该词在原文中用于表达“具备智能体能力的一类系统，可能包括工作流和更自主的 Agent”。"
+      },
+      {
+        "word": "large language model",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "大语言模型，能理解和生成自然语言并参与推理。",
+        "collocationExample": "Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries.",
+        "exampleZh": "例句说明：该词在原文中用于表达“大语言模型，能理解和生成自然语言并参与推理”。"
+      },
+      {
+        "word": "Model Context Protocol",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "模型上下文协议，用于连接模型与外部工具或上下文。",
+        "collocationExample": "While there are many ways to implement these augmentations, one approach is through our recently released Model Context Protocol, which allows developers to integrate with a growing ecosystem of third-party tools with a simple client implementation.",
+        "exampleZh": "例句说明：该词在原文中用于表达“模型上下文协议，用于连接模型与外部工具或上下文”。"
+      },
+      {
+        "word": "output quality",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "输出质量；模型或系统生成结果的有用性、准确性和稳定性。",
+        "collocationExample": "Agents are particularly effective because: Code solutions are verifiable through automated tests; Agents can iterate on solutions using test results as feedback; The problem space is well-defined and structured; and Output quality can be measured objectively.",
+        "exampleZh": "例句说明：该词在原文中用于表达“输出质量；模型或系统生成结果的有用性、准确性和稳定性”。"
+      },
+      {
+        "word": "prompt chaining",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "提示链；把复杂任务拆成连续的模型调用步骤。",
+        "collocationExample": "Workflow: Prompt chaining",
+        "exampleZh": "例句说明：该词在原文中用于表达“提示链；把复杂任务拆成连续的模型调用步骤”。"
+      },
+      {
+        "word": "structured output",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "结构化输出；按固定 schema 或格式返回的结果。",
+        "collocationExample": "For structured output, you can return code inside markdown or inside JSON.",
+        "exampleZh": "例句说明：该词在原文中用于表达“结构化输出；按固定 schema 或格式返回的结果”。"
+      },
+      {
+        "word": "tool call",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "工具调用；模型请求外部工具执行动作或获取信息。",
+        "collocationExample": "During execution, it's crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工具调用；模型请求外部工具执行动作或获取信息”。"
+      },
+      {
+        "word": "tool use",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "工具使用；模型通过外部工具扩展能力或执行动作。",
+        "collocationExample": "When Claude responds, it will include a tool use block in the API response if it plans to invoke a tool.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工具使用；模型通过外部工具扩展能力或执行动作”。"
+      },
+      {
+        "word": "evaluator",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "评估器；用于检查输出质量或判断是否需要迭代的组件。",
+        "collocationExample": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "exampleZh": "例句说明：该词在原文中用于表达“评估器；用于检查输出质量或判断是否需要迭代的组件”。"
+      },
+      {
+        "word": "optimizer",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "优化器；用于改进输出或流程质量的组件。",
+        "collocationExample": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "exampleZh": "例句说明：该词在原文中用于表达“优化器；用于改进输出或流程质量的组件”。"
+      },
+      {
+        "word": "autonomous",
+        "ipa": "/ɔːˈtɑːnəməs/",
+        "level": "C1",
+        "pos": "adj.",
+        "definitionZh": "自主的；能在较少外部干预下运行的。",
+        "collocationExample": "Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks.",
+        "exampleZh": "例句说明：该词在原文中用于表达“自主的；能在较少外部干预下运行的”。"
+      },
+      {
+        "word": "autonomy",
+        "ipa": "/ɔːˈtɑːnəmi/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "自主性；独立决策或行动的程度。",
+        "collocationExample": "Agents' autonomy makes them ideal for scaling tasks in trusted environments.",
+        "exampleZh": "例句说明：该词在原文中用于表达“自主性；独立决策或行动的程度”。"
+      },
+      {
+        "word": "composable",
+        "ipa": "/kəmˈpoʊzəbl/",
+        "level": "C1",
+        "pos": "adj.",
+        "definitionZh": "可组合的；能由小模块拼装成更大系统。",
+        "collocationExample": "Instead, they were building with simple, composable patterns.",
+        "exampleZh": "例句说明：该词在原文中用于表达“可组合的；能由小模块拼装成更大系统”。"
+      },
+      {
+        "word": "orchestrator",
+        "ipa": "/ˈɔːrkɪstreɪtər/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "编排器；负责分配、协调或整合任务的组件。",
+        "collocationExample": "Workflow: Orchestrator-workers In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results.",
+        "exampleZh": "例句说明：该词在原文中用于表达“编排器；负责分配、协调或整合任务的组件”。"
+      },
+      {
+        "word": "parallelization",
+        "ipa": "/ˌpærəlelaɪˈzeɪʃən/",
+        "level": "C1",
+        "pos": "n.",
+        "definitionZh": "并行化；把任务拆成多个部分同时执行。",
+        "collocationExample": "Workflow: Parallelization",
+        "exampleZh": "例句说明：该词在原文中用于表达“并行化；把任务拆成多个部分同时执行”。"
+      },
+      {
+        "word": "capabilities",
+        "ipa": "/ˌkeɪpəˈbɪlətiz/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "能力集合；系统能执行的一组任务。",
+        "collocationExample": "Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain.",
+        "exampleZh": "例句说明：该词在原文中用于表达“能力集合；系统能执行的一组任务”。"
+      },
+      {
+        "word": "complexity",
+        "ipa": "/kəmˈpleksəti/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "复杂性；系统难以理解或维护的程度。",
+        "collocationExample": "When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed.",
+        "exampleZh": "例句说明：该词在原文中用于表达“复杂性；系统难以理解或维护的程度”。"
+      },
+      {
+        "word": "evaluation",
+        "ipa": "/ɪˌvæljuˈeɪʃən/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "评估；衡量系统输出或行为质量。",
+        "collocationExample": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "exampleZh": "例句说明：该词在原文中用于表达“评估；衡量系统输出或行为质量”。"
+      },
+      {
+        "word": "feedback",
+        "ipa": "/ˈfiːdbæk/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "反馈；用于改进结果或调整行为的信息。",
+        "collocationExample": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "exampleZh": "例句说明：该词在原文中用于表达“反馈；用于改进结果或调整行为的信息”。"
+      },
+      {
+        "word": "frameworks",
+        "ipa": "/ˈfreɪmwɜːrks/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "框架；多个组织代码、流程或概念的结构。",
+        "collocationExample": "Consistently, the most successful implementations weren't using complex frameworks or specialized libraries.",
+        "exampleZh": "例句说明：该词在原文中用于表达“框架；多个组织代码、流程或概念的结构”。"
+      },
+      {
+        "word": "implementation",
+        "ipa": "/ˌɪmplɪmenˈteɪʃən/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "实现；把设计转化为可运行系统的过程。",
+        "collocationExample": "Consistently, the most successful implementations weren't using complex frameworks or specialized libraries.",
+        "exampleZh": "例句说明：该词在原文中用于表达“实现；把设计转化为可运行系统的过程”。"
+      },
+      {
+        "word": "routing",
+        "ipa": "/ˈruːtɪŋ/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "路由；根据输入或任务类型选择处理路径。",
+        "collocationExample": "Routing classifies an input and directs it to a specialized followup task.",
+        "exampleZh": "例句说明：该词在原文中用于表达“路由；根据输入或任务类型选择处理路径”。"
+      },
+      {
+        "word": "workflow",
+        "ipa": "/ˈwɜːrkfloʊ/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "工作流；按步骤组织的任务执行过程。",
+        "collocationExample": "Others use the term to describe more prescriptive implementations that follow predefined workflows.",
+        "exampleZh": "例句说明：该词在原文中用于表达“工作流；按步骤组织的任务执行过程”。"
+      },
+      {
+        "word": "workflows",
+        "ipa": "/ˈwɜːrkfloʊz/",
+        "level": "B2",
+        "pos": "n.",
+        "definitionZh": "多个工作流；由步骤和决策组成的任务执行过程。",
+        "collocationExample": "Others use the term to describe more prescriptive implementations that follow predefined workflows.",
+        "exampleZh": "例句说明：该词在原文中用于表达“多个工作流；由步骤和决策组成的任务执行过程”。"
+      },
+      {
+        "word": "patterns",
+        "ipa": "/ˈpætərnz/",
+        "level": "B1",
+        "pos": "n.",
+        "definitionZh": "模式集合；可复用的设计或执行结构。",
+        "collocationExample": "Instead, they were building with simple, composable patterns.",
+        "exampleZh": "例句说明：该词在原文中用于表达“模式集合；可复用的设计或执行结构”。"
+      },
+      {
+        "word": "review",
+        "ipa": "/rɪˈvjuː/",
+        "level": "B1",
+        "pos": "n./v.",
+        "definitionZh": "审查；检查质量、风险或正确性。",
+        "collocationExample": "Voting : Reviewing a piece of code for vulnerabilities, where several different prompts review and flag the code if they find a problem.",
+        "exampleZh": "例句说明：该词在原文中用于表达“审查；检查质量、风险或正确性”。"
+      }
+    ],
+    "dict": {
+      "agentic_systems": {
+        "w": "agentic systems",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "具备智能体能力的一类系统，可能包括工作流和更自主的 Agent。",
+        "eg": "At Anthropic, we categorize all these variations as agentic systems , but draw an important architectural distinction between workflows and agents : Workflows are systems where LLMs and tools are orchestrated through predefined code paths.",
+        "egzh": "例句说明：该词在原文中用于表达“具备智能体能力的一类系统，可能包括工作流和更自主的 Agent”。"
+      },
+      "large_language_model": {
+        "w": "large language model",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "大语言模型，能理解和生成自然语言并参与推理。",
+        "eg": "Over the past year, we've worked with dozens of teams building large language model (LLM) agents across industries.",
+        "egzh": "例句说明：该词在原文中用于表达“大语言模型，能理解和生成自然语言并参与推理”。"
+      },
+      "model_context_protocol": {
+        "w": "Model Context Protocol",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "模型上下文协议，用于连接模型与外部工具或上下文。",
+        "eg": "While there are many ways to implement these augmentations, one approach is through our recently released Model Context Protocol, which allows developers to integrate with a growing ecosystem of third-party tools with a simple client implementation.",
+        "egzh": "例句说明：该词在原文中用于表达“模型上下文协议，用于连接模型与外部工具或上下文”。"
+      },
+      "output_quality": {
+        "w": "output quality",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "输出质量；模型或系统生成结果的有用性、准确性和稳定性。",
+        "eg": "Agents are particularly effective because: Code solutions are verifiable through automated tests; Agents can iterate on solutions using test results as feedback; The problem space is well-defined and structured; and Output quality can be measured objectively.",
+        "egzh": "例句说明：该词在原文中用于表达“输出质量；模型或系统生成结果的有用性、准确性和稳定性”。"
+      },
+      "prompt_chaining": {
+        "w": "prompt chaining",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "提示链；把复杂任务拆成连续的模型调用步骤。",
+        "eg": "Workflow: Prompt chaining",
+        "egzh": "例句说明：该词在原文中用于表达“提示链；把复杂任务拆成连续的模型调用步骤”。"
+      },
+      "structured_output": {
+        "w": "structured output",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "结构化输出；按固定 schema 或格式返回的结果。",
+        "eg": "For structured output, you can return code inside markdown or inside JSON.",
+        "egzh": "例句说明：该词在原文中用于表达“结构化输出；按固定 schema 或格式返回的结果”。"
+      },
+      "tool_call": {
+        "w": "tool call",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "工具调用；模型请求外部工具执行动作或获取信息。",
+        "eg": "During execution, it's crucial for the agents to gain “ground truth” from the environment at each step (such as tool call results or code execution) to assess its progress.",
+        "egzh": "例句说明：该词在原文中用于表达“工具调用；模型请求外部工具执行动作或获取信息”。"
+      },
+      "tool_use": {
+        "w": "tool use",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "工具使用；模型通过外部工具扩展能力或执行动作。",
+        "eg": "When Claude responds, it will include a tool use block in the API response if it plans to invoke a tool.",
+        "egzh": "例句说明：该词在原文中用于表达“工具使用；模型通过外部工具扩展能力或执行动作”。"
+      },
+      "evaluator": {
+        "w": "evaluator",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "评估器；用于检查输出质量或判断是否需要迭代的组件。",
+        "eg": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "egzh": "例句说明：该词在原文中用于表达“评估器；用于检查输出质量或判断是否需要迭代的组件”。"
+      },
+      "optimizer": {
+        "w": "optimizer",
+        "ipa": "/",
+        "pos": "",
+        "level": "术语",
+        "def": "优化器；用于改进输出或流程质量的组件。",
+        "eg": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "egzh": "例句说明：该词在原文中用于表达“优化器；用于改进输出或流程质量的组件”。"
+      },
+      "autonomous": {
+        "w": "autonomous",
+        "ipa": "/ɔːˈtɑːnəməs/",
+        "pos": "adj",
+        "level": "C1",
+        "def": "自主的；能在较少外部干预下运行的。",
+        "eg": "Some customers define agents as fully autonomous systems that operate independently over extended periods, using various tools to accomplish complex tasks.",
+        "egzh": "例句说明：该词在原文中用于表达“自主的；能在较少外部干预下运行的”。"
+      },
+      "autonomy": {
+        "w": "autonomy",
+        "ipa": "/ɔːˈtɑːnəmi/",
+        "pos": "n",
+        "level": "C1",
+        "def": "自主性；独立决策或行动的程度。",
+        "eg": "Agents' autonomy makes them ideal for scaling tasks in trusted environments.",
+        "egzh": "例句说明：该词在原文中用于表达“自主性；独立决策或行动的程度”。"
+      },
+      "composable": {
+        "w": "composable",
+        "ipa": "/kəmˈpoʊzəbl/",
+        "pos": "adj",
+        "level": "C1",
+        "def": "可组合的；能由小模块拼装成更大系统。",
+        "eg": "Instead, they were building with simple, composable patterns.",
+        "egzh": "例句说明：该词在原文中用于表达“可组合的；能由小模块拼装成更大系统”。"
+      },
+      "orchestrator": {
+        "w": "orchestrator",
+        "ipa": "/ˈɔːrkɪstreɪtər/",
+        "pos": "n",
+        "level": "C1",
+        "def": "编排器；负责分配、协调或整合任务的组件。",
+        "eg": "Workflow: Orchestrator-workers In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results.",
+        "egzh": "例句说明：该词在原文中用于表达“编排器；负责分配、协调或整合任务的组件”。"
+      },
+      "parallelization": {
+        "w": "parallelization",
+        "ipa": "/ˌpærəlelaɪˈzeɪʃən/",
+        "pos": "n",
+        "level": "C1",
+        "def": "并行化；把任务拆成多个部分同时执行。",
+        "eg": "Workflow: Parallelization",
+        "egzh": "例句说明：该词在原文中用于表达“并行化；把任务拆成多个部分同时执行”。"
+      },
+      "capabilities": {
+        "w": "capabilities",
+        "ipa": "/ˌkeɪpəˈbɪlətiz/",
+        "pos": "n",
+        "level": "B2",
+        "def": "能力集合；系统能执行的一组任务。",
+        "eg": "Our current models can actively use these capabilities—generating their own search queries, selecting appropriate tools, and determining what information to retain.",
+        "egzh": "例句说明：该词在原文中用于表达“能力集合；系统能执行的一组任务”。"
+      },
+      "complexity": {
+        "w": "complexity",
+        "ipa": "/kəmˈpleksəti/",
+        "pos": "n",
+        "level": "B2",
+        "def": "复杂性；系统难以理解或维护的程度。",
+        "eg": "When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed.",
+        "egzh": "例句说明：该词在原文中用于表达“复杂性；系统难以理解或维护的程度”。"
+      },
+      "evaluation": {
+        "w": "evaluation",
+        "ipa": "/ɪˌvæljuˈeɪʃən/",
+        "pos": "n",
+        "level": "B2",
+        "def": "评估；衡量系统输出或行为质量。",
+        "eg": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "egzh": "例句说明：该词在原文中用于表达“评估；衡量系统输出或行为质量”。"
+      },
+      "feedback": {
+        "w": "feedback",
+        "ipa": "/ˈfiːdbæk/",
+        "pos": "n",
+        "level": "B2",
+        "def": "反馈；用于改进结果或调整行为的信息。",
+        "eg": "Workflow: Evaluator-optimizer In the evaluator-optimizer workflow, one LLM call generates a response while another provides evaluation and feedback in a loop.",
+        "egzh": "例句说明：该词在原文中用于表达“反馈；用于改进结果或调整行为的信息”。"
+      },
+      "frameworks": {
+        "w": "frameworks",
+        "ipa": "/ˈfreɪmwɜːrks/",
+        "pos": "n",
+        "level": "B2",
+        "def": "框架；多个组织代码、流程或概念的结构。",
+        "eg": "Consistently, the most successful implementations weren't using complex frameworks or specialized libraries.",
+        "egzh": "例句说明：该词在原文中用于表达“框架；多个组织代码、流程或概念的结构”。"
+      },
+      "implementation": {
+        "w": "implementation",
+        "ipa": "/ˌɪmplɪmenˈteɪʃən/",
+        "pos": "n",
+        "level": "B2",
+        "def": "实现；把设计转化为可运行系统的过程。",
+        "eg": "Consistently, the most successful implementations weren't using complex frameworks or specialized libraries.",
+        "egzh": "例句说明：该词在原文中用于表达“实现；把设计转化为可运行系统的过程”。"
+      },
+      "routing": {
+        "w": "routing",
+        "ipa": "/ˈruːtɪŋ/",
+        "pos": "n",
+        "level": "B2",
+        "def": "路由；根据输入或任务类型选择处理路径。",
+        "eg": "Routing classifies an input and directs it to a specialized followup task.",
+        "egzh": "例句说明：该词在原文中用于表达“路由；根据输入或任务类型选择处理路径”。"
+      },
+      "workflow": {
+        "w": "workflow",
+        "ipa": "/ˈwɜːrkfloʊ/",
+        "pos": "n",
+        "level": "B2",
+        "def": "工作流；按步骤组织的任务执行过程。",
+        "eg": "Others use the term to describe more prescriptive implementations that follow predefined workflows.",
+        "egzh": "例句说明：该词在原文中用于表达“工作流；按步骤组织的任务执行过程”。"
+      },
+      "workflows": {
+        "w": "workflows",
+        "ipa": "/ˈwɜːrkfloʊz/",
+        "pos": "n",
+        "level": "B2",
+        "def": "多个工作流；由步骤和决策组成的任务执行过程。",
+        "eg": "Others use the term to describe more prescriptive implementations that follow predefined workflows.",
+        "egzh": "例句说明：该词在原文中用于表达“多个工作流；由步骤和决策组成的任务执行过程”。"
+      },
+      "patterns": {
+        "w": "patterns",
+        "ipa": "/ˈpætərnz/",
+        "pos": "n",
+        "level": "B1",
+        "def": "模式集合；可复用的设计或执行结构。",
+        "eg": "Instead, they were building with simple, composable patterns.",
+        "egzh": "例句说明：该词在原文中用于表达“模式集合；可复用的设计或执行结构”。"
+      },
+      "review": {
+        "w": "review",
+        "ipa": "/rɪˈvjuː/",
+        "pos": "n",
+        "level": "B1",
+        "def": "审查；检查质量、风险或正确性。",
+        "eg": "Voting : Reviewing a piece of code for vulnerabilities, where several different prompts review and flag the code if they find a problem.",
+        "egzh": "例句说明：该词在原文中用于表达“审查；检查质量、风险或正确性”。"
+      }
+    },
+    "autowrap": [
+      [
+        "\\bagentic\\ systems\\b",
+        "i",
+        "agentic_systems"
+      ],
+      [
+        "\\blarge\\ language\\ model\\b",
+        "i",
+        "large_language_model"
+      ],
+      [
+        "\\bModel\\ Context\\ Protocol\\b",
+        "i",
+        "model_context_protocol"
+      ],
+      [
+        "\\boutput\\ quality\\b",
+        "i",
+        "output_quality"
+      ],
+      [
+        "\\bprompt\\ chaining\\b",
+        "i",
+        "prompt_chaining"
+      ],
+      [
+        "\\bstructured\\ output\\b",
+        "i",
+        "structured_output"
+      ],
+      [
+        "\\btool\\ call\\b",
+        "i",
+        "tool_call"
+      ],
+      [
+        "\\btool\\ use\\b",
+        "i",
+        "tool_use"
+      ],
+      [
+        "\\b(?:evaluators|evaluator)\\b",
+        "i",
+        "evaluator"
+      ],
+      [
+        "\\b(?:optimizers|optimizer)\\b",
+        "i",
+        "optimizer"
+      ],
+      [
+        "\\b(?:autonomous)\\b",
+        "i",
+        "autonomous"
+      ],
+      [
+        "\\b(?:autonomies|autonomy)\\b",
+        "i",
+        "autonomy"
+      ],
+      [
+        "\\b(?:composable)\\b",
+        "i",
+        "composable"
+      ],
+      [
+        "\\b(?:orchestrators|orchestrator)\\b",
+        "i",
+        "orchestrator"
+      ],
+      [
+        "\\b(?:parallelizations|parallelization)\\b",
+        "i",
+        "parallelization"
+      ],
+      [
+        "\\b(?:capabilitieses|capabilities)\\b",
+        "i",
+        "capabilities"
+      ],
+      [
+        "\\b(?:complexities|complexity)\\b",
+        "i",
+        "complexity"
+      ],
+      [
+        "\\b(?:evaluations|evaluation)\\b",
+        "i",
+        "evaluation"
+      ],
+      [
+        "\\b(?:feedbacks|feedback)\\b",
+        "i",
+        "feedback"
+      ],
+      [
+        "\\b(?:frameworkses|frameworks)\\b",
+        "i",
+        "frameworks"
+      ],
+      [
+        "\\b(?:implementations|implementation)\\b",
+        "i",
+        "implementation"
+      ],
+      [
+        "\\b(?:routings|routing)\\b",
+        "i",
+        "routing"
+      ],
+      [
+        "\\b(?:workflows|workflow)\\b",
+        "i",
+        "workflow"
+      ],
+      [
+        "\\b(?:workflowses|workflows)\\b",
+        "i",
+        "workflows"
+      ],
+      [
+        "\\b(?:patternses|patterns)\\b",
+        "i",
+        "patterns"
+      ],
+      [
+        "\\b(?:reviewing|reviewed|reviews|review)\\b",
+        "i",
+        "review"
+      ]
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://www.anthropic.com/engineering/building-effective-agents",
+    "sourceText": "Building effective agents"
+  }
+}

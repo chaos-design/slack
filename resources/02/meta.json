@@ -1,0 +1,30 @@
+{
+  "id": "02",
+  "source": "https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "构建 AI Agent 的实践指南",
+      "name": "构建 AI Agent 的实践指南",
+      "description": "OpenAI 指南将 Agent 定义为能代表用户管理工作流、动态调用工具并在护栏内完成任务的系统；正确落地路径是先判断适用场景，再以模型、工具、指令、评估、护栏和人工介入渐进扩展。",
+      "tags": [
+        "AI Agent",
+        "OpenAI",
+        "Guardrails",
+        "编排"
+      ],
+      "path": "openai-agent-guide",
+      "language": "zh-CN",
+      "createdAt": "2026-06-13T13:56:32Z",
+      "updatedAt": "2026-06-21 12:26:34"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "openai-agent-guide",
+      "createdAt": "2026-06-13T13:56:32Z",
+      "updatedAt": "2026-06-21 21:39:06"
+    }
+  ]
+}

@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What Is Loop Engineering? The New Meta for AI Coding Agents · 中英对照精读 · compact-study</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <style>
+
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --border:#2a3340;
+    --text:#e6edf3; --muted:#9aa7b4; --en:#cdd9e5; --zh:#e8d9b8;
+    --accent:#f5a623; --accent2:#58a6ff; --green:#3fb950; --tip-bg:#0b1622;
+    --accent-ink:#1a1205; --accent2-ink:#031018; --accent-shadow:rgba(245,166,35,.35);
+    --hl:rgba(245,166,35,.16);
+    --radius:10px; --radius-lg:12px; --radius-sm:7px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --hero-angle:135deg;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:var(--font);
+    font-size:14.5px; line-height:1.65; transition:background .3s,color .3s}
+  /* ===================================================================
+   runtime.css — 各独立模板共享的底层能力样式（构建时注入 runtime CSS token）。
+   只包含与交互强相关、容易出错的部分：阅读进度条、可悬停词、词典浮窗、
+   图片放大层、等级标签、朗读按钮。模板各自负责页面骨架与其余视觉，并可覆盖这些变量。
+   =================================================================== */
+#progress{position:fixed; top:0; left:0; height:3px; width:0; z-index:1000;
+  background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .1s}
+
+/* 可悬停词：模板内文字命中词典时由构建/运行时包裹为 .w */
+.w{
+  position:relative; z-index:20; cursor:help; padding:0 1px;
+  color:color-mix(in srgb,var(--accent) 82%,var(--text));
+  background:transparent!important;
+  text-decoration-line:underline; text-decoration-style:double;
+  text-decoration-color:var(--accent); text-decoration-thickness:1.5px;
+  text-underline-offset:4px; transition:color .15s,text-decoration-color .15s;
+}
+.w::after{
+  content:""; position:absolute; right:-5px; top:.05em;
+  width:4px; height:4px; border-radius:50%; background:var(--accent2);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent2) 22%,transparent);
+}
+.w:hover{z-index:2147483647; color:var(--accent2); text-decoration-color:var(--accent2)}
+
+/* 词典浮窗：运行时挂载到 <body> 顶层，position:fixed，z-index 最高 */
+.tip{position:fixed; left:0; top:0; transform:translateY(2px);
+  width:290px; background:var(--tip-bg); border:1px solid var(--accent);
+  border-radius:12px; padding:14px 16px; box-shadow:0 12px 36px rgba(0,0,0,.45);
+  opacity:0; visibility:hidden; filter:blur(8px);
+  transition:opacity .16s,transform .16s,filter .16s;
+  z-index:2147483647; text-align:left; pointer-events:none}
+.tip.tip-open{opacity:1; visibility:visible; filter:blur(0); transform:translateY(0); pointer-events:auto}
+.tip .h{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+.tip .word{font-size:20px; font-weight:800; color:var(--accent); line-height:1.1}
+.tip .sub{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap}
+.tip .ipa{color:var(--accent2); font-size:13px; font-family:Georgia,serif; white-space:nowrap}
+.tip .pos{font-size:11px; background:color-mix(in srgb,var(--accent2) 92%,#000); color:#fff; padding:1px 8px; border-radius:6px; font-style:normal; font-weight:800; white-space:nowrap}
+html[data-theme="light"] .tip .pos{background:color-mix(in srgb,var(--accent2) 16%,#fff); color:#073763}
+.tip .def{color:var(--text); font-size:14px; margin:6px 0; line-height:1.5}
+.tip .eg{color:var(--en); font-size:13px; border-left:2px solid var(--accent); padding-left:8px; margin-top:6px; font-style:italic}
+.tip .eg .egzh{display:block; color:var(--muted); font-style:normal; margin-top:2px}
+
+/* 原文图片放大层：运行时挂载到 <body> 顶层，避免受模板容器 overflow/transform 影响 */
+.source-figure img,.og-media img,#originalSection img{cursor:zoom-in}
+.image-lightbox{position:fixed; inset:0; z-index:2147483600; display:grid; place-items:center;
+  padding:min(6vw,96px);
+  background:radial-gradient(circle at 50% 42%,color-mix(in srgb,var(--panel) 28%,transparent),transparent 38%),
+    linear-gradient(135deg,rgba(4,8,16,.76),rgba(20,26,40,.52));
+  -webkit-backdrop-filter:blur(18px) saturate(1.18); backdrop-filter:blur(18px) saturate(1.18);
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition:opacity .22s ease,visibility .22s ease}
+.image-lightbox.is-open{opacity:1; visibility:visible; pointer-events:auto}
+.image-lightbox[hidden]{display:none}
+.image-lightbox__panel{position:relative; display:grid; max-width:min(82vw,1280px);
+  max-height:82vh; transform:translateY(18px) scale(.985); transition:transform .22s ease}
+.image-lightbox.is-open .image-lightbox__panel{transform:translateY(0) scale(1)}
+.image-lightbox__image{display:block; width:auto; height:auto; max-width:min(82vw,1280px);
+  max-height:78vh; object-fit:contain; border-radius:18px;
+  background:rgba(255,255,255,.06); box-shadow:0 30px 100px rgba(0,0,0,.48)}
+.image-lightbox__close{position:absolute; top:-18px; right:-18px; width:44px; height:44px;
+  border:1px solid rgba(255,255,255,.32); border-radius:999px;
+  background:rgba(10,14,24,.72); color:#fff; cursor:pointer; font-size:26px; line-height:1;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px)}
+
+/* CEFR 等级标签 */
+.lv{font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; letter-spacing:.5px; white-space:nowrap; color:#06121f}
+.lv-b1{background:#7ee0a6}
+.lv-b2{background:#5bc8e0}
+.lv-c1{background:#ffd66b}
+.lv-c2{background:#ff9e7a}
+.lv-term{background:#c79bff; color:#fff}
+
+/* 朗读按钮 */
+.speak{margin-left:auto; width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  background:var(--accent2); color:var(--accent2-ink); border:none; cursor:pointer; font-size:15px;
+  display:grid; place-items:center; transition:.2s}
+.speak:hover{transform:scale(1.12); box-shadow:0 0 10px var(--accent2)}
+.speak:active{transform:scale(.92)}
+
+
+  /* —— 顶栏：固定、极简图标化 —— */
+  header{position:sticky; top:0; z-index:900; backdrop-filter:blur(10px);
+    background:color-mix(in srgb,var(--bg) 84%,transparent);
+    border-bottom:1px solid var(--border); padding:7px 14px;
+    display:flex; align-items:center; gap:10px}
+  header h1{font-size:13px; margin:0; flex:1; min-width:140px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  header h1 span{color:var(--accent)}
+  .ctrls{display:flex; gap:8px; align-items:center}
+  .seg{display:inline-flex; align-items:center; background:var(--panel2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:2px; gap:2px}
+  .seg-btn{display:inline-flex; align-items:center; gap:5px; background:transparent; color:var(--muted);
+    border:none; cursor:pointer; height:32px; min-width:64px; justify-content:center; padding:0 10px; border-radius:6px; font-size:12px; transition:.2s; white-space:nowrap}
+  .seg-btn .ico{width:14px; height:14px; flex-shrink:0}
+  .seg-btn:hover{color:var(--accent)}
+  .seg-btn.active{background:var(--accent); color:var(--accent-ink); font-weight:700}
+
+  .wrap{max-width:1180px; margin:0 auto; padding:22px 26px 72px}
+
+  /* —— Hero：压缩横幅 —— */
+  .hero{display:grid; grid-template-columns:1fr; gap:8px;
+    background:linear-gradient(var(--hero-angle),var(--panel),var(--panel2));
+    border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:var(--radius); padding:20px 24px; margin-bottom:22px}
+  .hero h2{margin:0; font-size:23px; line-height:1.3}
+  .hero .meta{color:var(--muted); font-size:12.5px}
+  .hero .en{color:var(--en); margin:4px 0 0; font-size:14.5px}
+  .hero .zh{color:var(--zh); margin:0; font-size:14.5px}
+
+  .block{margin-bottom:28px}
+  .sec-title{display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700;
+    margin:0 0 14px; padding-bottom:9px; border-bottom:2px solid var(--border)}
+  .sec-title .num{background:var(--accent); color:var(--accent-ink); min-width:24px; height:24px; padding:0 6px;
+    border-radius:7px; display:grid; place-items:center; font-size:12.5px; font-weight:800}
+  .note{color:var(--muted); font-size:13px; margin:-4px 0 12px}
+
+  /* —— Summary：一行摘要 + 两列紧凑卡 —— */
+  .sum-lead{background:color-mix(in srgb,var(--accent) 9%,var(--panel));
+    border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; font-size:14px; margin-bottom:14px}
+  .sum-lead b{color:var(--accent)}
+  .sum-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px}
+  .sum-card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px}
+  .sum-card .ico{font-size:14px; font-weight:800; color:var(--accent2); margin-bottom:5px}
+  .sum-card h4{margin:0 0 5px; font-size:14.5px; color:var(--accent)}
+  .sum-card p{margin:0; font-size:13px; color:var(--en); line-height:1.6}
+
+  /* —— Sections rows：编号双列表格行（中英左右对照） —— */
+  .study-table{border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+  .study-row{display:grid; grid-template-columns:40px 1fr 1fr; align-items:stretch;
+    border-bottom:1px solid var(--border)}
+  .study-row:last-child{border-bottom:none}
+  .study-row:hover{background:var(--hl)}
+  .study-row .no{display:grid; place-items:center; font-size:12px; font-weight:800; color:var(--accent-ink);
+    background:var(--accent); writing-mode:initial}
+  .study-row .en{padding:14px 16px; color:var(--en); font-size:14px; line-height:1.65; border-right:1px solid var(--border)}
+  .study-row .zh{padding:14px 16px; color:var(--zh); font-size:14px; line-height:1.65; background:color-mix(in srgb,var(--panel2) 70%,transparent)}
+
+  /* —— Cards 模块：紧凑标签卡 —— */
+  .cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; transition:.2s}
+  .card:hover{border-color:var(--accent)}
+  .card .top{display:flex; align-items:center; gap:10px}
+  .card .tag{width:24px; height:24px; border-radius:7px; background:var(--accent2); color:var(--accent2-ink);
+    display:grid; place-items:center; font-size:12px; font-weight:800; flex-shrink:0}
+  .card h4{margin:0; font-size:14.5px; color:var(--accent)}
+  .card .zhname{font-size:12.5px; color:var(--muted)}
+  .card .body{font-size:13px; color:var(--en); line-height:1.6; margin-top:8px}
+  .card .when{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); color:var(--zh)}
+
+  /* —— Quiz —— */
+  .quiz{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px}
+  .quiz .q-txt{font-size:15px; font-weight:600; margin-bottom:12px}
+  .quiz .opt{display:block; width:100%; text-align:left; background:var(--panel2); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px; margin-bottom:8px; cursor:pointer; color:var(--text); font-size:13.5px; transition:.15s}
+  .quiz .opt:hover{border-color:var(--accent2)}
+  .quiz .opt.correct{background:rgba(63,185,80,.2); border-color:var(--green)}
+  .quiz .opt.wrong{background:rgba(248,81,73,.2); border-color:#f85149}
+  .quiz .fb{margin-top:8px; font-size:13px; color:var(--muted); min-height:18px}
+  .quiz-nav{display:flex; justify-content:space-between; align-items:center; margin-top:10px}
+  .quiz-nav small{color:var(--muted); font-size:12px}
+  .btn{background:var(--panel2); color:var(--text); border:1px solid var(--border); padding:7px 14px;
+    border-radius:7px; cursor:pointer; font-size:13px}
+  .btn:hover{border-color:var(--accent); color:var(--accent)}
+  header .btn{height:32px; min-width:64px; padding:0 10px; display:inline-flex; align-items:center; justify-content:center; border-radius:var(--radius-sm)}
+
+  /* —— Summary box：横向 principles 条带 —— */
+  .summary-box{background:linear-gradient(var(--hero-angle),var(--panel),var(--panel2));
+    border:1px solid var(--accent); border-radius:var(--radius-lg); padding:18px 20px}
+  .summary-box h3{margin:0 0 12px; color:var(--accent); font-size:17px}
+  .summary-box .q{font-size:14px; font-style:italic; border-left:3px solid var(--accent); padding-left:12px; margin:8px 0; color:var(--text); line-height:1.6}
+  .summary-box .q.zh{border-left-color:var(--accent2); color:var(--zh); font-style:normal}
+  .pri-strip{display:flex; flex-wrap:wrap; gap:12px; margin-top:14px}
+  .pri{flex:1 1 180px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px}
+  .pri .big{font-size:18px; font-weight:800; color:var(--accent)}
+  .pri h4{margin:4px 0; font-size:14px; color:var(--accent2)}
+  .pri p{margin:0; font-size:12.5px; color:var(--en); line-height:1.55}
+
+  /* —— Original：分组逐段双列对照 —— */
+  .og-h{margin:20px 0 10px; padding:8px 14px; font-size:14px; font-weight:800; color:var(--accent);
+    background:linear-gradient(90deg,var(--hl),transparent); border-left:3px solid var(--accent); border-radius:0 6px 6px 0}
+  .og-row{display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:10px; overflow:hidden}
+  .og-row .en{padding:13px 16px; color:var(--en); font-size:13.5px; line-height:1.65; border-right:1px solid var(--border)}
+  .og-row .zh{padding:13px 16px; color:var(--zh); font-size:13.5px; line-height:1.65; background:color-mix(in srgb,var(--panel2) 70%,transparent)}
+
+  /* —— Glossary：CEFR 分组 + 多列密集 —— */
+  #glossary{display:none}
+  #glossary.show{display:block}
+  .gloss-group{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:20px 0 10px; padding-bottom:8px; border-bottom:1px dashed var(--border)}
+  .gloss-group .gg-desc{font-size:13.5px; color:var(--text); font-weight:600}
+  .gloss-group .gg-count{display:inline-flex; align-items:center; margin-left:6px; padding:2px 9px; border:1px solid color-mix(in srgb,var(--accent2) 24%,var(--border)); border-radius:999px; background:color-mix(in srgb,var(--accent2) 10%,transparent); font-size:12px; font-weight:800; line-height:1.4; color:var(--muted)}
+  .gloss-grid-inner{--gloss-card-min:240px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,var(--gloss-card-min)),1fr)); grid-auto-rows:1fr; align-items:stretch; gap:12px; margin-bottom:10px}
+  .gloss-item{width:100%; height:100%; min-width:0; display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px}
+  .gloss-item .grow{display:flex; align-items:center; gap:8px}
+  .gloss-item .word,.gloss-item .gw{display:inline-block; font-weight:900; color:var(--accent); font-size:20px; line-height:1.08; letter-spacing:.05em; text-shadow:0 0 12px color-mix(in srgb,var(--accent) 24%,transparent)}
+  .gloss-item .gsub{display:flex; align-items:center; gap:8px; margin-top:4px}
+  .gloss-item .gipa{color:var(--accent2); font-size:12.5px; font-family:Georgia,serif}
+  .gloss-item .gpos{font-size:11px; background:var(--accent2); color:var(--accent2-ink); padding:1px 7px; border-radius:5px; font-style:italic}
+  .gloss-item .gdef{font-size:13.5px; color:var(--text); margin-top:8px; line-height:1.6}
+  .gloss-item .geg{font-size:12.5px; color:var(--en); font-style:italic; margin-top:6px; line-height:1.55}
+  .gloss-item .geg .egzh{display:block; color:var(--muted); font-style:normal; margin-top:3px}
+
+  footer{text-align:center; color:var(--muted); font-size:11px; opacity:.6; padding:12px; border-top:1px solid var(--border); margin-top:22px}
+  footer a{color:var(--muted)}
+  footer a:hover{color:var(--accent2)}
+
+  /* —— TOC：右侧紧凑圆点 —— */
+  .toc{position:fixed; right:10px; top:50%; transform:translateY(-50%); z-index:800;
+    display:flex; flex-direction:column; align-items:center; gap:9px; padding:10px 8px; border-radius:22px;
+    background:color-mix(in srgb,var(--panel) 78%,transparent); border:1px solid var(--border); backdrop-filter:blur(8px)}
+  .toc a{width:9px; height:9px; border-radius:50%; background:var(--border); cursor:pointer; transition:.25s; position:relative; flex-shrink:0}
+  .toc a:hover{background:var(--accent2); transform:scale(1.3)}
+  .toc a.active{background:var(--accent); height:20px; border-radius:6px}
+  .toc a span{position:absolute; right:18px; top:50%; transform:translateY(-50%) translateX(6px); white-space:nowrap;
+    background:var(--panel); border:1px solid var(--accent); padding:3px 9px; border-radius:6px; font-size:11px;
+    opacity:0; pointer-events:none; transition:.2s; color:var(--text)}
+  .toc a:hover span{opacity:1; transform:translateY(-50%)}
+
+  body.mode-original .summary-view{display:none}
+  body.mode-original #originalSection{display:block}
+  #originalSection{display:none}
+  body.mode-original .toc,body.gloss-open .toc{display:none}
+  body.gloss-open .hero,body.gloss-open .summary-view,body.gloss-open #originalSection{display:none!important}
+
+  @media(max-width:760px){
+    .toc{display:none}
+    .study-row{grid-template-columns:28px 1fr}
+    .study-row .zh{grid-column:1 / -1; border-top:1px solid var(--border)}
+    .study-row .en{border-right:none}
+    .og-row{grid-template-columns:1fr}
+    .og-row .en{border-right:none; border-bottom:1px solid var(--border)}
+  }
+
+  .doc-title-link{display:block;flex:1;min-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:800;text-decoration:none;cursor:pointer}
+  .doc-title-link:hover{color:var(--accent)}
+  .reader-header .ctrls{margin-left:auto;justify-content:flex-end}
+  .theme-group{display:inline-flex;align-items:center}
+  .theme-btn{display:inline-flex;align-items:center;gap:6px}
+  .theme-btn .ico{width:15px;height:15px;flex-shrink:0}
+
+
+
+  html[data-theme="light"]{--bg:#f7f4ee;--panel:#fffaf0;--panel2:#f0eadf;--border:#d9ccb8;--text:#211a12;--muted:#756a5d;--en:#2f3a45;--zh:#3f2f1d;--accent:#9b5c00;--accent2:#0b63ce;--green:#18794e;--tip-bg:#fffaf0;--hl:rgba(155,92,0,.13);--hl-line:rgba(155,92,0,.45);--accent-ink:#fff7e8;--accent2-ink:#eef6ff;--accent-shadow:rgba(155,92,0,.22)}
+  body{min-height:100vh} button,a,[role="button"]{cursor:pointer}
+  footer a{color:#2f81f7!important;text-decoration:underline;text-underline-offset:3px;font-weight:800;cursor:pointer}
+  footer a:hover{color:#58a6ff!important}
+  .badge{display:inline-block;margin-bottom:10px;color:var(--accent2);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+  .hero-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:stretch}.hero-main,.hero-panel{min-width:0}.hero-thesis{max-width:860px;margin:16px 0 0;color:var(--zh);font-size:16px;line-height:1.85}.hero-panel{display:none}.hero-brief{display:grid;gap:12px}.article-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.article-tag{display:inline-flex;align-items:center;min-height:28px;padding:5px 11px;border:1px solid color-mix(in srgb,var(--accent2) 34%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--accent2) 10%,var(--panel));color:var(--accent2);font-size:12px;font-weight:800;letter-spacing:.04em}
+  .toc{position:fixed;right:8px;top:50%;bottom:auto;transform:translateY(-50%);z-index:760;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;width:clamp(36px,2.8vw,44px);max-height:calc(100vh - 96px);overflow:visible;padding:12px 0;border:1px solid color-mix(in srgb,var(--accent2) 20%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--panel) 82%,transparent);backdrop-filter:blur(10px);box-shadow:0 12px 30px color-mix(in srgb,var(--accent2) 12%,rgba(0,0,0,.18)),inset 0 1px 0 color-mix(in srgb,#fff 6%,transparent)}.toc::before{display:none}.toc a{position:relative;display:block;width:10px;height:10px;min-height:10px;padding:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--muted) 48%,transparent);color:transparent;font-size:0;line-height:0;text-decoration:none;cursor:pointer;transition:width .2s,height .2s,background .2s,box-shadow .2s,transform .2s}.toc a:hover{background:var(--accent2);transform:scale(1.16);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent2) 16%,transparent)}.toc a.active{width:12px;height:30px;border-radius:999px;background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 7px 16px color-mix(in srgb,var(--accent) 30%,transparent)}.toc a span{position:absolute;right:calc(100% + 10px);top:50%;box-sizing:border-box;transform:translateY(-50%) translateX(6px);width:max-content;max-width:min(220px,calc(100vw - 92px));padding:5px 9px;border:1px solid color-mix(in srgb,var(--accent2) 28%,var(--border));border-radius:8px;background:color-mix(in srgb,var(--panel) 96%,#fff);box-shadow:0 10px 24px rgba(0,0,0,.18);color:var(--text);font-size:11px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere;word-break:normal;text-align:left;opacity:0;pointer-events:none;transition:opacity .16s,transform .16s}.toc a:hover span{opacity:1;transform:translateY(-50%)}
+  @media(min-width:1180px){.wrap{max-width:min(1080px,calc(100vw - 116px));margin-left:auto;margin-right:auto;padding-left:24px;padding-right:64px}}
+  body.mode-original #toc{display:none}
+  body.mode-original #hero{display:none}
+  body.mode-original .wrap{width:100vw;max-width:none;margin:0;padding:28px 74px 80px 24px}
+  body.mode-original #originalSection{width:100%}
+  #originalToc[hidden]{display:none!important}
+  body.mode-original #originalToc.toc{position:fixed;right:8px;top:50%;bottom:auto;transform:translateY(-50%);z-index:760;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;width:clamp(36px,2.8vw,44px);max-height:calc(100vh - 96px);overflow:visible;padding:12px 0;border:1px solid color-mix(in srgb,var(--border) 34%,transparent);border-radius:999px;background:color-mix(in srgb,var(--panel) 78%,transparent);backdrop-filter:blur(8px);box-shadow:0 10px 26px color-mix(in srgb,var(--accent2) 10%,rgba(0,0,0,.16))}
+  body.mode-original #originalToc.toc::before{display:none}
+  body.mode-original #originalToc.toc a{position:relative;display:block;width:10px;height:10px;min-height:10px;padding:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--muted) 48%,transparent);color:transparent;font-size:0;line-height:0;text-decoration:none;cursor:pointer;transition:width .2s,height .2s,background .2s,box-shadow .2s,transform .2s}
+  body.mode-original #originalToc.toc a:hover{background:var(--accent2);transform:scale(1.16);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent2) 16%,transparent)}
+  body.mode-original #originalToc.toc a.active{width:12px;height:30px;border-radius:999px;background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 7px 16px color-mix(in srgb,var(--accent) 30%,transparent)}
+  body.mode-original #originalToc.toc a span{position:absolute;right:calc(100% + 10px);top:50%;box-sizing:border-box;transform:translateY(-50%) translateX(6px);width:max-content;max-width:min(220px,calc(100vw - 92px));padding:5px 9px;border:1px solid color-mix(in srgb,var(--border) 42%,transparent);border-radius:8px;background:color-mix(in srgb,var(--panel) 94%,#fff);box-shadow:0 10px 24px rgba(0,0,0,.18);color:var(--text);font-size:11px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere;word-break:normal;text-align:left;opacity:0;pointer-events:none;transition:opacity .16s,transform .16s}
+  body.mode-original #originalToc.toc a:hover span{opacity:1;transform:translateY(-50%)}
+  html[data-theme="light"] .toc,html[data-theme="light"] body.mode-original #originalToc.toc{border-color:color-mix(in srgb,var(--accent2) 24%,#d6e4f5);background:color-mix(in srgb,#fff 88%,transparent);box-shadow:0 12px 28px rgba(31,78,121,.10),inset 0 1px 0 rgba(255,255,255,.78)}
+  html[data-theme="light"] .toc a,html[data-theme="light"] body.mode-original #originalToc.toc a{background:color-mix(in srgb,var(--accent2) 22%,#cfd8e3)}
+  html[data-theme="light"] .toc a:hover,html[data-theme="light"] body.mode-original #originalToc.toc a:hover{background:var(--accent2);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent2) 12%,transparent)}
+  html[data-theme="light"] .toc a.active,html[data-theme="light"] body.mode-original #originalToc.toc a.active{background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 8px 18px color-mix(in srgb,var(--accent2) 18%,transparent)}
+  html[data-theme="light"] .toc a span,html[data-theme="light"] body.mode-original #originalToc.toc a span{border-color:color-mix(in srgb,var(--accent2) 26%,#d6e4f5);background:rgba(255,255,255,.96);box-shadow:0 10px 24px rgba(31,78,121,.12);color:var(--text)}
+  .original-hero{display:grid!important;justify-items:center!important;text-align:center!important;padding:18px 0 20px!important;margin:0 0 20px!important;border:none!important;border-bottom:1px solid var(--border)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}.original-hero h2{margin:0 0 8px!important;font-size:clamp(26px,3.2vw,42px)!important;line-height:1.08!important;letter-spacing:-.035em}.original-hero p{max-width:860px!important;margin:0 auto!important;color:var(--zh)!important;font-size:15px!important;line-height:1.75!important}
+  .sec-title .num{width:auto!important;min-width:34px!important;max-width:none!important;padding:0 10px!important;white-space:nowrap!important}
+  .guide-layout{display:grid;grid-template-columns:1fr;gap:16px;align-items:stretch}
+  .guide-shell{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:stretch}
+  .guide-primary{position:relative;padding:24px;border:1px solid color-mix(in srgb,var(--accent) 36%,var(--border));border-radius:var(--radius-lg);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,var(--panel)),var(--panel));box-shadow:0 18px 44px rgba(0,0,0,.12)}
+  .guide-primary h2{margin:8px 0 12px;font-size:clamp(22px,3.2vw,38px);line-height:1.12;letter-spacing:-.035em;color:var(--text)}
+  .guide-primary p{margin:0;color:var(--zh);font-size:15px;line-height:1.8}
+  .guide-chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0}.guide-chip{display:inline-flex;padding:5px 11px;border:1px solid color-mix(in srgb,var(--accent2) 34%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--accent2) 10%,var(--panel));color:var(--accent2);font-size:12px;font-weight:800}
+  .guide-kicker{display:inline-flex;width:max-content;padding:3px 9px;border:1px solid color-mix(in srgb,var(--accent2) 42%,var(--border));border-radius:999px;color:var(--accent2);font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+  .guide-stack{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.guide-card{position:relative;padding:16px 16px 16px 18px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel)}
+  .guide-icon{display:inline-grid;place-items:center;min-width:30px;height:30px;margin-bottom:8px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-radius:999px;color:var(--accent);font-size:15px;font-weight:900}
+  .guide-card h4{margin:8px 0 6px;color:var(--accent);font-size:16px}.guide-card p{margin:0;color:var(--en);font-size:13px;line-height:1.7}
+  .guide-path{display:none}
+  .summary-lead{margin:0 0 16px;padding:18px 20px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--border));border-radius:var(--radius);background:color-mix(in srgb,var(--panel2) 72%,transparent);color:var(--zh);font-size:15px;line-height:1.85}.summary-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.summary-card,.conclusion-card,.core-thesis,.core-principles,.core-source{border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);padding:18px}.summary-card span{display:inline-grid;place-items:center;width:34px;height:28px;margin-bottom:10px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:900}.summary-card h4{margin:0 0 8px;color:var(--text);font-size:16px}.summary-card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.7}.conclusion-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}.conclusion-list{display:grid;gap:10px;margin:14px 0 0;padding:0;list-style:none}.conclusion-list li{display:grid;gap:4px;padding:11px 12px;border:1px solid color-mix(in srgb,var(--accent2) 24%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--panel2) 62%,transparent)}.conclusion-list b{color:var(--accent2);font-size:12px}.conclusion-list span{color:var(--text);font-size:13px;line-height:1.65}.conclusion-card blockquote{margin:14px 0 0;padding:12px 14px;border-left:3px solid var(--accent);border-radius:0 10px 10px 0;background:color-mix(in srgb,var(--panel2) 64%,transparent);color:var(--zh);font-size:13.5px;line-height:1.7}.core-layout{display:grid;grid-template-columns:1fr;gap:12px}.core-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.core-thesis{background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 12%,var(--panel)),var(--panel));padding:20px 22px}.core-thesis p{margin:14px 0 0;color:var(--zh);font-size:16px;line-height:1.85}.core-principles ul{display:grid;gap:9px;margin:12px 0 0;padding-left:18px;color:var(--text);font-size:13.5px;line-height:1.7}.core-source p{margin:12px 0 0;color:var(--en);font-size:13px;line-height:1.65}
+  .study-table{display:grid;gap:10px}.study-row{display:grid;grid-template-columns:48px 1fr 1fr;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--panel);margin-bottom:10px}
+  .study-row .no{display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:900}.study-row .en,.study-row .zh{padding:15px 18px}.study-row .en{color:var(--en);border-right:1px solid var(--border)}.study-row .zh{color:var(--zh);background:color-mix(in srgb,var(--panel2) 72%,transparent)}
+  .og-h{scroll-margin-top:92px}.og-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;border:1px solid color-mix(in srgb,var(--accent2) 22%,var(--border));border-radius:calc(var(--radius) + 2px);overflow:hidden;margin-bottom:14px;background:var(--panel);box-shadow:0 10px 26px rgba(0,0,0,.08)}
+  .og-subheading{margin:18px 0 10px;padding:0 4px;color:var(--text)}.og-subheading h3,.og-subheading h4,.og-subheading h5,.og-subheading h6{margin:0;color:var(--text);line-height:1.25}.og-subheading h3{font-size:20px}.og-subheading h4{font-size:18px}.og-subheading h5,.og-subheading h6{font-size:16px}
+  .og-row .en,.og-row .zh{min-width:0;padding:18px 22px}.og-row .en{color:var(--en);border-right:1px solid var(--border);font-size:15px;line-height:1.85}.og-row .zh{color:var(--zh);background:color-mix(in srgb,var(--panel2) 72%,transparent);font-size:15px;line-height:1.85}
+  .md-source p{margin:0 0 12px}.md-source p:last-child{margin-bottom:0}.md-source ul,.md-source ol{margin:0 0 12px 1.35em;padding:0}.md-source li{margin:4px 0;padding-left:2px}.md-source blockquote{margin:0 0 12px;padding:10px 14px;border-left:3px solid var(--accent2);border-radius:0 var(--radius-sm) var(--radius-sm) 0;background:color-mix(in srgb,var(--accent2) 10%,transparent);color:var(--en)}.md-source a,.source-table a{color:var(--accent2);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent2) 44%,transparent);cursor:pointer}.md-source a:hover,.source-table a:hover{color:var(--accent);border-bottom-color:var(--accent)}.md-source strong{color:var(--text);font-weight:800}.md-source em{color:color-mix(in srgb,var(--en) 84%,var(--accent2));font-style:italic}.md-source code,.source-table code{padding:2px 5px;border:1px solid color-mix(in srgb,var(--accent2) 24%,var(--border));border-radius:6px;background:color-mix(in srgb,#000 28%,var(--panel2));color:var(--accent2);font-size:.92em}.md-source img{display:block;max-width:min(720px,100%);max-height:405px;margin:12px auto;border-radius:calc(var(--radius) - 4px);object-fit:contain;background:#fff}
+  #originalSection .w{color:#4169ff;text-decoration:none!important;cursor:text!important}#originalSection .w::after{right:-5px;top:.05em;width:4px;height:4px;background:#9b6bff;box-shadow:0 0 0 2px rgba(142,91,255,.16)}#originalSection .w:hover{color:#8e55ff;text-decoration:none!important;cursor:text!important}
+  .source-figure{max-width:min(880px,92%);margin:24px auto;padding:14px;border:1px solid color-mix(in srgb,var(--accent2) 28%,var(--border));border-radius:var(--radius);background:var(--panel);overflow:hidden;text-align:center}
+  .source-figure img{display:block;width:min(720px,100%);height:405px;max-width:100%;margin:0 auto;border-radius:calc(var(--radius) - 4px);background:#fff;object-fit:contain}.source-figure figcaption{margin-top:10px;color:var(--muted);font-size:13px;line-height:1.55}.source-figure a{color:var(--accent2)}
+  .og-table-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;border:0;background:transparent;box-shadow:none;overflow:visible}.og-table-row .og-table-cell{overflow:auto;border:1px solid color-mix(in srgb,var(--accent2) 22%,var(--border));border-radius:calc(var(--radius) + 2px);background:var(--panel);box-shadow:0 10px 26px rgba(0,0,0,.08)}.og-table-row .en{border-right:1px solid color-mix(in srgb,var(--accent2) 22%,var(--border))}.source-table-wrap{margin:18px 0;padding:12px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--border));border-radius:var(--radius);background:var(--panel);overflow:auto}
+  .source-table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:auto;color:var(--text);font-size:14px;line-height:1.55}.source-table th,.source-table td{padding:10px 12px;border:1px solid var(--border);vertical-align:top;text-align:left;white-space:normal;overflow-wrap:normal;word-break:normal}.source-table th{min-width:max-content;background:color-mix(in srgb,var(--accent2) 14%,var(--panel2));color:var(--accent2);font-weight:800;white-space:nowrap}.source-table td{background:color-mix(in srgb,var(--panel2) 52%,transparent)}
+  pre{overflow:auto;padding:16px 18px;border:1px solid var(--border);border-radius:var(--radius);background:#05070b;color:#d7fbe8;line-height:1.55}code{font-family:"SF Mono",Consolas,monospace}
+  #glossary{display:none}#glossary.show{display:block}body.gloss-open #glossary{display:block}body.gloss-open .wrap{width:100vw;max-width:none;margin:0;padding:28px 56px 80px 24px}
+  .gloss-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .gloss-group .gg-count{display:inline-flex;align-items:center;margin-left:6px;padding:2px 9px;border:1px solid color-mix(in srgb,var(--accent2) 24%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--accent2) 10%,transparent);color:var(--muted);font-size:12px;font-weight:800;line-height:1.4}
+  .gloss-grid-inner{--gloss-card-min:240px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,var(--gloss-card-min)),1fr));grid-auto-rows:1fr;align-items:stretch;gap:12px}
+  .gloss-item{width:100%;height:100%;min-width:0;display:flex;flex-direction:column}
+  .tip .pos,.gloss-item .pos,.gloss-item .gpos{background:color-mix(in srgb,var(--accent2) 92%,#000);color:#fff;font-weight:800;font-style:normal}
+  html[data-theme="light"] .tip .pos,html[data-theme="light"] .gloss-item .pos,html[data-theme="light"] .gloss-item .gpos{background:color-mix(in srgb,var(--accent2) 16%,#fff);color:#073763}
+  .quiz-list{display:grid;gap:14px}.quiz .fb strong{color:var(--accent)}.quiz .fb .why{display:block;margin-top:4px;color:var(--muted)}
+  .vquiz{display:grid;gap:18px}
+  .vq-group{padding:16px 18px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel)}
+  .vq-label{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:12px}
+  .vq-item{padding:12px 0;border-top:1px dashed var(--border)}.vq-item:first-of-type{border-top:0;padding-top:0}
+  .vq-q{font-size:14px;color:var(--text);line-height:1.7;margin-bottom:8px}
+  .vq-hint{display:inline-block;margin-left:8px;color:var(--muted);font-size:12.5px}
+  .vopt{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 13px;margin-bottom:7px;color:var(--text);font-size:13.5px;transition:.15s}
+  .vopt:hover{border-color:var(--accent2)}.vopt.correct{background:color-mix(in srgb,var(--green) 22%,transparent);border-color:var(--green)}.vopt.wrong{background:rgba(248,81,73,.2);border-color:#f85149}
+  .vq-fill{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .vq-input{flex:1 1 160px;min-width:140px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13.5px}
+  .vq-input:focus{outline:none;border-color:var(--accent2)}.vq-input.correct{border-color:var(--green)}.vq-input.wrong{border-color:#f85149}
+  .vq-check{background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:8px;padding:9px 16px;font-size:13px;font-weight:800}
+  .vq-fb{margin-top:8px;font-size:12.5px;color:var(--muted);min-height:16px;line-height:1.6}
+  @media(max-width:1179px){#toc.toc{display:none!important}body.mode-original #originalToc.toc:not([hidden]){display:flex!important}}
+  @media(max-width:820px){.hero-grid,.guide-layout,.guide-shell,.study-row,.og-row,.conclusion-grid,.core-layout,.core-detail-grid{grid-template-columns:1fr}.study-row .no{display:none}.study-row .en,.og-row .en{border-right:0;border-bottom:1px solid var(--border)}.core-thesis{grid-row:auto}}
+    
+  </style>
+</head>
+<body class="template-compact-study">
+  <div id="progress"></div>
+  <header class="reader-header">
+    <a class="doc-title-link" href="https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents" target="_blank" rel="noopener">What Is Loop Engineering? The New Meta for AI Coding Agents</a>
+    <div class="ctrls">
+      <div class="seg view-seg" role="group" aria-label="阅读视图">
+        <button class="seg-btn active" type="button" data-mode="summary">精读</button>
+        <button class="seg-btn" type="button" data-mode="original">原文</button>
+        <button class="seg-btn" type="button" data-mode="glossary">词汇</button>
+      </div>
+      <div class="theme-group" role="group" aria-label="主题设置">
+        <button class="btn theme-btn" type="button">主题</button>
+      </div>
+    </div>
+  </header>
+  <nav class="toc" id="toc" aria-label="精读章节导航"><a href="#full-content-summary"><span>全文内容总结</span></a><a href="#conclusion-output"><span>结论输出</span></a><a href="#close-sec-1"><span>从 Prompt 到 Process</span></a><a href="#close-sec-2"><span>Loop 与 Chain 的区别</span></a><a href="#close-sec-3"><span>ReAct 与编码循环</span></a><a href="#close-sec-4"><span>可靠 loop 的五个部件</span></a><a href="#close-sec-5"><span>Coding Agent 的质量差异</span></a><a href="#close-sec-6"><span>常见 loop 模式</span></a><a href="#close-sec-7"><span>如何工程化更好的 loops</span></a><a href="#close-sec-8"><span>Remy 管理多 Agent</span></a><a href="#close-sec-9"><span>Plan-Execute-Verify 的四步视觉</span></a><a href="#close-sec-10"><span>MindStudio 承担循环基础设施</span></a><a href="#comprehension-check"><span>理解检查</span></a><a href="#vocabulary-quiz"><span>词汇测验</span></a></nav>
+  <div class="wrap">
+
+      <div class="hero" id="hero">
+        <div class="hero-grid">
+          <div class="hero-main">
+            <span class="badge">Close Reading Brief</span>
+            <h2>Loop Engineering：AI Coding Agents 的新范式</h2>
+            <p class="hero-thesis">文章的核心判断是：现代 AI coding agents 的能力不只来自模型本身，而来自围绕模型设计的循环结构，包括目标定义、工具访问、上下文管理、终止逻辑和错误恢复。</p>
+            <div class="article-tags"><span class="article-tag">AI Agent</span><span class="article-tag">Loop Engineering</span><span class="article-tag">AI Coding</span><span class="article-tag">Workflows</span></div>
+          </div>
+        </div>
+      </div>
+      <section id="glossary">
+        <h3 class="sec-title"><span class="num">📖</span>核心词汇表</h3>
+        <p class="note">全文重点词汇按 CEFR 分级，用于配合精读与原文对照。</p>
+        <div id="glossGrid">
+        <div class="gloss-group" id="gloss-B1">
+          <span class="lv lv-b1">B1</span>
+          <span class="gg-desc">核心阅读词</span><span class="gg-count">2 词</span>
+        </div>
+        <div class="gloss-grid-inner">
+      <div class="gloss-item" data-k="environment" data-word="environment">
+        <div class="grow"><span class="gw word">environment</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">系统运行和获得结果的外部环境。</div>
+        <div class="geg eg">🗣 The model receives feedback from the environment.<span class="egzh">模型从环境获得反馈。</span></div>
+      </div>
+      <div class="gloss-item" data-k="chain" data-word="chain">
+        <div class="grow"><span class="gw word">chain</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">线性串联步骤。</div>
+        <div class="geg eg">🗣 A chain is linear: step A leads to step B leads to step C.<span class="egzh">Chain 是线性的步骤串联。</span></div>
+      </div></div>
+        <div class="gloss-group" id="gloss-B2">
+          <span class="lv lv-b2">B2</span>
+          <span class="gg-desc">核心阅读词</span><span class="gg-count">9 词</span>
+        </div>
+        <div class="gloss-grid-inner">
+      <div class="gloss-item" data-k="repeating-cycle" data-word="repeating cycle">
+        <div class="grow"><span class="gw word">repeating cycle</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">重复发生的一组步骤或过程。</div>
+        <div class="geg eg">🗣 A loop in agentic AI is a repeating cycle.<span class="egzh">Loop 是一个重复循环。</span></div>
+      </div>
+      <div class="gloss-item" data-k="feedback" data-word="feedback">
+        <div class="grow"><span class="gw word">feedback</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">环境或执行结果返回给系统的信息。</div>
+        <div class="geg eg">🗣 The model receives feedback from the environment.<span class="egzh">模型从环境接收反馈。</span></div>
+      </div>
+      <div class="gloss-item" data-k="dynamic" data-word="dynamic">
+        <div class="grow"><span class="gw word">dynamic</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">可根据反馈变化而调整的。</div>
+        <div class="geg eg">🗣 A loop is dynamic.<span class="egzh">Loop 是动态的。</span></div>
+      </div>
+      <div class="gloss-item" data-k="modified-approach" data-word="modified approach">
+        <div class="grow"><span class="gw word">modified approach</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">根据失败结果调整后的做法。</div>
+        <div class="geg eg">🗣 The agent can retry with a modified approach.<span class="egzh">Agent 可以用调整后的方法重试。</span></div>
+      </div>
+      <div class="gloss-item" data-k="observe" data-word="observe">
+        <div class="grow"><span class="gw word">observe</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">观察执行结果或错误反馈。</div>
+        <div class="geg eg">🗣 The model observes what happened.<span class="egzh">模型观察发生了什么。</span></div>
+      </div>
+      <div class="gloss-item" data-k="task-definition" data-word="task definition">
+        <div class="grow"><span class="gw word">task definition</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">对任务目标和完成标准的定义。</div>
+        <div class="geg eg">🗣 The loop needs to know what done looks like.<span class="egzh">Loop 需要知道什么状态算完成。</span></div>
+      </div>
+      <div class="gloss-item" data-k="strategy" data-word="strategy">
+        <div class="grow"><span class="gw word">strategy</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">为解决问题选择的行动方案。</div>
+        <div class="geg eg">🗣 Adjust its strategy based on error type.<span class="egzh">Agent 应根据错误类型调整策略。</span></div>
+      </div>
+      <div class="gloss-item" data-k="failure-cases" data-word="failure cases">
+        <div class="grow"><span class="gw word">failure cases</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">用来测试系统失败处理能力的场景。</div>
+        <div class="geg eg">🗣 Test your loops on failure cases, not just happy paths.<span class="egzh">应测试失败场景，而不只测顺利路径。</span></div>
+      </div>
+      <div class="gloss-item" data-k="happy-paths" data-word="happy paths">
+        <div class="grow"><span class="gw word">happy paths</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">一切按预期成功的顺利流程。</div>
+        <div class="geg eg">🗣 Test loops on failure cases, not just happy paths.<span class="egzh">不能只测试 happy path。</span></div>
+      </div></div>
+        <div class="gloss-group" id="gloss-C1">
+          <span class="lv lv-c1">C1</span>
+          <span class="gg-desc">核心阅读词</span><span class="gg-count">3 词</span>
+        </div>
+        <div class="gloss-grid-inner">
+      <div class="gloss-item" data-k="interleave" data-word="interleave">
+        <div class="grow"><span class="gw word">interleave</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">交错安排不同步骤或活动。</div>
+        <div class="geg eg">🗣 The core idea is to interleave reasoning steps with action steps.<span class="egzh">核心思想是交错安排推理和行动。</span></div>
+      </div>
+      <div class="gloss-item" data-k="over-reach" data-word="over-reach">
+        <div class="grow"><span class="gw word">over-reach</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">超出合理范围或能力边界。</div>
+        <div class="geg eg">🗣 Scoped so the agent does not over-reach.<span class="egzh">任务范围要避免 Agent 过度延展。</span></div>
+      </div>
+      <div class="gloss-item" data-k="pruning" data-word="pruning">
+        <div class="grow"><span class="gw word">pruning</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span><span class="gpos pos">n</span></div>
+        <div class="gdef def">删去无关上下文以控制信息量。</div>
+        <div class="geg eg">🗣 Pruning irrelevant context before each new iteration.<span class="egzh">每次迭代前剪除无关上下文。</span></div>
+      </div></div>
+        <div class="gloss-group" id="gloss-术语">
+          <span class="lv lv-term">术语</span>
+          <span class="gg-desc">核心阅读词</span><span class="gg-count">47 词</span>
+        </div>
+        <div class="gloss-grid-inner">
+      <div class="gloss-item" data-k="loop-engineering" data-word="loop engineering">
+        <div class="grow"><span class="gw word">loop engineering</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">设计 AI Agent 迭代循环的工程方法，包括行动、观察、反馈、修正与停止。</div>
+        <div class="geg eg">🗣 Loop engineering replaces manual prompting with goal-based automation.<span class="egzh">Loop engineering 用目标驱动自动化替代手工提示。</span></div>
+      </div>
+      <div class="gloss-item" data-k="goal-based-automation" data-word="goal-based automation">
+        <div class="grow"><span class="gw word">goal-based automation</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">以目标和完成条件驱动系统持续执行的自动化方式。</div>
+        <div class="geg eg">🗣 Loop engineering replaces manual prompting with goal-based automation.<span class="egzh">目标驱动自动化让系统围绕结果推进。</span></div>
+      </div>
+      <div class="gloss-item" data-k="agentic-ai" data-word="agentic AI">
+        <div class="grow"><span class="gw word">agentic AI</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">具备行动、观察和迭代决策能力的 AI 系统形态。</div>
+        <div class="geg eg">🗣 A loop in agentic AI is a repeating cycle.<span class="egzh">Agentic AI 中的 loop 是重复循环。</span></div>
+      </div>
+      <div class="gloss-item" data-k="termination-condition" data-word="termination condition">
+        <div class="grow"><span class="gw word">termination condition</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">循环停止条件，例如任务完成、达到停止标准或无法继续。</div>
+        <div class="geg eg">🗣 The loop continues until a termination condition is met.<span class="egzh">循环持续到满足停止条件为止。</span></div>
+      </div>
+      <div class="gloss-item" data-k="stopping-criterion" data-word="stopping criterion">
+        <div class="grow"><span class="gw word">stopping criterion</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">用于判断循环应当停止的明确标准。</div>
+        <div class="geg eg">🗣 A stopping criterion triggers.<span class="egzh">停止标准被触发。</span></div>
+      </div>
+      <div class="gloss-item" data-k="react-pattern" data-word="ReAct pattern">
+        <div class="grow"><span class="gw word">ReAct pattern</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">Reason + Act 模式，把推理与行动交替组织。</div>
+        <div class="geg eg">🗣 Most modern agent loops trace back to the ReAct pattern.<span class="egzh">现代 Agent loop 大多可追溯到 ReAct 模式。</span></div>
+      </div>
+      <div class="gloss-item" data-k="reasoning-steps" data-word="reasoning steps">
+        <div class="grow"><span class="gw word">reasoning steps</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">模型分析目标、错误和下一步策略的推理环节。</div>
+        <div class="geg eg">🗣 The model reasons, takes an action, observes what happened.<span class="egzh">模型先推理，再行动并观察。</span></div>
+      </div>
+      <div class="gloss-item" data-k="action-steps" data-word="action steps">
+        <div class="grow"><span class="gw word">action steps</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">模型实际调用工具、写代码或执行命令的环节。</div>
+        <div class="geg eg">🗣 The core idea is to interleave reasoning steps with action steps.<span class="egzh">行动步骤与推理步骤交替出现。</span></div>
+      </div>
+      <div class="gloss-item" data-k="code-generation" data-word="code generation">
+        <div class="grow"><span class="gw word">code generation</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">生成程序代码的任务场景。</div>
+        <div class="geg eg">🗣 In code generation contexts, this looks like.<span class="egzh">在代码生成场景中，loop 表现为写代码和运行验证。</span></div>
+      </div>
+      <div class="gloss-item" data-k="runtime-errors" data-word="runtime errors">
+        <div class="grow"><span class="gw word">runtime errors</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">程序运行时暴露的错误。</div>
+        <div class="geg eg">🗣 They cannot catch runtime errors.<span class="egzh">缺少循环的 Agent 无法捕捉运行时错误。</span></div>
+      </div>
+      <div class="gloss-item" data-k="environment-specific-issues" data-word="environment-specific issues">
+        <div class="grow"><span class="gw word">environment-specific issues</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">只在特定运行环境中出现的问题。</div>
+        <div class="geg eg">🗣 They cannot adapt to environment-specific issues.<span class="egzh">Agent 需要适应环境相关问题。</span></div>
+      </div>
+      <div class="gloss-item" data-k="feedback-gap" data-word="feedback gap">
+        <div class="grow"><span class="gw word">feedback gap</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">生成结果与真实执行反馈之间的断层。</div>
+        <div class="geg eg">🗣 Loop engineering closes that feedback gap.<span class="egzh">Loop engineering 关闭反馈缺口。</span></div>
+      </div>
+      <div class="gloss-item" data-k="hallucinates-progress" data-word="hallucinates progress">
+        <div class="grow"><span class="gw word">hallucinates progress</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">系统误以为或声称取得进展但缺少真实依据。</div>
+        <div class="geg eg">🗣 A poorly designed loop wastes tokens, runs forever, or hallucinates progress.<span class="egzh">差的 loop 可能幻觉式报告进展。</span></div>
+      </div>
+      <div class="gloss-item" data-k="testable-sub-tasks" data-word="testable sub-tasks">
+        <div class="grow"><span class="gw word">testable sub-tasks</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">可单独验证是否完成的子任务。</div>
+        <div class="geg eg">🗣 Broken into testable sub-tasks where possible.<span class="egzh">目标应尽量拆成可测试子任务。</span></div>
+      </div>
+      <div class="gloss-item" data-k="code-execution" data-word="code execution">
+        <div class="grow"><span class="gw word">code execution</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">运行代码并获取输出或错误。</div>
+        <div class="geg eg">🗣 Code execution: run code and receive stdout/stderr.<span class="egzh">代码执行提供 stdout 和 stderr。</span></div>
+      </div>
+      <div class="gloss-item" data-k="file-system-access" data-word="file system access">
+        <div class="grow"><span class="gw word">file system access</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">读取、写入或修改文件的能力。</div>
+        <div class="geg eg">🗣 File system access: read, write, or modify files.<span class="egzh">文件系统访问允许读写修改文件。</span></div>
+      </div>
+      <div class="gloss-item" data-k="test-runners" data-word="test runners">
+        <div class="grow"><span class="gw word">test runners</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">执行测试并验证正确性的工具。</div>
+        <div class="geg eg">🗣 Test runners: verify correctness.<span class="egzh">测试运行器用于验证正确性。</span></div>
+      </div>
+      <div class="gloss-item" data-k="context-management" data-word="context management">
+        <div class="grow"><span class="gw word">context management</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">管理迭代中不断增长的代码、错误和决策上下文。</div>
+        <div class="geg eg">🗣 Good loop engineering includes context management.<span class="egzh">好的 loop engineering 包含上下文管理。</span></div>
+      </div>
+      <div class="gloss-item" data-k="token-limits" data-word="token limits">
+        <div class="grow"><span class="gw word">token limits</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">模型上下文可容纳文本量的限制。</div>
+        <div class="geg eg">🗣 The agent will hit token limits.<span class="egzh">Agent 可能触达 token 限制。</span></div>
+      </div>
+      <div class="gloss-item" data-k="working-memory" data-word="working memory">
+        <div class="grow"><span class="gw word">working memory</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">压缩后的当前任务记忆。</div>
+        <div class="geg eg">🗣 Summarizing previous iterations into compact working memory.<span class="egzh">把历史迭代总结为紧凑工作记忆。</span></div>
+      </div>
+      <div class="gloss-item" data-k="structured-log" data-word="structured log">
+        <div class="grow"><span class="gw word">structured log</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">按结构记录尝试、结果和失败原因的日志。</div>
+        <div class="geg eg">🗣 Keeping a structured log of attempted approaches and outcomes.<span class="egzh">维护结构化日志有助于延续推理。</span></div>
+      </div>
+      <div class="gloss-item" data-k="termination-logic" data-word="termination logic">
+        <div class="grow"><span class="gw word">termination logic</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">判断何时成功、失败或升级处理的停止逻辑。</div>
+        <div class="geg eg">🗣 A loop needs termination logic.<span class="egzh">Loop 需要终止逻辑。</span></div>
+      </div>
+      <div class="gloss-item" data-k="success-conditions" data-word="success conditions">
+        <div class="grow"><span class="gw word">success conditions</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">测试通过、输出匹配预期或用户批准等成功条件。</div>
+        <div class="geg eg">🗣 Success conditions: tests pass, output matches expectation, or the user approves.<span class="egzh">成功条件包括测试通过或用户批准。</span></div>
+      </div>
+      <div class="gloss-item" data-k="failure-conditions" data-word="failure conditions">
+        <div class="grow"><span class="gw word">failure conditions</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">达到最大迭代、重复无进展或工具失败等失败条件。</div>
+        <div class="geg eg">🗣 Failure conditions: maximum iterations reached, repeated errors with no progress, or tool call failures.<span class="egzh">失败条件定义何时停止或升级。</span></div>
+      </div>
+      <div class="gloss-item" data-k="escalation-paths" data-word="escalation paths">
+        <div class="grow"><span class="gw word">escalation paths</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">卡住时移交给人类或其他 Agent 的路径。</div>
+        <div class="geg eg">🗣 Escalation paths: hand off to a human or another agent when stuck.<span class="egzh">升级路径用于卡住时交接。</span></div>
+      </div>
+      <div class="gloss-item" data-k="syntax-errors" data-word="syntax errors">
+        <div class="grow"><span class="gw word">syntax errors</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">代码语法不合法导致的错误。</div>
+        <div class="geg eg">🗣 Distinguish recoverable errors, such as syntax errors or missing imports.<span class="egzh">语法错误通常是可恢复错误。</span></div>
+      </div>
+      <div class="gloss-item" data-k="missing-imports" data-word="missing imports">
+        <div class="grow"><span class="gw word">missing imports</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">代码缺少必要导入造成的错误。</div>
+        <div class="geg eg">🗣 Recoverable errors, such as syntax errors or missing imports.<span class="egzh">缺少导入属于可恢复错误。</span></div>
+      </div>
+      <div class="gloss-item" data-k="hard-blockers" data-word="hard blockers">
+        <div class="grow"><span class="gw word">hard blockers</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">缺少凭证等无法由当前循环自行解决的阻塞。</div>
+        <div class="geg eg">🗣 Hard blockers, such as missing credentials.<span class="egzh">缺少凭证是硬阻塞。</span></div>
+      </div>
+      <div class="gloss-item" data-k="ai-coding-agents" data-word="AI coding agents">
+        <div class="grow"><span class="gw word">AI coding agents</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">能在代码库中读取、修改、运行和验证代码的 AI Agent。</div>
+        <div class="geg eg">🗣 AI coding tools evolved to full coding agents.<span class="egzh">AI coding agents 会围绕代码库循环工作。</span></div>
+      </div>
+      <div class="gloss-item" data-k="claude-code" data-word="Claude Code">
+        <div class="grow"><span class="gw word">Claude Code</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">文章列举的 AI coding agent 工具之一。</div>
+        <div class="geg eg">🗣 Tools such as Claude Code, Devin, and OpenAI&#x27;s Codex Agent rely on loop engineering.<span class="egzh">Claude Code 依赖 loop engineering。</span></div>
+      </div>
+      <div class="gloss-item" data-k="devin" data-word="Devin">
+        <div class="grow"><span class="gw word">Devin</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">文章列举的 AI coding agent 工具之一。</div>
+        <div class="geg eg">🗣 Tools such as Claude Code, Devin, and OpenAI&#x27;s Codex Agent rely on loop engineering.<span class="egzh">Devin 是文中列举的编码 Agent。</span></div>
+      </div>
+      <div class="gloss-item" data-k="codex-agent" data-word="Codex Agent">
+        <div class="grow"><span class="gw word">Codex Agent</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">文章列举的 OpenAI 编码 Agent。</div>
+        <div class="geg eg">🗣 OpenAI&#x27;s Codex Agent rely on loop engineering.<span class="egzh">Codex Agent 依赖 loop engineering。</span></div>
+      </div>
+      <div class="gloss-item" data-k="base-model" data-word="base model">
+        <div class="grow"><span class="gw word">base model</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">Agent 底层使用的大语言模型。</div>
+        <div class="geg eg">🗣 The quality difference is often not the base model, but the loop design.<span class="egzh">质量差异通常不在基础模型。</span></div>
+      </div>
+      <div class="gloss-item" data-k="loop-design" data-word="loop design">
+        <div class="grow"><span class="gw word">loop design</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">围绕行动、反馈、上下文、验证和停止条件设计循环的方式。</div>
+        <div class="geg eg">🗣 The quality difference is often the loop design.<span class="egzh">质量差异常常来自 loop 设计。</span></div>
+      </div>
+      <div class="gloss-item" data-k="stack-trace" data-word="stack trace">
+        <div class="grow"><span class="gw word">stack trace</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">程序错误时显示调用路径和错误位置的信息。</div>
+        <div class="geg eg">🗣 Whether they read the full stack trace.<span class="egzh">好的 Agent 会读取完整 stack trace。</span></div>
+      </div>
+      <div class="gloss-item" data-k="verify-output" data-word="verify output">
+        <div class="grow"><span class="gw word">verify output</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">确认输出确实可用，而不只是生成了文本或通过编译。</div>
+        <div class="geg eg">🗣 Whether they verify output.<span class="egzh">验证输出是好 Agent 的关键差异。</span></div>
+      </div>
+      <div class="gloss-item" data-k="planning-agent" data-word="planning agent">
+        <div class="grow"><span class="gw word">planning agent</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">负责把大任务拆分为子任务的 Agent。</div>
+        <div class="geg eg">🗣 A planning agent breaks a large task into subtasks.<span class="egzh">规划 Agent 拆解大任务。</span></div>
+      </div>
+      <div class="gloss-item" data-k="executor-agents" data-word="executor agents">
+        <div class="grow"><span class="gw word">executor agents</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">负责执行子任务的 Agent。</div>
+        <div class="geg eg">🗣 Multiple executor agents handle subtasks in parallel.<span class="egzh">执行 Agent 并行处理子任务。</span></div>
+      </div>
+      <div class="gloss-item" data-k="reviewer-agent" data-word="reviewer agent">
+        <div class="grow"><span class="gw word">reviewer agent</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">检查产出并把失败路由回去修正的 Agent。</div>
+        <div class="geg eg">🗣 A reviewer agent checks outputs and routes failures back for correction.<span class="egzh">审核 Agent 检查输出并路由失败。</span></div>
+      </div>
+      <div class="gloss-item" data-k="retry-loop" data-word="Retry Loop">
+        <div class="grow"><span class="gw word">Retry Loop</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">尝试、检查、失败后重试的最简单循环模式。</div>
+        <div class="geg eg">🗣 The retry loop tries something, checks if it worked, and retries if it did not.<span class="egzh">Retry loop 会失败后重试。</span></div>
+      </div>
+      <div class="gloss-item" data-k="plan-execute-verify-loop" data-word="Plan-Execute-Verify Loop">
+        <div class="grow"><span class="gw word">Plan-Execute-Verify Loop</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">先规划、逐步执行、每步验证后再继续的循环模式。</div>
+        <div class="geg eg">🗣 The plan-execute-verify loop plans first, executes it step by step, and verifies each step.<span class="egzh">Plan-Execute-Verify 先规划、执行并验证。</span></div>
+      </div>
+      <div class="gloss-item" data-k="explore-narrow-loop" data-word="Explore-Narrow Loop">
+        <div class="grow"><span class="gw word">Explore-Narrow Loop</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">先探索多个方案，再收敛到最有希望方案的循环模式。</div>
+        <div class="geg eg">🗣 The explore-narrow loop explores multiple solution paths, then narrows to the most promising one.<span class="egzh">Explore-Narrow 会先探索再收敛。</span></div>
+      </div>
+      <div class="gloss-item" data-k="human-in-the-loop" data-word="Human-in-the-Loop">
+        <div class="grow"><span class="gw word">Human-in-the-Loop</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">在歧义、风险或生产变更中引入人类判断的循环方式。</div>
+        <div class="geg eg">🗣 The human-in-the-loop pauses for human input.<span class="egzh">Human-in-the-loop 会暂停等待人类输入。</span></div>
+      </div>
+      <div class="gloss-item" data-k="tool-call-budgets" data-word="tool call budgets">
+        <div class="grow"><span class="gw word">tool call budgets</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">限制每次循环可调用工具的次数或成本。</div>
+        <div class="geg eg">🗣 Set strict tool call budgets.<span class="egzh">工具调用预算可控制成本。</span></div>
+      </div>
+      <div class="gloss-item" data-k="raw-output" data-word="raw output">
+        <div class="grow"><span class="gw word">raw output</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">未经结构化处理的原始工具或命令输出。</div>
+        <div class="geg eg">🗣 Give the agent structured feedback, not just raw output.<span class="egzh">给 Agent 结构化反馈，而不只是原始输出。</span></div>
+      </div>
+      <div class="gloss-item" data-k="previous-attempts" data-word="previous attempts">
+        <div class="grow"><span class="gw word">previous attempts</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">Agent 在此前迭代中已经尝试过的方法或路径。</div>
+        <div class="geg eg">🗣 The agent will hit token limits or lose track of previous attempts.<span class="egzh">Agent 可能触达 token 限制，或忘记之前的尝试。</span></div>
+      </div>
+      <div class="gloss-item" data-k="coordinated-loops" data-word="coordinated loops">
+        <div class="grow"><span class="gw word">coordinated loops</span><button class="speak" type="button">🔊</button></div>
+        <div class="gsub sub"><span class="gipa ipa">/</span></div>
+        <div class="gdef def">多个 Agent 或循环按分工协同推进任务的结构。</div>
+        <div class="geg eg">🗣 Some tasks benefit from multiple agents running in coordinated loops.<span class="egzh">有些任务适合多个 Agent 在协调循环中运行。</span></div>
+      </div></div></div>
+      </section>
+      <section class="summary-view block content-summary" id="full-content-summary" data-toc="全文内容总结">
+        <h3 class="sec-title"><span class="num">SUM</span>全文内容总结</h3>
+        <p class="summary-lead">文章的核心判断是：现代 AI coding agents 的能力不只来自模型本身，而来自围绕模型设计的循环结构，包括目标定义、工具访问、上下文管理、终止逻辑和错误恢复。</p>
+        <div class="summary-card-grid">
+          <article class="summary-card">
+            <span>01</span>
+            <h4>从 Prompt 到 Process</h4>
+            <p>单次提示适合一次性答案，但遇到多步骤任务、真实环境反馈和迭代修正时会很快触顶。</p>
+          </article>
+          <article class="summary-card">
+            <span>02</span>
+            <h4>循环区别于链式流程</h4>
+            <p>Chain 是固定 A→B→C；Loop 会根据执行结果回到前一步、调整路径、重试或停止。</p>
+          </article>
+          <article class="summary-card">
+            <span>03</span>
+            <h4>ReAct 是基础模式</h4>
+            <p>Reason + Act 把推理、行动、观察交替起来，形成编码 Agent 写代码、运行、读错误、修复的基本循环。</p>
+          </article>
+          <article class="summary-card">
+            <span>04</span>
+            <h4>好循环需要工程边界</h4>
+            <p>明确目标、可用工具、上下文压缩、终止条件和错误恢复机制共同决定循环质量。</p>
+          </article>
+          <article class="summary-card">
+            <span>05</span>
+            <h4>多 Agent 循环扩展复杂度</h4>
+            <p>规划、执行、审核等角色可以形成嵌套或协调循环，处理跨文件、跨服务、跨 API 的复杂任务。</p>
+          </article>
+          <article class="summary-card">
+            <span>06</span>
+            <h4>实践重点是失败路径</h4>
+            <p>部署前要测试模糊任务、工具异常和不可解任务，确认循环能优雅失败而不是无限消耗。</p>
+          </article></div>
+      </section>
+      <section class="summary-view block conclusion-output" id="conclusion-output" data-toc="结论输出">
+        <h3 class="sec-title"><span class="num">OUT</span>结论输出</h3>
+        <div class="conclusion-grid">
+          <article class="conclusion-card">
+            <span class="guide-kicker">Final Takeaways</span>
+            <ul class="conclusion-list">
+          <li><b>核心判断</b><span>Loop engineering 是 AI coding agents 的运行架构，而不是单一提示技巧。</span></li>
+          <li><b>关键风险</b><span>没有终止逻辑、上下文管理和错误恢复的 loop 会变成资源黑洞。</span></li>
+          <li><b>工程落点</b><span>先定义完成条件，再配置工具、反馈结构、日志摘要、预算和升级路径。</span></li></ul>
+          </article>
+          <article class="conclusion-card">
+            <span class="guide-kicker">Source-grounded Close</span>
+            
+          <blockquote>另一个视觉区块写道：Remy 不需要构建底层 plumbing。</blockquote>
+          <blockquote>它列出 200+ AI 模型、1,000+ 集成、Slack、Stripe、Notion、HubSpot、托管数据库、认证和支付。</blockquote>
+          </article>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-1" data-toc="从 Prompt 到 Process">
+        <h3 class="sec-title"><span class="num">01</span>从 Prompt 到 Process</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>早期 AI 生产力工作流很简单：写一个 prompt，得到答案，再把答案复制到有用的位置。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>但凡任务需要多步骤、真实环境反馈或迭代式打磨，单次提示就会很快失效。</li>
+          <li>Loop engineering 设计的是会行动、观察结果、决定下一步并重复执行直到目标达成的系统。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>Early AI productivity workflows were simple: write a prompt, get an answer, copy it somewhere useful.</p>
+          <p>For anything that requires multiple steps, real-world feedback, or iterative refinement, single-shot prompting falls apart fast.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-2" data-toc="Loop 与 Chain 的区别">
+        <h3 class="sec-title"><span class="num">02</span>Loop 与 Chain 的区别</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>Chain 是线性的：步骤 A 接步骤 B，再接步骤 C。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>Loop 是动态的：Agent 可以发现某一步不奏效，改换策略重试，然后再继续。</li>
+          <li>循环会持续到任务完成、停止条件触发，或 Agent 判断无法继续推进为止。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>A chain is linear: step A leads to step B leads to step C.</p>
+          <p>A loop is dynamic: the agent can discover that an approach did not work, retry with a modified approach, and only then move on.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-3" data-toc="ReAct 与编码循环">
+        <h3 class="sec-title"><span class="num">03</span>ReAct 与编码循环</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>ReAct 模式把推理步骤与行动步骤交替组织。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>在代码生成中，Agent 会理解目标、写代码、运行代码、观察输出或错误、分析问题并修正。</li>
+          <li>这种 reason、act、observe、repeat 的循环，就是 loop engineering 的核心。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>The ReAct pattern interleaves reasoning steps with action steps.</p>
+          <p>In code generation, the agent understands the goal, writes code, runs it, observes output or errors, reasons about what went wrong, and revises.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-4" data-toc="可靠 loop 的五个部件">
+        <h3 class="sec-title"><span class="num">04</span>可靠 loop 的五个部件</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>循环需要清晰目标，知道什么状态才算完成。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>Agent 需要代码执行、文件访问、终端命令、搜索、文档查询和测试运行器等工具。</li>
+          <li>循环还需要上下文管理、终止逻辑和错误处理，避免上下文爆炸、无限运行和重复失败。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>The loop needs a clear goal or task definition so it knows what done looks like.</p>
+          <p>The agent needs tools such as code execution, file access, terminal commands, search, documentation lookup, and test runners.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-5" data-toc="Coding Agent 的质量差异">
+        <h3 class="sec-title"><span class="num">05</span>Coding Agent 的质量差异</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>AI coding agents 的质量差异通常不在基础模型，而在 loop 设计。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>好的 Agent 会读取完整错误、记住历史尝试、控制任务范围，并验证结果确实可用。</li>
+          <li>Loop engineering 不是单一技巧，而是一套设计纪律。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>The quality difference between AI coding agents usually is not the base model; it is the loop design.</p>
+          <p>Good agents read stack traces, maintain context across iterations, scope work, and verify that output actually works.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-6" data-toc="常见 loop 模式">
+        <h3 class="sec-title"><span class="num">06</span>常见 loop 模式</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>Retry loop 会尝试某个动作，检查是否成功，失败则重试。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>Plan-execute-verify loop 会先规划，再逐步执行，并在继续前验证每一步。</li>
+          <li>Explore-narrow loop 会探索多个方案路径，再收敛到最有希望的方案。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>The retry loop tries something, checks if it worked, and retries if it did not.</p>
+          <p>The plan-execute-verify loop plans first, executes step by step, and verifies before proceeding.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-7" data-toc="如何工程化更好的 loops">
+        <h3 class="sec-title"><span class="num">07</span>如何工程化更好的 loops</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>在写循环逻辑前，先定义终止条件。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>给 Agent 结构化反馈，而不是只丢原始输出。</li>
+          <li>记录每次行动和结果，并压缩为可继续推理的工作记忆。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>Define termination conditions before writing loop logic.</p>
+          <p>Give the agent structured feedback, not just raw output.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-8" data-toc="Remy 管理多 Agent">
+        <h3 class="sec-title"><span class="num">08</span>Remy 管理多 Agent</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>文章中的视觉区块强调：Remy 不直接写代码，而是管理负责写代码的 Agent。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>该视觉区块把 Remy 标为 Product Manager Agent，并协调 Design、Engineer、QA 与 Deploy。</li>
+          <li>这支撑了文章关于多 Agent loop 的观点：系统可以协调专门角色，而不是让单个 Agent 完成所有工作。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>The article visual says Remy does not write the code; it manages the agents who do.</p>
+          <p>The visual assigns Remy as a product manager agent leading design, engineering, QA, and deploy roles.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-9" data-toc="Plan-Execute-Verify 的四步视觉">
+        <h3 class="sec-title"><span class="num">09</span>Plan-Execute-Verify 的四步视觉</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>文章视觉把 plan-execute-verify 拆成四个有序阶段：Describe、Compile、Preview、Deploy。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>Describe 是写规格，Compile 是 Remy 构建，Preview 是在浏览器运行，Deploy 是上线到 URL。</li>
+          <li>原文说明，这个模式的视觉表示由四个有序阶段组成。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>The article visual presents four ordered stages: Describe, Compile, Preview, and Deploy.</p>
+          <p>Describe means writing the spec; Compile means Remy builds it; Preview means running in browser; Deploy means live on a URL.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block reader-section close-core-section" id="close-sec-10" data-toc="MindStudio 承担循环基础设施">
+        <h3 class="sec-title"><span class="num">10</span>MindStudio 承担循环基础设施</h3>
+        <div class="core-layout">
+          <article class="core-thesis">
+            <span class="guide-kicker">Core Idea</span>
+            <p>另一个视觉区块写道：Remy 不需要构建底层 plumbing。</p>
+          </article>
+          <div class="core-detail-grid">
+            <article class="core-principles">
+              <span class="guide-kicker">Principles</span>
+              <ul>
+          <li>它列出 200+ AI 模型、1,000+ 集成、Slack、Stripe、Notion、HubSpot、托管数据库、认证和支付。</li>
+          <li>该视觉把 MindStudio 的平台定位与 loop engineering 所需基础设施连接起来。</li></ul>
+            </article>
+            <article class="core-source">
+              <span class="guide-kicker">Source Basis</span>
+              
+          <p>Another visual says Remy does not build the plumbing.</p>
+          <p>It lists 200+ AI models, 1,000+ integrations, Slack, Stripe, Notion, HubSpot, managed database, authentication, and payments.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="summary-view block" id="comprehension-check" data-toc="理解检查">
+        <h3 class="sec-title"><span class="num">Q</span>理解检查</h3>
+        <p class="note">题目基于原文段落生成，答题后立即显示正确性与错误原因。</p>
+        <div class="quiz-list">
+        <div class="quiz" data-source-anchor="">
+          <div class="q-txt">01. 文章认为 loop engineering 相比单次 prompting 的关键变化是什么？</div>
+          
+          <button class="opt" data-correct="true">让 Agent 行动、观察反馈、调整下一步，并持续循环直到目标达成或停止</button>
+          <button class="opt">把所有任务改成一次性长提示词</button>
+          <button class="opt">完全取消工具调用和测试运行</button>
+          <button class="opt">只让模型生成代码但不运行</button>
+          <div class="fb" data-explain="原文把 loop engineering 定义为从 prompt 到 process：Agent 会 act、observe、decide and repeat。" data-wrong="文章不是主张更长的一次性提示，也不是取消工具或跳过执行验证。" aria-live="polite"></div>
+        </div>
+        <div class="quiz" data-source-anchor="">
+          <div class="q-txt">02. 为什么 coding agents 特别需要 loop engineering？</div>
+          
+          <button class="opt" data-correct="true">因为编码天然需要运行、读错误、修复和再次验证</button>
+          <button class="opt">因为代码任务永远不需要上下文</button>
+          <button class="opt">因为测试失败可以直接忽略</button>
+          <button class="opt">因为 Agent 只能处理线性链路</button>
+          <div class="fb" data-explain="文章指出工程师会运行代码、查看错误、修复再运行；AI coding agents 也需要闭合反馈。" data-wrong="文章没有说代码任务不需要上下文，也没有接受忽略测试失败；它强调 Agent 需要动态循环，而不是只能线性执行。" aria-live="polite"></div>
+        </div>
+        <div class="quiz" data-source-anchor="">
+          <div class="q-txt">03. 一个 well-engineered loop 必须明确什么？</div>
+          
+          <button class="opt" data-correct="true">目标、工具、上下文管理、终止逻辑和错误恢复</button>
+          <button class="opt">只要有更强模型就足够</button>
+          <button class="opt">只要无限重试即可</button>
+          <button class="opt">只需要漂亮的 UI</button>
+          <div class="fb" data-explain="文章列出可靠 loop 的核心组成：clear goal、tool set、context management、termination logic、error handling。" data-wrong="更强模型、无限重试或 UI 都不能替代明确目标、工具、上下文和停止条件。" aria-live="polite"></div>
+        </div>
+        <div class="quiz" data-source-anchor="">
+          <div class="q-txt">04. Human-in-the-loop 适合什么场景？</div>
+          
+          <button class="opt" data-correct="true">需求无法完全提前指定、生产变更需人工审核或错误假设代价高的任务</button>
+          <button class="opt">所有小决策都必须打断用户</button>
+          <button class="opt">没有任何歧义的短任务</button>
+          <button class="opt">只用于删除上下文</button>
+          <div class="fb" data-explain="原文说 human-in-the-loop 适合需求不完全明确、生产变更、错误假设成本高的场景。" data-wrong="文章同时提醒不要过度打断用户；该模式不是为无歧义短任务或删除上下文而设计。" aria-live="polite"></div>
+        </div></div>
+      </section>
+      <section class="summary-view block" id="vocabulary-quiz" data-toc="词汇测验">
+        <h3 class="sec-title"><span class="num">V</span>词汇测验</h3>
+        <p class="note">基于全文筛选的 CEFR B1-C2 词汇，含选择题与填空题。</p>
+        <div class="vquiz">
+          <div class="vq-group">
+            <div class="vq-label">一、选择题：选出与中文释义对应的英文词</div>
+            
+          <div class="vq-item" data-vtype="choice">
+            <div class="vq-q">01. 下列哪个词对应释义：设计 AI Agent 迭代循环的工程方法，包括行动、观察、反馈、修正与停止。</div>
+            
+            <button class="vopt" data-correct="true">A. loop engineering</button>
+            <button class="vopt">B. agentic AI</button>
+            <button class="vopt">C. repeating cycle</button>
+            <button class="vopt">D. goal-based automation</button>
+            <div class="vq-fb" data-fb="正确答案：loop engineering。例句：Loop engineering replaces manual prompting with goal-based automation." aria-live="polite"></div>
+          </div>
+          <div class="vq-item" data-vtype="choice">
+            <div class="vq-q">02. 下列哪个词对应释义：以目标和完成条件驱动系统持续执行的自动化方式。</div>
+            
+            <button class="vopt">A. loop engineering</button>
+            <button class="vopt" data-correct="true">B. goal-based automation</button>
+            <button class="vopt">C. repeating cycle</button>
+            <button class="vopt">D. agentic AI</button>
+            <div class="vq-fb" data-fb="正确答案：goal-based automation。例句：Loop engineering replaces manual prompting with goal-based automation." aria-live="polite"></div>
+          </div>
+          <div class="vq-item" data-vtype="choice">
+            <div class="vq-q">03. 下列哪个词对应释义：具备行动、观察和迭代决策能力的 AI 系统形态。</div>
+            
+            <button class="vopt">A. loop engineering</button>
+            <button class="vopt">B. goal-based automation</button>
+            <button class="vopt" data-correct="true">C. agentic AI</button>
+            <button class="vopt">D. repeating cycle</button>
+            <div class="vq-fb" data-fb="正确答案：agentic AI。例句：A loop in agentic AI is a repeating cycle." aria-live="polite"></div>
+          </div>
+          <div class="vq-item" data-vtype="choice">
+            <div class="vq-q">04. 下列哪个词对应释义：重复发生的一组步骤或过程。</div>
+            
+            <button class="vopt">A. loop engineering</button>
+            <button class="vopt">B. goal-based automation</button>
+            <button class="vopt">C. agentic AI</button>
+            <button class="vopt" data-correct="true">D. repeating cycle</button>
+            <div class="vq-fb" data-fb="正确答案：repeating cycle。例句：A loop in agentic AI is a repeating cycle." aria-live="polite"></div>
+          </div>
+          </div>
+          <div class="vq-group">
+            <div class="vq-label">二、填空题：根据例句与提示填写正确单词</div>
+            
+          <div class="vq-item" data-vtype="fill" data-answer="loop engineering">
+            <div class="vq-q">01. ____ replaces manual prompting with goal-based automation.<span class="vq-hint">提示：设计 AI Agent 迭代循环的工程方法，包括行动、观察、反馈、修正与停止。</span></div>
+            <div class="vq-fill">
+              <input class="vq-input" type="text" autocomplete="off" spellcheck="false" placeholder="输入单词…">
+              <button class="vq-check" type="button">检查</button>
+            </div>
+            <div class="vq-fb" aria-live="polite"></div>
+          </div>
+          <div class="vq-item" data-vtype="fill" data-answer="goal-based automation">
+            <div class="vq-q">02. Loop engineering replaces manual prompting with ____.<span class="vq-hint">提示：以目标和完成条件驱动系统持续执行的自动化方式。</span></div>
+            <div class="vq-fill">
+              <input class="vq-input" type="text" autocomplete="off" spellcheck="false" placeholder="输入单词…">
+              <button class="vq-check" type="button">检查</button>
+            </div>
+            <div class="vq-fb" aria-live="polite"></div>
+          </div>
+          <div class="vq-item" data-vtype="fill" data-answer="agentic AI">
+            <div class="vq-q">03. A loop in ____ is a repeating cycle.<span class="vq-hint">提示：具备行动、观察和迭代决策能力的 AI 系统形态。</span></div>
+            <div class="vq-fill">
+              <input class="vq-input" type="text" autocomplete="off" spellcheck="false" placeholder="输入单词…">
+              <button class="vq-check" type="button">检查</button>
+            </div>
+            <div class="vq-fb" aria-live="polite"></div>
+          </div>
+          </div>
+        </div>
+      </section>
+      <section id="originalSection" aria-label="原文全文">
+        
+        <div class="hero original-hero">
+          <h2>What Is Loop Engineering? The New Meta for AI Coding Agents · 原文要点对照</h2>
+          <p class="zh">Loop engineering 把一次性提示转成可验证的迭代过程：Agent 行动、观察反馈、调整策略，并持续循环直到目标达成或触发停止条件。</p>
+        </div>
+        <nav class="toc" id="originalToc" hidden aria-label="原文章节导航"><a href="#og-1"><span>From prompt to process</span></a><a href="#og-2"><span>What is a loop</span></a><a href="#og-3"><span>Anatomy of a well-engineered loop</span></a><a href="#og-4"><span>Loop engineering for coding agents</span></a><a href="#og-5"><span>Common loop patterns</span></a><a href="#og-6"><span>Better loops in practice</span></a></nav>
+        <div id="originalHost"><div class="og-h" id="">From Prompt to Process · 从提示到过程</div><div class="og-row"><div class="en md-source"><p>Loop engineering replaces manual prompting with goal-based automation. Early AI productivity workflows were simple: write a prompt, get an answer, and copy it somewhere useful. For tasks requiring multiple steps, real-world feedback, or iterative refinement, single-shot prompting falls apart.</p></div><div class="zh md-source"><p>Loop engineering 用目标驱动自动化替代手工提示。早期 AI 生产力流程很简单：写一个提示，得到一个答案，再把它复制到有用的地方。但对需要多步骤、真实世界反馈或迭代打磨的任务来说，一次性提示很快会失效。</p></div></div><div class="og-row"><div class="en md-source"><p>Loop engineering is the shift from prompt to process. It designs agents that act, observe feedback, decide what to do next, and continue until a goal is reached.</p></div><div class="zh md-source"><p>Loop engineering 是从 prompt 转向 process 的变化。它设计的 Agent 会行动、观察反馈、决定下一步，并持续推进直到目标达成。</p></div></div><div class="og-h" id="">What Is a Loop · 什么是循环</div><div class="og-row"><div class="en md-source"><p>A loop in agentic AI is a repeating cycle where the model takes an action, receives feedback from the environment, and uses that feedback to decide its next move. The loop continues until a termination condition is met: the task is complete, a stopping criterion triggers, or the agent determines it cannot go further.</p></div><div class="zh md-source"><p>在 agentic AI 中，loop 是一个重复循环：模型采取行动，从环境接收反馈，并用这些反馈决定下一步。循环会持续到满足 termination condition：任务完成、stopping criterion 被触发，或 Agent 判断无法继续。</p></div></div><div class="og-row"><div class="en md-source"><p>A chain is linear: step A leads to step B leads to step C. A loop is dynamic: the agent can try step A, move to step B, discover B failed, retry with a modified approach, and only then continue.</p></div><div class="zh md-source"><p>Chain 是线性的：步骤 A 接步骤 B，再接步骤 C。Loop 是动态的：Agent 可以尝试 A、进入 B、发现 B 失败，用 modified approach 重试，然后才继续。</p></div></div><div class="og-h" id="">ReAct Pattern · ReAct 模式</div><div class="og-row"><div class="en md-source"><p>Most modern agent loops trace back to the ReAct pattern, meaning Reason + Act, introduced in research from Princeton and Google. The core idea is to interleave reasoning steps with action steps.</p></div><div class="zh md-source"><p>大多数现代 Agent loops 可追溯到 ReAct pattern，也就是 Reason + Act，源自 Princeton 和 Google 的研究。核心思想是把 reasoning steps 与 action steps 交错组织。</p></div></div><div class="og-row"><div class="en md-source"><p>In code generation contexts, this looks like: understand the goal, write some code, run the code and observe the output or error, reason about what went wrong, revise and re-run, and repeat until tests pass or the task is complete.</p></div><div class="zh md-source"><p>在 code generation 场景中，这表现为：理解目标、写代码、运行代码并 observe 输出或错误、推理哪里出了问题、修改并重跑，直到测试通过或任务完成。</p></div></div><div class="og-h" id="">Why Coding Needs Loops · 为什么编码更需要循环</div><div class="og-row"><div class="en md-source"><p>Coding is naturally iterative. AI coding agents that skip this cycle and generate code once are limited. They cannot catch runtime errors, adapt to environment-specific issues, or verify that their output actually works.</p></div><div class="zh md-source"><p>编码天然是迭代式的。跳过这个循环、只生成一次代码的 AI coding agents 能力有限：它们无法捕捉 runtime errors，无法适应 environment-specific issues，也无法验证输出真的可用。</p></div></div><div class="og-row"><div class="en md-source"><p>Loop engineering closes that feedback gap.</p></div><div class="zh md-source"><p>Loop engineering 关闭了这个 feedback gap。</p></div></div><div class="og-h" id="">Anatomy of a Well-Engineered Loop · 可靠循环的结构</div><div class="og-row"><div class="en md-source"><p>A poorly designed loop wastes tokens, runs forever, or hallucinates progress. A well-designed loop is efficient, terminates correctly, and produces reliable output.</p></div><div class="zh md-source"><p>设计糟糕的 loop 会浪费 token、无限运行，或 hallucinates progress。设计良好的 loop 高效、能正确终止，并产出可靠结果。</p></div></div><div class="og-row"><div class="en md-source"><p>The loop needs a clear goal or task definition. The goal definition should be specific enough to evaluate, broken into testable sub-tasks where possible, and scoped so the agent does not over-reach.</p></div><div class="zh md-source"><p>Loop 需要清晰目标或 task definition。目标应足够具体、可以评估；条件允许时拆成 testable sub-tasks；并控制范围，避免 Agent over-reach。</p></div></div><div class="og-h" id="">Tools and Context · 工具与上下文</div><div class="og-row"><div class="en md-source"><p>Each loop iteration generates more context: code written, errors encountered, and decisions made. Without careful management, the agent will hit token limits or lose track of previous attempts.</p></div><div class="zh md-source"><p>每次 loop 迭代都会生成更多上下文：写过的代码、遇到的错误和做过的决策。若管理不当，Agent 会触达 token limits，或忘记之前的尝试。</p></div></div><div class="og-row"><div class="en md-source"><p>For coding agents, the tool set typically means code execution, file system access, terminal/shell commands, search or documentation lookup, and test runners.</p></div><div class="zh md-source"><p>对 coding agents 来说，工具集通常包括 code execution、file system access、terminal/shell 命令、搜索或文档查询，以及 test runners。</p></div></div><div class="og-row"><div class="en md-source"><p>Good loop engineering includes context management: summarizing previous iterations into compact working memory, keeping a structured log of attempted approaches and outcomes, and pruning irrelevant context before each new iteration.</p></div><div class="zh md-source"><p>好的 loop engineering 包含 context management：把之前迭代总结成紧凑 working memory，维护 attempted approaches and outcomes 的 structured log，并在每次新迭代前 pruning 无关上下文。</p></div></div><div class="og-h" id="">Termination and Recovery · 终止与恢复</div><div class="og-row"><div class="en md-source"><p>A loop needs termination logic. This includes success conditions, failure conditions, and escalation paths: hand off to a human or another agent when stuck.</p></div><div class="zh md-source"><p>Loop 需要 termination logic，包括 success conditions、failure conditions，以及 escalation paths：卡住时移交给人类或另一个 Agent。</p></div></div><div class="og-row"><div class="en md-source"><p>The agent should distinguish recoverable errors, such as syntax errors or missing imports, from hard blockers, such as missing credentials. It should adjust its strategy based on error type.</p></div><div class="zh md-source"><p>Agent 应区分可恢复错误，例如 syntax errors 或 missing imports，以及 hard blockers，例如缺少凭证。它应该根据错误类型调整 strategy。</p></div></div><div class="og-h" id="">Coding Agents and Multi-Agent Loops · 编码 Agent 与多 Agent 循环</div><div class="og-row"><div class="en md-source"><p>Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering as their core operating model. The quality difference is often not the base model, but the loop design.</p></div><div class="zh md-source"><p>Claude Code、Devin 和 OpenAI 的 Codex Agent 等工具都把 loop engineering 作为核心运行模型。质量差异通常不在 base model，而在 loop design。</p></div></div><div class="og-row"><div class="en md-source"><p>Some tasks benefit from multiple agents running in coordinated loops: a planning agent breaks a large task into subtasks, executor agents handle subtasks in parallel, and a reviewer agent checks outputs and routes failures back for correction.</p></div><div class="zh md-source"><p>有些任务适合 multiple agents running in coordinated loops：planning agent 拆解大任务，executor agents 并行处理子任务，reviewer agent 检查输出并把失败路由回去修正。</p></div></div><div class="og-row"><div class="en md-source"><p>Good coding agents handle errors by reading the full stack trace rather than making generic fixes, and verify output by confirming that a solution works, not just compiles.</p></div><div class="zh md-source"><p>好的 coding agents 处理错误时会读取完整 stack trace，而不是做泛泛修复；它们还会 verify output，确认方案确实可用，而不只是能编译。</p></div></div><div class="og-h" id="">Loop Patterns · 常见循环模式</div><div class="og-row"><div class="en md-source"><p>The Retry Loop tries something, checks if it worked, and retries if it did not. The Plan-Execute-Verify Loop first generates a plan, executes it step by step, and verifies each step before proceeding.</p></div><div class="zh md-source"><p>Retry Loop 会尝试、检查是否有效，失败则重试。Plan-Execute-Verify Loop 会先生成计划，逐步执行，并在继续前验证每一步。</p></div></div><div class="og-row"><div class="en md-source"><p>The Explore-Narrow Loop explores multiple solution paths, then narrows to the most promising one. The Human-in-the-Loop runs until it needs clarification or hits ambiguity, pauses for human input, then continues.</p></div><div class="zh md-source"><p>Explore-Narrow Loop 会探索多个方案路径，再收敛到最有希望的方案。Human-in-the-Loop 会运行到需要澄清或遇到歧义时暂停，获取人类输入后继续。</p></div></div><div class="og-h" id="">Practice · 实践建议</div><div class="og-row"><div class="en md-source"><p>Define termination conditions before you start. Give the agent structured feedback, not just raw output. Log everything, summarize often, and set strict tool call budgets.</p></div><div class="zh md-source"><p>开始前先定义 termination conditions。给 Agent structured feedback，而不只是原始输出。记录所有行动，经常总结，并设置严格 tool call budgets。</p></div></div><div class="og-row"><div class="en md-source"><p>Test your loops on failure cases, not just happy paths. Before deploying an agent loop, test it with ambiguous instructions, broken tools, bad data, long-running tasks, and partial failures.</p></div><div class="zh md-source"><p>要用 failure cases 测试 loops，而不只测 happy paths。部署 Agent loop 前，应测试模糊指令、工具损坏、坏数据、长任务和部分失败。</p></div></div></div>
+      </section>
+  </div>
+  <footer>原文：<a href="https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents" target="_blank" rel="noopener">《What Is Loop Engineering? The New Meta for AI Coding Agents》</a></footer>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <script>
+    const autowrapRules = [["loop engineering", "i", "loop-engineering"], ["goal-based automation", "i", "goal-based-automation"], ["agentic AI", "i", "agentic-ai"], ["repeating cycle", "i", "repeating-cycle"], ["feedback", "i", "feedback"], ["environment", "i", "environment"], ["termination condition", "i", "termination-condition"], ["stopping criterion", "i", "stopping-criterion"], ["chain", "i", "chain"], ["dynamic", "i", "dynamic"], ["modified approach", "i", "modified-approach"], ["ReAct pattern", "i", "react-pattern"], ["interleave", "i", "interleave"], ["reasoning steps", "i", "reasoning-steps"], ["action steps", "i", "action-steps"], ["observe", "i", "observe"], ["code generation", "i", "code-generation"], ["runtime errors", "i", "runtime-errors"], ["environment-specific issues", "i", "environment-specific-issues"], ["feedback gap", "i", "feedback-gap"], ["hallucinates progress", "i", "hallucinates-progress"], ["task definition", "i", "task-definition"], ["testable sub-tasks", "i", "testable-sub-tasks"], ["over-reach", "i", "over-reach"], ["code execution", "i", "code-execution"], ["file system access", "i", "file-system-access"], ["test runners", "i", "test-runners"], ["context management", "i", "context-management"], ["token limits", "i", "token-limits"], ["working memory", "i", "working-memory"], ["structured log", "i", "structured-log"], ["pruning", "i", "pruning"], ["termination logic", "i", "termination-logic"], ["success conditions", "i", "success-conditions"], ["failure conditions", "i", "failure-conditions"]];
+    const body = document.body;
+    const progress = document.getElementById('progress');
+    const glossary = document.getElementById('glossary');
+    const toc = document.getElementById('toc');
+    const originalToc = document.getElementById('originalToc');
+    const buttons = Array.from(document.querySelectorAll('[data-mode]'));
+    const validModes = new Set(['summary', 'original', 'glossary']);
+    function tabFromUrl() {
+      const value = new URLSearchParams(window.location.search).get('tab');
+      return validModes.has(value) ? value : 'summary';
+    }
+    function updateTabUrl(mode) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', mode);
+      url.hash = '';
+      if (url.href !== window.location.href) window.history.pushState({tab: mode}, '', url);
+    }
+    function scrollPageTop(behavior) {
+      window.scrollTo({top: 0, left: 0, behavior});
+    }
+    function setMode(mode, options = {}) {
+      if (!validModes.has(mode)) mode = 'summary';
+      body.classList.toggle('mode-original', mode === 'original');
+      body.classList.toggle('gloss-open', mode === 'glossary');
+      glossary.classList.toggle('show', mode === 'glossary');
+      if (originalToc) originalToc.hidden = mode !== 'original';
+      buttons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
+      if (options.updateUrl !== false) updateTabUrl(mode);
+      if (options.scroll !== false) scrollPageTop(options.behavior || 'smooth');
+    }
+    buttons.forEach((button) => button.addEventListener('click', () => setMode(button.dataset.mode)));
+    window.addEventListener('popstate', () => setMode(tabFromUrl(), {updateUrl: false}));
+    setMode(tabFromUrl(), {updateUrl: false, scroll: false});
+    document.querySelectorAll('.quiz .opt').forEach((button) => button.addEventListener('click', () => {
+      const quiz = button.closest('.quiz');
+      quiz.querySelectorAll('.opt').forEach((item) => item.classList.remove('correct', 'wrong'));
+      button.classList.add(button.dataset.correct ? 'correct' : 'wrong');
+      const fb = quiz.querySelector('.fb');
+      const explain = fb.dataset.explain || '依据原文对应段落判断。';
+      const wrong = fb.dataset.wrong || '该选项缺少原文依据。';
+      if (button.dataset.correct) {
+        fb.innerHTML = '<strong>回答正确。</strong><span class="why">' + explain + '</span>';
+      } else {
+        const right = quiz.querySelector('.opt[data-correct]');
+        if (right) right.classList.add('correct');
+        fb.innerHTML = '<strong>回答错误。</strong><span class="why">' + wrong + '</span><span class="why">' + explain + '</span>';
+      }
+    }));
+    document.querySelectorAll('.vq-item[data-vtype="choice"] .vopt').forEach((button) => button.addEventListener('click', () => {
+      const item = button.closest('.vq-item');
+      item.querySelectorAll('.vopt').forEach((opt) => opt.classList.remove('correct', 'wrong'));
+      const fb = item.querySelector('.vq-fb');
+      if (button.dataset.correct) {
+        button.classList.add('correct');
+        fb.textContent = '✅ ' + (fb.dataset.fb || '回答正确。');
+      } else {
+        button.classList.add('wrong');
+        const right = item.querySelector('.vopt[data-correct]');
+        if (right) right.classList.add('correct');
+        fb.textContent = '❌ ' + (fb.dataset.fb || '请再试一次。');
+      }
+    }));
+    document.querySelectorAll('.vq-item[data-vtype="fill"]').forEach((item) => {
+      const input = item.querySelector('.vq-input');
+      const fb = item.querySelector('.vq-fb');
+      const answer = (item.dataset.answer || '').trim().toLowerCase();
+      const check = () => {
+        const value = input.value.trim().toLowerCase();
+        input.classList.remove('correct', 'wrong');
+        if (!value) { fb.textContent = '请先输入答案。'; return; }
+        if (value === answer) {
+          input.classList.add('correct');
+          fb.textContent = '✅ 回答正确：' + item.dataset.answer;
+        } else {
+          input.classList.add('wrong');
+          fb.textContent = '❌ 正确答案：' + item.dataset.answer;
+        }
+      };
+      item.querySelector('.vq-check').addEventListener('click', check);
+      input.addEventListener('keydown', (event) => { if (event.key === 'Enter') check(); });
+    });
+    const root = document.documentElement;
+    const storageKey = 'bilingual-reader-theme';
+    function applyStoredTheme(theme) {
+      const isLight = theme === 'light';
+      if (isLight) root.setAttribute('data-theme', 'light');
+      else root.removeAttribute('data-theme');
+      document.querySelectorAll('.theme-btn').forEach((button) => button.classList.toggle('active', isLight));
+    }
+    try { applyStoredTheme(localStorage.getItem(storageKey)); } catch (error) { applyStoredTheme(null); }
+    document.querySelectorAll('.theme-btn').forEach((button) => button.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      applyStoredTheme(next);
+      try { localStorage.setItem(storageKey, next); } catch (error) {}
+    }));
+    const sections = Array.from(document.querySelectorAll('section.summary-view[data-toc]'));
+    if (toc) {
+      if (!toc.querySelector('a')) {
+        toc.innerHTML = sections.map((section, index) => `<a href="#${section.id || `sec${index}`}"><span>${section.dataset.toc}</span></a>`).join('');
+      }
+      sections.forEach((section, index) => {
+        if (!section.id) section.id = `sec${index}`;
+        section.style.scrollMarginTop = '86px';
+      });
+    }
+    const tocLinks = Array.from(document.querySelectorAll('#toc a'));
+    const originalGroups = Array.from(document.querySelectorAll('#originalHost .og-h[id]'));
+    const originalLinks = Array.from(document.querySelectorAll('#originalToc a'));
+    window.addEventListener('scroll', () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      progress.style.width = (max > 0 ? window.scrollY / max * 100 : 0) + '%';
+      let active = 0;
+      if (body.classList.contains('mode-original')) {
+        originalGroups.forEach((group, index) => { if (group.getBoundingClientRect().top < 170) active = index; });
+        originalLinks.forEach((link, index) => link.classList.toggle('active', index === active));
+      } else {
+        sections.forEach((section, index) => { if (section.getBoundingClientRect().top < 150) active = index; });
+        tocLinks.forEach((link, index) => link.classList.toggle('active', index === active));
+      }
+    }, {passive:true});
+    const dict = {};
+    document.querySelectorAll('.gloss-item[data-k]').forEach((item) => {
+      const text = (selector) => (item.querySelector(selector)?.textContent || '').trim();
+      dict[item.dataset.k] = {
+        w: text('.word'), ipa: text('.ipa'), pos: text('.pos'), level: text('.lv'),
+        def: text('.def'), eg: text('.eg'), egzh: text('.egzh')
+      };
+    });
+    const esc = (value) => String(value || '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const isWordPart = (ch) => !!ch && /[A-Za-z0-9'’_-]/.test(ch);
+    function safePattern(pattern, flags) {
+      try {
+        return new RegExp(pattern, flags || 'i');
+      } catch {
+        return null;
+      }
+    }
+    function wrapFirst(root, key, re) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const parent = node.parentElement;
+          return parent && node.nodeValue.trim() && !parent.closest('.w,script,style,code,pre')
+            ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+      });
+      let node;
+      while ((node = walker.nextNode())) {
+        re.lastIndex = 0;
+        const match = re.exec(node.nodeValue);
+        if (!match) continue;
+        const start = match.index;
+        const end = start + match[0].length;
+        if (isWordPart(node.nodeValue[start - 1]) || isWordPart(node.nodeValue[end])) continue;
+        const span = document.createElement('span');
+        span.className = 'w';
+        span.dataset.k = key;
+        span.textContent = match[0];
+        const tip = document.createElement('span');
+        tip.className = 'tip';
+        span.appendChild(tip);
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        range.deleteContents();
+        range.insertNode(span);
+        return true;
+      }
+      return false;
+    }
+    const hoverRoots = document.querySelectorAll('.core-source,.study-row .en,.evidence .ev-part.src,.stop-en,.cell.en,#originalSection .og-row .en');
+    autowrapRules.forEach(([pattern, flags, key]) => {
+      if (!dict[key]) return;
+      const re = safePattern(pattern, flags);
+      if (!re) return;
+      for (const root of hoverRoots) {
+        if (wrapFirst(root, key, re)) break;
+      }
+    });
+    function speak(word, event) {
+      event?.stopPropagation();
+      try {
+        speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        speechSynthesis.speak(utterance);
+      } catch {}
+    }
+    function positionTip(word, tip) {
+      const rect = word.getBoundingClientRect();
+      tip.style.left = Math.max(8, Math.min(rect.left, innerWidth - 310)) + 'px';
+      tip.style.top = Math.max(8, rect.bottom + 6) + 'px';
+    }
+    function ensureImageLightbox() {
+      let lightbox = document.getElementById('imageLightbox');
+      if (lightbox) return lightbox;
+      lightbox = document.createElement('div');
+      lightbox.className = 'image-lightbox';
+      lightbox.id = 'imageLightbox';
+      lightbox.hidden = true;
+      lightbox.setAttribute('role', 'dialog');
+      lightbox.setAttribute('aria-modal', 'true');
+      lightbox.setAttribute('aria-label', '图片放大视图');
+      lightbox.innerHTML = '<div class="image-lightbox__panel">'
+        + '<button class="image-lightbox__close" type="button" aria-label="关闭图片放大视图">×</button>'
+        + '<img class="image-lightbox__image" alt=""></div>';
+      document.body.appendChild(lightbox);
+      return lightbox;
+    }
+    function initImageLightbox() {
+      const lightbox = ensureImageLightbox();
+      const preview = lightbox.querySelector('.image-lightbox__image');
+      const closeButton = lightbox.querySelector('.image-lightbox__close');
+      let isOpen = false;
+      const close = () => {
+        if (!isOpen) return;
+        isOpen = false;
+        lightbox.classList.remove('is-open');
+        window.setTimeout(() => {
+          if (isOpen) return;
+          lightbox.hidden = true;
+          preview.removeAttribute('src');
+        }, 220);
+      };
+      const open = (image) => {
+        const src = image.currentSrc || image.src;
+        if (!src) return;
+        isOpen = true;
+        preview.src = src;
+        preview.alt = image.alt || '';
+        lightbox.hidden = false;
+        window.requestAnimationFrame(() => lightbox.classList.add('is-open'));
+      };
+      document.addEventListener('click', (event) => {
+        const image = event.target?.closest?.('.source-figure img, .og-media img, #originalSection img');
+        if (!image) return;
+        event.preventDefault();
+        open(image);
+      });
+      lightbox.addEventListener('click', (event) => { if (event.target === lightbox) close(); });
+      closeButton.addEventListener('click', close);
+      document.addEventListener('keydown', (event) => {
+        if (isOpen && event.key === 'Escape') {
+          event.preventDefault();
+          close();
+        }
+      });
+    }
+    document.querySelectorAll('.w').forEach((word) => {
+      const data = dict[word.dataset.k];
+      const tip = word.querySelector('.tip');
+      if (!data || !tip) return;
+      const posHtml = data.pos ? '<span class="pos">' + esc(data.pos) + '</span>' : '';
+      tip.innerHTML = '<div class="h"><span class="word">' + esc(data.w) + '</span><button class="speak" type="button">🔊</button></div>'
+        + '<div class="sub"><span class="ipa">' + esc(data.ipa) + '</span>' + posHtml + '</div>'
+        + '<div class="def">' + esc(data.def) + '</div><div class="eg">' + esc(data.eg) + '<span class="egzh">' + esc(data.egzh) + '</span></div>';
+      document.body.appendChild(tip);
+      tip.querySelector('.speak')?.addEventListener('click', (event) => speak(data.w, event));
+      let timer = null;
+      const show = () => { clearTimeout(timer); positionTip(word, tip); tip.classList.add('tip-open'); };
+      const hide = () => { timer = setTimeout(() => tip.classList.remove('tip-open'), 120); };
+      word.addEventListener('mouseenter', show);
+      word.addEventListener('mouseleave', hide);
+      tip.addEventListener('mouseenter', () => clearTimeout(timer));
+      tip.addEventListener('mouseleave', hide);
+    });
+    document.querySelectorAll('.gloss-item .speak').forEach((button) => {
+      button.addEventListener('click', (event) => speak(button.closest('.gloss-item')?.dataset.word || '', event));
+    });
+    initImageLightbox();
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.hljs) window.hljs.highlightAll();
+    });
+    window.dispatchEvent(new Event('scroll'));
+  </script>
+</body>
+</html>

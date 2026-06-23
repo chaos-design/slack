@@ -1,0 +1,30 @@
+{
+  "id": "06",
+  "source": "https://x.com/akshay_pachaar/status/2064051835636498924",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "可自我修复的 Agent Harness",
+      "name": "可自我修复的 Agent Harness",
+      "description": "Akshay 以 Opik 为例说明生产 Agent 的观测链路不应止步于 trace，而应形成从失败诊断、代码修复、沙箱验证到回归测试沉淀的闭环。",
+      "tags": [
+        "AI Agent",
+        "Observability",
+        "Agent Harness",
+        "Evals"
+      ],
+      "path": "self-repairing-agent-harness",
+      "language": "zh-CN",
+      "createdAt": "2026-06-20T00:00:00Z",
+      "updatedAt": "2026-06-21 12:26:34"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "self-repairing-agent-harness",
+      "createdAt": "2026-06-20T00:00:00Z",
+      "updatedAt": "2026-06-21 21:16:22"
+    }
+  ]
+}

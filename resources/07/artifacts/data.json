@@ -1,0 +1,1901 @@
+{
+  "metadata": {
+    "title": "What Is Loop Engineering? The New Meta for AI Coding Agents",
+    "sourceUrl": "https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents",
+    "fetchedAt": "2026-06-21 17:04:56"
+  },
+  "article": {
+    "title": "What Is Loop Engineering? The New Meta for AI Coding Agents",
+    "sourceUrl": "https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents",
+    "fetchedAt": "2026-06-21 17:04:56",
+    "tags": [
+      "AI Agent",
+      "Loop Engineering",
+      "AI Coding",
+      "Workflows"
+    ],
+    "anchors": [
+      {
+        "id": "og-1",
+        "label": "From prompt to process"
+      },
+      {
+        "id": "og-2",
+        "label": "What is a loop"
+      },
+      {
+        "id": "og-3",
+        "label": "Anatomy of a well-engineered loop"
+      },
+      {
+        "id": "og-4",
+        "label": "Loop engineering for coding agents"
+      },
+      {
+        "id": "og-5",
+        "label": "Common loop patterns"
+      },
+      {
+        "id": "og-6",
+        "label": "Better loops in practice"
+      }
+    ]
+  },
+  "hero": {
+    "title": "Loop Engineering：AI Coding Agents 的新范式",
+    "meta": "MindStudio Team · 2026-06-09",
+    "en": "Loop engineering replaces manual prompting with goal-based automation. It designs agents that act, observe feedback, decide what to do next, and repeat until a goal is met.",
+    "zh": "Loop engineering 把一次性提示转成可验证的迭代过程：Agent 行动、观察反馈、调整策略，并持续循环直到目标达成或触发停止条件。"
+  },
+  "summary": {
+    "lead": "文章的核心判断是：现代 AI coding agents 的能力不只来自模型本身，而来自围绕模型设计的循环结构，包括目标定义、工具访问、上下文管理、终止逻辑和错误恢复。",
+    "cards": [
+      {
+        "icon": "01",
+        "title": "从 Prompt 到 Process",
+        "body": "单次提示适合一次性答案，但遇到多步骤任务、真实环境反馈和迭代修正时会很快触顶。"
+      },
+      {
+        "icon": "02",
+        "title": "循环区别于链式流程",
+        "body": "Chain 是固定 A→B→C；Loop 会根据执行结果回到前一步、调整路径、重试或停止。"
+      },
+      {
+        "icon": "03",
+        "title": "ReAct 是基础模式",
+        "body": "Reason + Act 把推理、行动、观察交替起来，形成编码 Agent 写代码、运行、读错误、修复的基本循环。"
+      },
+      {
+        "icon": "04",
+        "title": "好循环需要工程边界",
+        "body": "明确目标、可用工具、上下文压缩、终止条件和错误恢复机制共同决定循环质量。"
+      },
+      {
+        "icon": "05",
+        "title": "多 Agent 循环扩展复杂度",
+        "body": "规划、执行、审核等角色可以形成嵌套或协调循环，处理跨文件、跨服务、跨 API 的复杂任务。"
+      },
+      {
+        "icon": "06",
+        "title": "实践重点是失败路径",
+        "body": "部署前要测试模糊任务、工具异常和不可解任务，确认循环能优雅失败而不是无限消耗。"
+      }
+    ],
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "Loop engineering 是 AI coding agents 的运行架构，而不是单一提示技巧。"
+      },
+      {
+        "label": "关键风险",
+        "text": "没有终止逻辑、上下文管理和错误恢复的 loop 会变成资源黑洞。"
+      },
+      {
+        "label": "工程落点",
+        "text": "先定义完成条件，再配置工具、反馈结构、日志摘要、预算和升级路径。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "Prompt 模式触顶",
+        "summary": "一次性提示无法稳定处理多步骤、反馈驱动或需要持续修正的任务。"
+      },
+      {
+        "id": "fw-2",
+        "label": "Loop 引入动态反馈",
+        "summary": "Agent 每轮行动后观察环境反馈，再决定下一步，而不是沿固定链路前进。"
+      },
+      {
+        "id": "fw-3",
+        "label": "ReAct 提供基本循环",
+        "summary": "Reason、Act、Observe 交替出现，尤其适合编码中的运行、报错和修复流程。"
+      },
+      {
+        "id": "fw-4",
+        "label": "循环需要工程化",
+        "summary": "目标、工具、上下文、终止逻辑和错误恢复构成可靠 loop 的五个核心部分。"
+      },
+      {
+        "id": "fw-5",
+        "label": "Coding Agent 以 loop 为核心",
+        "summary": "Claude Code、Devin、Codex Agent 等工具都依赖读文件、写代码、跑测试、修复错误的循环。"
+      },
+      {
+        "id": "fw-6",
+        "label": "实践关注失败路径",
+        "summary": "好的 loop 要能处理工具异常、反复失败、任务过大和不可解场景。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "从 Prompt 到 Process",
+      "title": "从 Prompt 到 Process",
+      "rows": [
+        {
+          "en": "Early AI productivity workflows were simple: write a prompt, get an answer, copy it somewhere useful.",
+          "zh": "早期 AI 生产力工作流很简单：写一个 prompt，得到答案，再把答案复制到有用的位置。"
+        },
+        {
+          "en": "For anything that requires multiple steps, real-world feedback, or iterative refinement, single-shot prompting falls apart fast.",
+          "zh": "但凡任务需要多步骤、真实环境反馈或迭代式打磨，单次提示就会很快失效。"
+        },
+        {
+          "en": "Loop engineering designs systems that act, observe the result, decide what to do next, and repeat until a goal is actually met.",
+          "zh": "Loop engineering 设计的是会行动、观察结果、决定下一步并重复执行直到目标达成的系统。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "Loop 与 Chain 的区别",
+      "title": "Loop 与 Chain 的区别",
+      "rows": [
+        {
+          "en": "A chain is linear: step A leads to step B leads to step C.",
+          "zh": "Chain 是线性的：步骤 A 接步骤 B，再接步骤 C。"
+        },
+        {
+          "en": "A loop is dynamic: the agent can discover that an approach did not work, retry with a modified approach, and only then move on.",
+          "zh": "Loop 是动态的：Agent 可以发现某一步不奏效，改换策略重试，然后再继续。"
+        },
+        {
+          "en": "The loop continues until a task is complete, a stopping criterion triggers, or the agent determines it cannot go further.",
+          "zh": "循环会持续到任务完成、停止条件触发，或 Agent 判断无法继续推进为止。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "ReAct 与编码循环",
+      "title": "ReAct 与编码循环",
+      "rows": [
+        {
+          "en": "The ReAct pattern interleaves reasoning steps with action steps.",
+          "zh": "ReAct 模式把推理步骤与行动步骤交替组织。"
+        },
+        {
+          "en": "In code generation, the agent understands the goal, writes code, runs it, observes output or errors, reasons about what went wrong, and revises.",
+          "zh": "在代码生成中，Agent 会理解目标、写代码、运行代码、观察输出或错误、分析问题并修正。"
+        },
+        {
+          "en": "That reason, act, observe, repeat cycle is the core of loop engineering.",
+          "zh": "这种 reason、act、observe、repeat 的循环，就是 loop engineering 的核心。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "可靠 loop 的五个部件",
+      "title": "可靠 loop 的五个部件",
+      "rows": [
+        {
+          "en": "The loop needs a clear goal or task definition so it knows what done looks like.",
+          "zh": "循环需要清晰目标，知道什么状态才算完成。"
+        },
+        {
+          "en": "The agent needs tools such as code execution, file access, terminal commands, search, documentation lookup, and test runners.",
+          "zh": "Agent 需要代码执行、文件访问、终端命令、搜索、文档查询和测试运行器等工具。"
+        },
+        {
+          "en": "The loop needs context management, termination logic, and error handling to avoid token overflow, infinite runs, and repeated failed attempts.",
+          "zh": "循环还需要上下文管理、终止逻辑和错误处理，避免上下文爆炸、无限运行和重复失败。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "Coding Agent 的质量差异",
+      "title": "Coding Agent 的质量差异",
+      "rows": [
+        {
+          "en": "The quality difference between AI coding agents usually is not the base model; it is the loop design.",
+          "zh": "AI coding agents 的质量差异通常不在基础模型，而在 loop 设计。"
+        },
+        {
+          "en": "Good agents read stack traces, maintain context across iterations, scope work, and verify that output actually works.",
+          "zh": "好的 Agent 会读取完整错误、记住历史尝试、控制任务范围，并验证结果确实可用。"
+        },
+        {
+          "en": "Loop engineering is not a single technique. It is a design discipline.",
+          "zh": "Loop engineering 不是单一技巧，而是一套设计纪律。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "常见 loop 模式",
+      "title": "常见 loop 模式",
+      "rows": [
+        {
+          "en": "The retry loop tries something, checks if it worked, and retries if it did not.",
+          "zh": "Retry loop 会尝试某个动作，检查是否成功，失败则重试。"
+        },
+        {
+          "en": "The plan-execute-verify loop plans first, executes step by step, and verifies before proceeding.",
+          "zh": "Plan-execute-verify loop 会先规划，再逐步执行，并在继续前验证每一步。"
+        },
+        {
+          "en": "The explore-narrow loop explores multiple solution paths, then narrows to the best one.",
+          "zh": "Explore-narrow loop 会探索多个方案路径，再收敛到最有希望的方案。"
+        },
+        {
+          "en": "Human-in-the-loop pauses for human input when requirements are ambiguous or risk is high.",
+          "zh": "Human-in-the-loop 会在需求不明确或风险较高时暂停，让人类输入判断。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "如何工程化更好的 loops",
+      "title": "如何工程化更好的 loops",
+      "rows": [
+        {
+          "en": "Define termination conditions before writing loop logic.",
+          "zh": "在写循环逻辑前，先定义终止条件。"
+        },
+        {
+          "en": "Give the agent structured feedback, not just raw output.",
+          "zh": "给 Agent 结构化反馈，而不是只丢原始输出。"
+        },
+        {
+          "en": "Keep a log of actions and outcomes, then summarize it into compact working memory.",
+          "zh": "记录每次行动和结果，并压缩为可继续推理的工作记忆。"
+        },
+        {
+          "en": "Set strict tool call budgets and test loops on failure cases, not only happy paths.",
+          "zh": "设置严格工具调用预算，并用失败场景测试循环，而不只测顺利路径。"
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "toc": "Remy 管理多 Agent",
+      "title": "Remy 管理多 Agent",
+      "rows": [
+        {
+          "en": "The article visual says Remy does not write the code; it manages the agents who do.",
+          "zh": "文章中的视觉区块强调：Remy 不直接写代码，而是管理负责写代码的 Agent。"
+        },
+        {
+          "en": "The visual assigns Remy as a product manager agent leading design, engineering, QA, and deploy roles.",
+          "zh": "该视觉区块把 Remy 标为 Product Manager Agent，并协调 Design、Engineer、QA 与 Deploy。"
+        },
+        {
+          "en": "This supports the article's point that multi-agent loops coordinate specialized roles instead of forcing one agent to do everything.",
+          "zh": "这支撑了文章关于多 Agent loop 的观点：系统可以协调专门角色，而不是让单个 Agent 完成所有工作。"
+        }
+      ]
+    },
+    {
+      "num": "9",
+      "toc": "Plan-Execute-Verify 的四步视觉",
+      "title": "Plan-Execute-Verify 的四步视觉",
+      "rows": [
+        {
+          "en": "The article visual presents four ordered stages: Describe, Compile, Preview, and Deploy.",
+          "zh": "文章视觉把 plan-execute-verify 拆成四个有序阶段：Describe、Compile、Preview、Deploy。"
+        },
+        {
+          "en": "Describe means writing the spec; Compile means Remy builds it; Preview means running in browser; Deploy means live on a URL.",
+          "zh": "Describe 是写规格，Compile 是 Remy 构建，Preview 是在浏览器运行，Deploy 是上线到 URL。"
+        },
+        {
+          "en": "The article identifies the visual representation of this pattern as four ordered stages.",
+          "zh": "原文说明，这个模式的视觉表示由四个有序阶段组成。"
+        }
+      ]
+    },
+    {
+      "num": "10",
+      "toc": "MindStudio 承担循环基础设施",
+      "title": "MindStudio 承担循环基础设施",
+      "rows": [
+        {
+          "en": "Another visual says Remy does not build the plumbing.",
+          "zh": "另一个视觉区块写道：Remy 不需要构建底层 plumbing。"
+        },
+        {
+          "en": "It lists 200+ AI models, 1,000+ integrations, Slack, Stripe, Notion, HubSpot, managed database, authentication, and payments.",
+          "zh": "它列出 200+ AI 模型、1,000+ 集成、Slack、Stripe、Notion、HubSpot、托管数据库、认证和支付。"
+        },
+        {
+          "en": "This visual connects MindStudio's platform positioning to loop engineering infrastructure.",
+          "zh": "该视觉把 MindStudio 的平台定位与 loop engineering 所需基础设施连接起来。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "文章认为 loop engineering 相比单次 prompting 的关键变化是什么？",
+      "options": [
+        "让 Agent 行动、观察反馈、调整下一步，并持续循环直到目标达成或停止",
+        "把所有任务改成一次性长提示词",
+        "完全取消工具调用和测试运行",
+        "只让模型生成代码但不运行"
+      ],
+      "answer": 0,
+      "explain": "原文把 loop engineering 定义为从 prompt 到 process：Agent 会 act、observe、decide and repeat。",
+      "wrongReason": "文章不是主张更长的一次性提示，也不是取消工具或跳过执行验证。"
+    },
+    {
+      "question": "为什么 coding agents 特别需要 loop engineering？",
+      "options": [
+        "因为编码天然需要运行、读错误、修复和再次验证",
+        "因为代码任务永远不需要上下文",
+        "因为测试失败可以直接忽略",
+        "因为 Agent 只能处理线性链路"
+      ],
+      "answer": 0,
+      "explain": "文章指出工程师会运行代码、查看错误、修复再运行；AI coding agents 也需要闭合反馈。",
+      "wrongReason": "文章没有说代码任务不需要上下文，也没有接受忽略测试失败；它强调 Agent 需要动态循环，而不是只能线性执行。"
+    },
+    {
+      "question": "一个 well-engineered loop 必须明确什么？",
+      "options": [
+        "目标、工具、上下文管理、终止逻辑和错误恢复",
+        "只要有更强模型就足够",
+        "只要无限重试即可",
+        "只需要漂亮的 UI"
+      ],
+      "answer": 0,
+      "explain": "文章列出可靠 loop 的核心组成：clear goal、tool set、context management、termination logic、error handling。",
+      "wrongReason": "更强模型、无限重试或 UI 都不能替代明确目标、工具、上下文和停止条件。"
+    },
+    {
+      "question": "Human-in-the-loop 适合什么场景？",
+      "options": [
+        "需求无法完全提前指定、生产变更需人工审核或错误假设代价高的任务",
+        "所有小决策都必须打断用户",
+        "没有任何歧义的短任务",
+        "只用于删除上下文"
+      ],
+      "answer": 0,
+      "explain": "原文说 human-in-the-loop 适合需求不完全明确、生产变更、错误假设成本高的场景。",
+      "wrongReason": "文章同时提醒不要过度打断用户；该模式不是为无歧义短任务或删除上下文而设计。"
+    }
+  ],
+  "original": {
+    "title": "What Is Loop Engineering? The New Meta for AI Coding Agents · 原文要点对照",
+    "meta": "MindStudio Team · June 9, 2026",
+    "groups": [
+      {
+        "group": "From Prompt to Process · 从提示到过程",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Loop engineering replaces manual prompting with goal-based automation. Early AI productivity workflows were simple: write a prompt, get an answer, and copy it somewhere useful. For tasks requiring multiple steps, real-world feedback, or iterative refinement, single-shot prompting falls apart.",
+            "zh": "Loop engineering 用目标驱动自动化替代手工提示。早期 AI 生产力流程很简单：写一个提示，得到一个答案，再把它复制到有用的地方。但对需要多步骤、真实世界反馈或迭代打磨的任务来说，一次性提示很快会失效。",
+            "html": "<p>Loop engineering replaces manual prompting with goal-based automation. Early AI productivity workflows were simple: write a prompt, get an answer, and copy it somewhere useful. For tasks requiring multiple steps, real-world feedback, or iterative refinement, single-shot prompting falls apart.</p>",
+            "zhHtml": "<p>Loop engineering 用目标驱动自动化替代手工提示。早期 AI 生产力流程很简单：写一个提示，得到一个答案，再把它复制到有用的地方。但对需要多步骤、真实世界反馈或迭代打磨的任务来说，一次性提示很快会失效。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Loop engineering is the shift from prompt to process. It designs agents that act, observe feedback, decide what to do next, and continue until a goal is reached.",
+            "zh": "Loop engineering 是从 prompt 转向 process 的变化。它设计的 Agent 会行动、观察反馈、决定下一步，并持续推进直到目标达成。",
+            "html": "<p>Loop engineering is the shift from prompt to process. It designs agents that act, observe feedback, decide what to do next, and continue until a goal is reached.</p>",
+            "zhHtml": "<p>Loop engineering 是从 prompt 转向 process 的变化。它设计的 Agent 会行动、观察反馈、决定下一步，并持续推进直到目标达成。</p>"
+          }
+        ]
+      },
+      {
+        "group": "What Is a Loop · 什么是循环",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "A loop in agentic AI is a repeating cycle where the model takes an action, receives feedback from the environment, and uses that feedback to decide its next move. The loop continues until a termination condition is met: the task is complete, a stopping criterion triggers, or the agent determines it cannot go further.",
+            "zh": "在 agentic AI 中，loop 是一个重复循环：模型采取行动，从环境接收反馈，并用这些反馈决定下一步。循环会持续到满足 termination condition：任务完成、stopping criterion 被触发，或 Agent 判断无法继续。",
+            "html": "<p>A loop in agentic AI is a repeating cycle where the model takes an action, receives feedback from the environment, and uses that feedback to decide its next move. The loop continues until a termination condition is met: the task is complete, a stopping criterion triggers, or the agent determines it cannot go further.</p>",
+            "zhHtml": "<p>在 agentic AI 中，loop 是一个重复循环：模型采取行动，从环境接收反馈，并用这些反馈决定下一步。循环会持续到满足 termination condition：任务完成、stopping criterion 被触发，或 Agent 判断无法继续。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "A chain is linear: step A leads to step B leads to step C. A loop is dynamic: the agent can try step A, move to step B, discover B failed, retry with a modified approach, and only then continue.",
+            "zh": "Chain 是线性的：步骤 A 接步骤 B，再接步骤 C。Loop 是动态的：Agent 可以尝试 A、进入 B、发现 B 失败，用 modified approach 重试，然后才继续。",
+            "html": "<p>A chain is linear: step A leads to step B leads to step C. A loop is dynamic: the agent can try step A, move to step B, discover B failed, retry with a modified approach, and only then continue.</p>",
+            "zhHtml": "<p>Chain 是线性的：步骤 A 接步骤 B，再接步骤 C。Loop 是动态的：Agent 可以尝试 A、进入 B、发现 B 失败，用 modified approach 重试，然后才继续。</p>"
+          }
+        ]
+      },
+      {
+        "group": "ReAct Pattern · ReAct 模式",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Most modern agent loops trace back to the ReAct pattern, meaning Reason + Act, introduced in research from Princeton and Google. The core idea is to interleave reasoning steps with action steps.",
+            "zh": "大多数现代 Agent loops 可追溯到 ReAct pattern，也就是 Reason + Act，源自 Princeton 和 Google 的研究。核心思想是把 reasoning steps 与 action steps 交错组织。",
+            "html": "<p>Most modern agent loops trace back to the ReAct pattern, meaning Reason + Act, introduced in research from Princeton and Google. The core idea is to interleave reasoning steps with action steps.</p>",
+            "zhHtml": "<p>大多数现代 Agent loops 可追溯到 ReAct pattern，也就是 Reason + Act，源自 Princeton 和 Google 的研究。核心思想是把 reasoning steps 与 action steps 交错组织。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "In code generation contexts, this looks like: understand the goal, write some code, run the code and observe the output or error, reason about what went wrong, revise and re-run, and repeat until tests pass or the task is complete.",
+            "zh": "在 code generation 场景中，这表现为：理解目标、写代码、运行代码并 observe 输出或错误、推理哪里出了问题、修改并重跑，直到测试通过或任务完成。",
+            "html": "<p>In code generation contexts, this looks like: understand the goal, write some code, run the code and observe the output or error, reason about what went wrong, revise and re-run, and repeat until tests pass or the task is complete.</p>",
+            "zhHtml": "<p>在 code generation 场景中，这表现为：理解目标、写代码、运行代码并 observe 输出或错误、推理哪里出了问题、修改并重跑，直到测试通过或任务完成。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Why Coding Needs Loops · 为什么编码更需要循环",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Coding is naturally iterative. AI coding agents that skip this cycle and generate code once are limited. They cannot catch runtime errors, adapt to environment-specific issues, or verify that their output actually works.",
+            "zh": "编码天然是迭代式的。跳过这个循环、只生成一次代码的 AI coding agents 能力有限：它们无法捕捉 runtime errors，无法适应 environment-specific issues，也无法验证输出真的可用。",
+            "html": "<p>Coding is naturally iterative. AI coding agents that skip this cycle and generate code once are limited. They cannot catch runtime errors, adapt to environment-specific issues, or verify that their output actually works.</p>",
+            "zhHtml": "<p>编码天然是迭代式的。跳过这个循环、只生成一次代码的 AI coding agents 能力有限：它们无法捕捉 runtime errors，无法适应 environment-specific issues，也无法验证输出真的可用。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Loop engineering closes that feedback gap.",
+            "zh": "Loop engineering 关闭了这个 feedback gap。",
+            "html": "<p>Loop engineering closes that feedback gap.</p>",
+            "zhHtml": "<p>Loop engineering 关闭了这个 feedback gap。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Anatomy of a Well-Engineered Loop · 可靠循环的结构",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "A poorly designed loop wastes tokens, runs forever, or hallucinates progress. A well-designed loop is efficient, terminates correctly, and produces reliable output.",
+            "zh": "设计糟糕的 loop 会浪费 token、无限运行，或 hallucinates progress。设计良好的 loop 高效、能正确终止，并产出可靠结果。",
+            "html": "<p>A poorly designed loop wastes tokens, runs forever, or hallucinates progress. A well-designed loop is efficient, terminates correctly, and produces reliable output.</p>",
+            "zhHtml": "<p>设计糟糕的 loop 会浪费 token、无限运行，或 hallucinates progress。设计良好的 loop 高效、能正确终止，并产出可靠结果。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The loop needs a clear goal or task definition. The goal definition should be specific enough to evaluate, broken into testable sub-tasks where possible, and scoped so the agent does not over-reach.",
+            "zh": "Loop 需要清晰目标或 task definition。目标应足够具体、可以评估；条件允许时拆成 testable sub-tasks；并控制范围，避免 Agent over-reach。",
+            "html": "<p>The loop needs a clear goal or task definition. The goal definition should be specific enough to evaluate, broken into testable sub-tasks where possible, and scoped so the agent does not over-reach.</p>",
+            "zhHtml": "<p>Loop 需要清晰目标或 task definition。目标应足够具体、可以评估；条件允许时拆成 testable sub-tasks；并控制范围，避免 Agent over-reach。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Tools and Context · 工具与上下文",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Each loop iteration generates more context: code written, errors encountered, and decisions made. Without careful management, the agent will hit token limits or lose track of previous attempts.",
+            "zh": "每次 loop 迭代都会生成更多上下文：写过的代码、遇到的错误和做过的决策。若管理不当，Agent 会触达 token limits，或忘记之前的尝试。",
+            "html": "<p>Each loop iteration generates more context: code written, errors encountered, and decisions made. Without careful management, the agent will hit token limits or lose track of previous attempts.</p>",
+            "zhHtml": "<p>每次 loop 迭代都会生成更多上下文：写过的代码、遇到的错误和做过的决策。若管理不当，Agent 会触达 token limits，或忘记之前的尝试。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "For coding agents, the tool set typically means code execution, file system access, terminal/shell commands, search or documentation lookup, and test runners.",
+            "zh": "对 coding agents 来说，工具集通常包括 code execution、file system access、terminal/shell 命令、搜索或文档查询，以及 test runners。",
+            "html": "<p>For coding agents, the tool set typically means code execution, file system access, terminal/shell commands, search or documentation lookup, and test runners.</p>",
+            "zhHtml": "<p>对 coding agents 来说，工具集通常包括 code execution、file system access、terminal/shell 命令、搜索或文档查询，以及 test runners。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Good loop engineering includes context management: summarizing previous iterations into compact working memory, keeping a structured log of attempted approaches and outcomes, and pruning irrelevant context before each new iteration.",
+            "zh": "好的 loop engineering 包含 context management：把之前迭代总结成紧凑 working memory，维护 attempted approaches and outcomes 的 structured log，并在每次新迭代前 pruning 无关上下文。",
+            "html": "<p>Good loop engineering includes context management: summarizing previous iterations into compact working memory, keeping a structured log of attempted approaches and outcomes, and pruning irrelevant context before each new iteration.</p>",
+            "zhHtml": "<p>好的 loop engineering 包含 context management：把之前迭代总结成紧凑 working memory，维护 attempted approaches and outcomes 的 structured log，并在每次新迭代前 pruning 无关上下文。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Termination and Recovery · 终止与恢复",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "A loop needs termination logic. This includes success conditions, failure conditions, and escalation paths: hand off to a human or another agent when stuck.",
+            "zh": "Loop 需要 termination logic，包括 success conditions、failure conditions，以及 escalation paths：卡住时移交给人类或另一个 Agent。",
+            "html": "<p>A loop needs termination logic. This includes success conditions, failure conditions, and escalation paths: hand off to a human or another agent when stuck.</p>",
+            "zhHtml": "<p>Loop 需要 termination logic，包括 success conditions、failure conditions，以及 escalation paths：卡住时移交给人类或另一个 Agent。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The agent should distinguish recoverable errors, such as syntax errors or missing imports, from hard blockers, such as missing credentials. It should adjust its strategy based on error type.",
+            "zh": "Agent 应区分可恢复错误，例如 syntax errors 或 missing imports，以及 hard blockers，例如缺少凭证。它应该根据错误类型调整 strategy。",
+            "html": "<p>The agent should distinguish recoverable errors, such as syntax errors or missing imports, from hard blockers, such as missing credentials. It should adjust its strategy based on error type.</p>",
+            "zhHtml": "<p>Agent 应区分可恢复错误，例如 syntax errors 或 missing imports，以及 hard blockers，例如缺少凭证。它应该根据错误类型调整 strategy。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Coding Agents and Multi-Agent Loops · 编码 Agent 与多 Agent 循环",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering as their core operating model. The quality difference is often not the base model, but the loop design.",
+            "zh": "Claude Code、Devin 和 OpenAI 的 Codex Agent 等工具都把 loop engineering 作为核心运行模型。质量差异通常不在 base model，而在 loop design。",
+            "html": "<p>Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering as their core operating model. The quality difference is often not the base model, but the loop design.</p>",
+            "zhHtml": "<p>Claude Code、Devin 和 OpenAI 的 Codex Agent 等工具都把 loop engineering 作为核心运行模型。质量差异通常不在 base model，而在 loop design。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Some tasks benefit from multiple agents running in coordinated loops: a planning agent breaks a large task into subtasks, executor agents handle subtasks in parallel, and a reviewer agent checks outputs and routes failures back for correction.",
+            "zh": "有些任务适合 multiple agents running in coordinated loops：planning agent 拆解大任务，executor agents 并行处理子任务，reviewer agent 检查输出并把失败路由回去修正。",
+            "html": "<p>Some tasks benefit from multiple agents running in coordinated loops: a planning agent breaks a large task into subtasks, executor agents handle subtasks in parallel, and a reviewer agent checks outputs and routes failures back for correction.</p>",
+            "zhHtml": "<p>有些任务适合 multiple agents running in coordinated loops：planning agent 拆解大任务，executor agents 并行处理子任务，reviewer agent 检查输出并把失败路由回去修正。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Good coding agents handle errors by reading the full stack trace rather than making generic fixes, and verify output by confirming that a solution works, not just compiles.",
+            "zh": "好的 coding agents 处理错误时会读取完整 stack trace，而不是做泛泛修复；它们还会 verify output，确认方案确实可用，而不只是能编译。",
+            "html": "<p>Good coding agents handle errors by reading the full stack trace rather than making generic fixes, and verify output by confirming that a solution works, not just compiles.</p>",
+            "zhHtml": "<p>好的 coding agents 处理错误时会读取完整 stack trace，而不是做泛泛修复；它们还会 verify output，确认方案确实可用，而不只是能编译。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Loop Patterns · 常见循环模式",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The Retry Loop tries something, checks if it worked, and retries if it did not. The Plan-Execute-Verify Loop first generates a plan, executes it step by step, and verifies each step before proceeding.",
+            "zh": "Retry Loop 会尝试、检查是否有效，失败则重试。Plan-Execute-Verify Loop 会先生成计划，逐步执行，并在继续前验证每一步。",
+            "html": "<p>The Retry Loop tries something, checks if it worked, and retries if it did not. The Plan-Execute-Verify Loop first generates a plan, executes it step by step, and verifies each step before proceeding.</p>",
+            "zhHtml": "<p>Retry Loop 会尝试、检查是否有效，失败则重试。Plan-Execute-Verify Loop 会先生成计划，逐步执行，并在继续前验证每一步。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "The Explore-Narrow Loop explores multiple solution paths, then narrows to the most promising one. The Human-in-the-Loop runs until it needs clarification or hits ambiguity, pauses for human input, then continues.",
+            "zh": "Explore-Narrow Loop 会探索多个方案路径，再收敛到最有希望的方案。Human-in-the-Loop 会运行到需要澄清或遇到歧义时暂停，获取人类输入后继续。",
+            "html": "<p>The Explore-Narrow Loop explores multiple solution paths, then narrows to the most promising one. The Human-in-the-Loop runs until it needs clarification or hits ambiguity, pauses for human input, then continues.</p>",
+            "zhHtml": "<p>Explore-Narrow Loop 会探索多个方案路径，再收敛到最有希望的方案。Human-in-the-Loop 会运行到需要澄清或遇到歧义时暂停，获取人类输入后继续。</p>"
+          }
+        ]
+      },
+      {
+        "group": "Practice · 实践建议",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Define termination conditions before you start. Give the agent structured feedback, not just raw output. Log everything, summarize often, and set strict tool call budgets.",
+            "zh": "开始前先定义 termination conditions。给 Agent structured feedback，而不只是原始输出。记录所有行动，经常总结，并设置严格 tool call budgets。",
+            "html": "<p>Define termination conditions before you start. Give the agent structured feedback, not just raw output. Log everything, summarize often, and set strict tool call budgets.</p>",
+            "zhHtml": "<p>开始前先定义 termination conditions。给 Agent structured feedback，而不只是原始输出。记录所有行动，经常总结，并设置严格 tool call budgets。</p>"
+          },
+          {
+            "type": "bilingual",
+            "en": "Test your loops on failure cases, not just happy paths. Before deploying an agent loop, test it with ambiguous instructions, broken tools, bad data, long-running tasks, and partial failures.",
+            "zh": "要用 failure cases 测试 loops，而不只测 happy paths。部署 Agent loop 前，应测试模糊指令、工具损坏、坏数据、长任务和部分失败。",
+            "html": "<p>Test your loops on failure cases, not just happy paths. Before deploying an agent loop, test it with ambiguous instructions, broken tools, bad data, long-running tasks, and partial failures.</p>",
+            "zhHtml": "<p>要用 failure cases 测试 loops，而不只测 happy paths。部署 Agent loop 前，应测试模糊指令、工具损坏、坏数据、长任务和部分失败。</p>"
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "entries": [
+      {
+        "word": "loop engineering",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "设计 AI Agent 迭代循环的工程方法，包括行动、观察、反馈、修正与停止。",
+        "collocationExample": "Loop engineering replaces manual prompting with goal-based automation.",
+        "exampleZh": "Loop engineering 用目标驱动自动化替代手工提示。"
+      },
+      {
+        "word": "goal-based automation",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "以目标和完成条件驱动系统持续执行的自动化方式。",
+        "collocationExample": "Loop engineering replaces manual prompting with goal-based automation.",
+        "exampleZh": "目标驱动自动化让系统围绕结果推进。"
+      },
+      {
+        "word": "agentic AI",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "具备行动、观察和迭代决策能力的 AI 系统形态。",
+        "collocationExample": "A loop in agentic AI is a repeating cycle.",
+        "exampleZh": "Agentic AI 中的 loop 是重复循环。"
+      },
+      {
+        "word": "repeating cycle",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "重复发生的一组步骤或过程。",
+        "collocationExample": "A loop in agentic AI is a repeating cycle.",
+        "exampleZh": "Loop 是一个重复循环。"
+      },
+      {
+        "word": "feedback",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "环境或执行结果返回给系统的信息。",
+        "collocationExample": "The model receives feedback from the environment.",
+        "exampleZh": "模型从环境接收反馈。"
+      },
+      {
+        "word": "environment",
+        "ipa": "/",
+        "level": "B1",
+        "pos": "noun",
+        "definitionZh": "系统运行和获得结果的外部环境。",
+        "collocationExample": "The model receives feedback from the environment.",
+        "exampleZh": "模型从环境获得反馈。"
+      },
+      {
+        "word": "termination condition",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "循环停止条件，例如任务完成、达到停止标准或无法继续。",
+        "collocationExample": "The loop continues until a termination condition is met.",
+        "exampleZh": "循环持续到满足停止条件为止。"
+      },
+      {
+        "word": "stopping criterion",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "用于判断循环应当停止的明确标准。",
+        "collocationExample": "A stopping criterion triggers.",
+        "exampleZh": "停止标准被触发。"
+      },
+      {
+        "word": "chain",
+        "ipa": "/",
+        "level": "B1",
+        "pos": "noun",
+        "definitionZh": "线性串联步骤。",
+        "collocationExample": "A chain is linear: step A leads to step B leads to step C.",
+        "exampleZh": "Chain 是线性的步骤串联。"
+      },
+      {
+        "word": "dynamic",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "可根据反馈变化而调整的。",
+        "collocationExample": "A loop is dynamic.",
+        "exampleZh": "Loop 是动态的。"
+      },
+      {
+        "word": "modified approach",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "根据失败结果调整后的做法。",
+        "collocationExample": "The agent can retry with a modified approach.",
+        "exampleZh": "Agent 可以用调整后的方法重试。"
+      },
+      {
+        "word": "ReAct pattern",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "Reason + Act 模式，把推理与行动交替组织。",
+        "collocationExample": "Most modern agent loops trace back to the ReAct pattern.",
+        "exampleZh": "现代 Agent loop 大多可追溯到 ReAct 模式。"
+      },
+      {
+        "word": "interleave",
+        "ipa": "/",
+        "level": "C1",
+        "pos": "noun",
+        "definitionZh": "交错安排不同步骤或活动。",
+        "collocationExample": "The core idea is to interleave reasoning steps with action steps.",
+        "exampleZh": "核心思想是交错安排推理和行动。"
+      },
+      {
+        "word": "reasoning steps",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "模型分析目标、错误和下一步策略的推理环节。",
+        "collocationExample": "The model reasons, takes an action, observes what happened.",
+        "exampleZh": "模型先推理，再行动并观察。"
+      },
+      {
+        "word": "action steps",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "模型实际调用工具、写代码或执行命令的环节。",
+        "collocationExample": "The core idea is to interleave reasoning steps with action steps.",
+        "exampleZh": "行动步骤与推理步骤交替出现。"
+      },
+      {
+        "word": "observe",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "观察执行结果或错误反馈。",
+        "collocationExample": "The model observes what happened.",
+        "exampleZh": "模型观察发生了什么。"
+      },
+      {
+        "word": "code generation",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "生成程序代码的任务场景。",
+        "collocationExample": "In code generation contexts, this looks like.",
+        "exampleZh": "在代码生成场景中，loop 表现为写代码和运行验证。"
+      },
+      {
+        "word": "runtime errors",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "程序运行时暴露的错误。",
+        "collocationExample": "They cannot catch runtime errors.",
+        "exampleZh": "缺少循环的 Agent 无法捕捉运行时错误。"
+      },
+      {
+        "word": "environment-specific issues",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "只在特定运行环境中出现的问题。",
+        "collocationExample": "They cannot adapt to environment-specific issues.",
+        "exampleZh": "Agent 需要适应环境相关问题。"
+      },
+      {
+        "word": "feedback gap",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "生成结果与真实执行反馈之间的断层。",
+        "collocationExample": "Loop engineering closes that feedback gap.",
+        "exampleZh": "Loop engineering 关闭反馈缺口。"
+      },
+      {
+        "word": "hallucinates progress",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "系统误以为或声称取得进展但缺少真实依据。",
+        "collocationExample": "A poorly designed loop wastes tokens, runs forever, or hallucinates progress.",
+        "exampleZh": "差的 loop 可能幻觉式报告进展。"
+      },
+      {
+        "word": "task definition",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "对任务目标和完成标准的定义。",
+        "collocationExample": "The loop needs to know what done looks like.",
+        "exampleZh": "Loop 需要知道什么状态算完成。"
+      },
+      {
+        "word": "testable sub-tasks",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "可单独验证是否完成的子任务。",
+        "collocationExample": "Broken into testable sub-tasks where possible.",
+        "exampleZh": "目标应尽量拆成可测试子任务。"
+      },
+      {
+        "word": "over-reach",
+        "ipa": "/",
+        "level": "C1",
+        "pos": "noun",
+        "definitionZh": "超出合理范围或能力边界。",
+        "collocationExample": "Scoped so the agent does not over-reach.",
+        "exampleZh": "任务范围要避免 Agent 过度延展。"
+      },
+      {
+        "word": "code execution",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "运行代码并获取输出或错误。",
+        "collocationExample": "Code execution: run code and receive stdout/stderr.",
+        "exampleZh": "代码执行提供 stdout 和 stderr。"
+      },
+      {
+        "word": "file system access",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "读取、写入或修改文件的能力。",
+        "collocationExample": "File system access: read, write, or modify files.",
+        "exampleZh": "文件系统访问允许读写修改文件。"
+      },
+      {
+        "word": "test runners",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "执行测试并验证正确性的工具。",
+        "collocationExample": "Test runners: verify correctness.",
+        "exampleZh": "测试运行器用于验证正确性。"
+      },
+      {
+        "word": "context management",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "管理迭代中不断增长的代码、错误和决策上下文。",
+        "collocationExample": "Good loop engineering includes context management.",
+        "exampleZh": "好的 loop engineering 包含上下文管理。"
+      },
+      {
+        "word": "token limits",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "模型上下文可容纳文本量的限制。",
+        "collocationExample": "The agent will hit token limits.",
+        "exampleZh": "Agent 可能触达 token 限制。"
+      },
+      {
+        "word": "working memory",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "压缩后的当前任务记忆。",
+        "collocationExample": "Summarizing previous iterations into compact working memory.",
+        "exampleZh": "把历史迭代总结为紧凑工作记忆。"
+      },
+      {
+        "word": "structured log",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "按结构记录尝试、结果和失败原因的日志。",
+        "collocationExample": "Keeping a structured log of attempted approaches and outcomes.",
+        "exampleZh": "维护结构化日志有助于延续推理。"
+      },
+      {
+        "word": "pruning",
+        "ipa": "/",
+        "level": "C1",
+        "pos": "noun",
+        "definitionZh": "删去无关上下文以控制信息量。",
+        "collocationExample": "Pruning irrelevant context before each new iteration.",
+        "exampleZh": "每次迭代前剪除无关上下文。"
+      },
+      {
+        "word": "termination logic",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "判断何时成功、失败或升级处理的停止逻辑。",
+        "collocationExample": "A loop needs termination logic.",
+        "exampleZh": "Loop 需要终止逻辑。"
+      },
+      {
+        "word": "success conditions",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "测试通过、输出匹配预期或用户批准等成功条件。",
+        "collocationExample": "Success conditions: tests pass, output matches expectation, or the user approves.",
+        "exampleZh": "成功条件包括测试通过或用户批准。"
+      },
+      {
+        "word": "failure conditions",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "达到最大迭代、重复无进展或工具失败等失败条件。",
+        "collocationExample": "Failure conditions: maximum iterations reached, repeated errors with no progress, or tool call failures.",
+        "exampleZh": "失败条件定义何时停止或升级。"
+      },
+      {
+        "word": "escalation paths",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "卡住时移交给人类或其他 Agent 的路径。",
+        "collocationExample": "Escalation paths: hand off to a human or another agent when stuck.",
+        "exampleZh": "升级路径用于卡住时交接。"
+      },
+      {
+        "word": "syntax errors",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "代码语法不合法导致的错误。",
+        "collocationExample": "Distinguish recoverable errors, such as syntax errors or missing imports.",
+        "exampleZh": "语法错误通常是可恢复错误。"
+      },
+      {
+        "word": "missing imports",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "代码缺少必要导入造成的错误。",
+        "collocationExample": "Recoverable errors, such as syntax errors or missing imports.",
+        "exampleZh": "缺少导入属于可恢复错误。"
+      },
+      {
+        "word": "hard blockers",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "缺少凭证等无法由当前循环自行解决的阻塞。",
+        "collocationExample": "Hard blockers, such as missing credentials.",
+        "exampleZh": "缺少凭证是硬阻塞。"
+      },
+      {
+        "word": "strategy",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "为解决问题选择的行动方案。",
+        "collocationExample": "Adjust its strategy based on error type.",
+        "exampleZh": "Agent 应根据错误类型调整策略。"
+      },
+      {
+        "word": "AI coding agents",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "能在代码库中读取、修改、运行和验证代码的 AI Agent。",
+        "collocationExample": "AI coding tools evolved to full coding agents.",
+        "exampleZh": "AI coding agents 会围绕代码库循环工作。"
+      },
+      {
+        "word": "Claude Code",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "文章列举的 AI coding agent 工具之一。",
+        "collocationExample": "Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering.",
+        "exampleZh": "Claude Code 依赖 loop engineering。"
+      },
+      {
+        "word": "Devin",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "文章列举的 AI coding agent 工具之一。",
+        "collocationExample": "Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering.",
+        "exampleZh": "Devin 是文中列举的编码 Agent。"
+      },
+      {
+        "word": "Codex Agent",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "文章列举的 OpenAI 编码 Agent。",
+        "collocationExample": "OpenAI's Codex Agent rely on loop engineering.",
+        "exampleZh": "Codex Agent 依赖 loop engineering。"
+      },
+      {
+        "word": "base model",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "Agent 底层使用的大语言模型。",
+        "collocationExample": "The quality difference is often not the base model, but the loop design.",
+        "exampleZh": "质量差异通常不在基础模型。"
+      },
+      {
+        "word": "loop design",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "围绕行动、反馈、上下文、验证和停止条件设计循环的方式。",
+        "collocationExample": "The quality difference is often the loop design.",
+        "exampleZh": "质量差异常常来自 loop 设计。"
+      },
+      {
+        "word": "stack trace",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "程序错误时显示调用路径和错误位置的信息。",
+        "collocationExample": "Whether they read the full stack trace.",
+        "exampleZh": "好的 Agent 会读取完整 stack trace。"
+      },
+      {
+        "word": "verify output",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "确认输出确实可用，而不只是生成了文本或通过编译。",
+        "collocationExample": "Whether they verify output.",
+        "exampleZh": "验证输出是好 Agent 的关键差异。"
+      },
+      {
+        "word": "planning agent",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "负责把大任务拆分为子任务的 Agent。",
+        "collocationExample": "A planning agent breaks a large task into subtasks.",
+        "exampleZh": "规划 Agent 拆解大任务。"
+      },
+      {
+        "word": "executor agents",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "负责执行子任务的 Agent。",
+        "collocationExample": "Multiple executor agents handle subtasks in parallel.",
+        "exampleZh": "执行 Agent 并行处理子任务。"
+      },
+      {
+        "word": "reviewer agent",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "检查产出并把失败路由回去修正的 Agent。",
+        "collocationExample": "A reviewer agent checks outputs and routes failures back for correction.",
+        "exampleZh": "审核 Agent 检查输出并路由失败。"
+      },
+      {
+        "word": "Retry Loop",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "尝试、检查、失败后重试的最简单循环模式。",
+        "collocationExample": "The retry loop tries something, checks if it worked, and retries if it did not.",
+        "exampleZh": "Retry loop 会失败后重试。"
+      },
+      {
+        "word": "Plan-Execute-Verify Loop",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "先规划、逐步执行、每步验证后再继续的循环模式。",
+        "collocationExample": "The plan-execute-verify loop plans first, executes it step by step, and verifies each step.",
+        "exampleZh": "Plan-Execute-Verify 先规划、执行并验证。"
+      },
+      {
+        "word": "Explore-Narrow Loop",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "先探索多个方案，再收敛到最有希望方案的循环模式。",
+        "collocationExample": "The explore-narrow loop explores multiple solution paths, then narrows to the most promising one.",
+        "exampleZh": "Explore-Narrow 会先探索再收敛。"
+      },
+      {
+        "word": "Human-in-the-Loop",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "在歧义、风险或生产变更中引入人类判断的循环方式。",
+        "collocationExample": "The human-in-the-loop pauses for human input.",
+        "exampleZh": "Human-in-the-loop 会暂停等待人类输入。"
+      },
+      {
+        "word": "tool call budgets",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "限制每次循环可调用工具的次数或成本。",
+        "collocationExample": "Set strict tool call budgets.",
+        "exampleZh": "工具调用预算可控制成本。"
+      },
+      {
+        "word": "failure cases",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "用来测试系统失败处理能力的场景。",
+        "collocationExample": "Test your loops on failure cases, not just happy paths.",
+        "exampleZh": "应测试失败场景，而不只测顺利路径。"
+      },
+      {
+        "word": "happy paths",
+        "ipa": "/",
+        "level": "B2",
+        "pos": "noun",
+        "definitionZh": "一切按预期成功的顺利流程。",
+        "collocationExample": "Test loops on failure cases, not just happy paths.",
+        "exampleZh": "不能只测试 happy path。"
+      },
+      {
+        "word": "raw output",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "未经结构化处理的原始工具或命令输出。",
+        "collocationExample": "Give the agent structured feedback, not just raw output.",
+        "exampleZh": "给 Agent 结构化反馈，而不只是原始输出。"
+      },
+      {
+        "word": "previous attempts",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "Agent 在此前迭代中已经尝试过的方法或路径。",
+        "collocationExample": "The agent will hit token limits or lose track of previous attempts.",
+        "exampleZh": "Agent 可能触达 token 限制，或忘记之前的尝试。"
+      },
+      {
+        "word": "coordinated loops",
+        "ipa": "/",
+        "level": "术语",
+        "pos": "术语",
+        "definitionZh": "多个 Agent 或循环按分工协同推进任务的结构。",
+        "collocationExample": "Some tasks benefit from multiple agents running in coordinated loops.",
+        "exampleZh": "有些任务适合多个 Agent 在协调循环中运行。"
+      }
+    ],
+    "dict": {
+      "loop-engineering": {
+        "w": "loop engineering",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "设计 AI Agent 迭代循环的工程方法，包括行动、观察、反馈、修正与停止。",
+        "eg": "Loop engineering replaces manual prompting with goal-based automation.",
+        "egzh": "Loop engineering 用目标驱动自动化替代手工提示。"
+      },
+      "goal-based-automation": {
+        "w": "goal-based automation",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "以目标和完成条件驱动系统持续执行的自动化方式。",
+        "eg": "Loop engineering replaces manual prompting with goal-based automation.",
+        "egzh": "目标驱动自动化让系统围绕结果推进。"
+      },
+      "agentic-ai": {
+        "w": "agentic AI",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "具备行动、观察和迭代决策能力的 AI 系统形态。",
+        "eg": "A loop in agentic AI is a repeating cycle.",
+        "egzh": "Agentic AI 中的 loop 是重复循环。"
+      },
+      "repeating-cycle": {
+        "w": "repeating cycle",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "重复发生的一组步骤或过程。",
+        "eg": "A loop in agentic AI is a repeating cycle.",
+        "egzh": "Loop 是一个重复循环。"
+      },
+      "feedback": {
+        "w": "feedback",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "环境或执行结果返回给系统的信息。",
+        "eg": "The model receives feedback from the environment.",
+        "egzh": "模型从环境接收反馈。"
+      },
+      "environment": {
+        "w": "environment",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B1",
+        "def": "系统运行和获得结果的外部环境。",
+        "eg": "The model receives feedback from the environment.",
+        "egzh": "模型从环境获得反馈。"
+      },
+      "termination-condition": {
+        "w": "termination condition",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "循环停止条件，例如任务完成、达到停止标准或无法继续。",
+        "eg": "The loop continues until a termination condition is met.",
+        "egzh": "循环持续到满足停止条件为止。"
+      },
+      "stopping-criterion": {
+        "w": "stopping criterion",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "用于判断循环应当停止的明确标准。",
+        "eg": "A stopping criterion triggers.",
+        "egzh": "停止标准被触发。"
+      },
+      "chain": {
+        "w": "chain",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B1",
+        "def": "线性串联步骤。",
+        "eg": "A chain is linear: step A leads to step B leads to step C.",
+        "egzh": "Chain 是线性的步骤串联。"
+      },
+      "dynamic": {
+        "w": "dynamic",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "可根据反馈变化而调整的。",
+        "eg": "A loop is dynamic.",
+        "egzh": "Loop 是动态的。"
+      },
+      "modified-approach": {
+        "w": "modified approach",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "根据失败结果调整后的做法。",
+        "eg": "The agent can retry with a modified approach.",
+        "egzh": "Agent 可以用调整后的方法重试。"
+      },
+      "react-pattern": {
+        "w": "ReAct pattern",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "Reason + Act 模式，把推理与行动交替组织。",
+        "eg": "Most modern agent loops trace back to the ReAct pattern.",
+        "egzh": "现代 Agent loop 大多可追溯到 ReAct 模式。"
+      },
+      "interleave": {
+        "w": "interleave",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "C1",
+        "def": "交错安排不同步骤或活动。",
+        "eg": "The core idea is to interleave reasoning steps with action steps.",
+        "egzh": "核心思想是交错安排推理和行动。"
+      },
+      "reasoning-steps": {
+        "w": "reasoning steps",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "模型分析目标、错误和下一步策略的推理环节。",
+        "eg": "The model reasons, takes an action, observes what happened.",
+        "egzh": "模型先推理，再行动并观察。"
+      },
+      "action-steps": {
+        "w": "action steps",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "模型实际调用工具、写代码或执行命令的环节。",
+        "eg": "The core idea is to interleave reasoning steps with action steps.",
+        "egzh": "行动步骤与推理步骤交替出现。"
+      },
+      "observe": {
+        "w": "observe",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "观察执行结果或错误反馈。",
+        "eg": "The model observes what happened.",
+        "egzh": "模型观察发生了什么。"
+      },
+      "code-generation": {
+        "w": "code generation",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "生成程序代码的任务场景。",
+        "eg": "In code generation contexts, this looks like.",
+        "egzh": "在代码生成场景中，loop 表现为写代码和运行验证。"
+      },
+      "runtime-errors": {
+        "w": "runtime errors",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "程序运行时暴露的错误。",
+        "eg": "They cannot catch runtime errors.",
+        "egzh": "缺少循环的 Agent 无法捕捉运行时错误。"
+      },
+      "environment-specific-issues": {
+        "w": "environment-specific issues",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "只在特定运行环境中出现的问题。",
+        "eg": "They cannot adapt to environment-specific issues.",
+        "egzh": "Agent 需要适应环境相关问题。"
+      },
+      "feedback-gap": {
+        "w": "feedback gap",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "生成结果与真实执行反馈之间的断层。",
+        "eg": "Loop engineering closes that feedback gap.",
+        "egzh": "Loop engineering 关闭反馈缺口。"
+      },
+      "hallucinates-progress": {
+        "w": "hallucinates progress",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "系统误以为或声称取得进展但缺少真实依据。",
+        "eg": "A poorly designed loop wastes tokens, runs forever, or hallucinates progress.",
+        "egzh": "差的 loop 可能幻觉式报告进展。"
+      },
+      "task-definition": {
+        "w": "task definition",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "对任务目标和完成标准的定义。",
+        "eg": "The loop needs to know what done looks like.",
+        "egzh": "Loop 需要知道什么状态算完成。"
+      },
+      "testable-sub-tasks": {
+        "w": "testable sub-tasks",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "可单独验证是否完成的子任务。",
+        "eg": "Broken into testable sub-tasks where possible.",
+        "egzh": "目标应尽量拆成可测试子任务。"
+      },
+      "over-reach": {
+        "w": "over-reach",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "C1",
+        "def": "超出合理范围或能力边界。",
+        "eg": "Scoped so the agent does not over-reach.",
+        "egzh": "任务范围要避免 Agent 过度延展。"
+      },
+      "code-execution": {
+        "w": "code execution",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "运行代码并获取输出或错误。",
+        "eg": "Code execution: run code and receive stdout/stderr.",
+        "egzh": "代码执行提供 stdout 和 stderr。"
+      },
+      "file-system-access": {
+        "w": "file system access",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "读取、写入或修改文件的能力。",
+        "eg": "File system access: read, write, or modify files.",
+        "egzh": "文件系统访问允许读写修改文件。"
+      },
+      "test-runners": {
+        "w": "test runners",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "执行测试并验证正确性的工具。",
+        "eg": "Test runners: verify correctness.",
+        "egzh": "测试运行器用于验证正确性。"
+      },
+      "context-management": {
+        "w": "context management",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "管理迭代中不断增长的代码、错误和决策上下文。",
+        "eg": "Good loop engineering includes context management.",
+        "egzh": "好的 loop engineering 包含上下文管理。"
+      },
+      "token-limits": {
+        "w": "token limits",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "模型上下文可容纳文本量的限制。",
+        "eg": "The agent will hit token limits.",
+        "egzh": "Agent 可能触达 token 限制。"
+      },
+      "working-memory": {
+        "w": "working memory",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "压缩后的当前任务记忆。",
+        "eg": "Summarizing previous iterations into compact working memory.",
+        "egzh": "把历史迭代总结为紧凑工作记忆。"
+      },
+      "structured-log": {
+        "w": "structured log",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "按结构记录尝试、结果和失败原因的日志。",
+        "eg": "Keeping a structured log of attempted approaches and outcomes.",
+        "egzh": "维护结构化日志有助于延续推理。"
+      },
+      "pruning": {
+        "w": "pruning",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "C1",
+        "def": "删去无关上下文以控制信息量。",
+        "eg": "Pruning irrelevant context before each new iteration.",
+        "egzh": "每次迭代前剪除无关上下文。"
+      },
+      "termination-logic": {
+        "w": "termination logic",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "判断何时成功、失败或升级处理的停止逻辑。",
+        "eg": "A loop needs termination logic.",
+        "egzh": "Loop 需要终止逻辑。"
+      },
+      "success-conditions": {
+        "w": "success conditions",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "测试通过、输出匹配预期或用户批准等成功条件。",
+        "eg": "Success conditions: tests pass, output matches expectation, or the user approves.",
+        "egzh": "成功条件包括测试通过或用户批准。"
+      },
+      "failure-conditions": {
+        "w": "failure conditions",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "达到最大迭代、重复无进展或工具失败等失败条件。",
+        "eg": "Failure conditions: maximum iterations reached, repeated errors with no progress, or tool call failures.",
+        "egzh": "失败条件定义何时停止或升级。"
+      },
+      "escalation-paths": {
+        "w": "escalation paths",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "卡住时移交给人类或其他 Agent 的路径。",
+        "eg": "Escalation paths: hand off to a human or another agent when stuck.",
+        "egzh": "升级路径用于卡住时交接。"
+      },
+      "syntax-errors": {
+        "w": "syntax errors",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "代码语法不合法导致的错误。",
+        "eg": "Distinguish recoverable errors, such as syntax errors or missing imports.",
+        "egzh": "语法错误通常是可恢复错误。"
+      },
+      "missing-imports": {
+        "w": "missing imports",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "代码缺少必要导入造成的错误。",
+        "eg": "Recoverable errors, such as syntax errors or missing imports.",
+        "egzh": "缺少导入属于可恢复错误。"
+      },
+      "hard-blockers": {
+        "w": "hard blockers",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "缺少凭证等无法由当前循环自行解决的阻塞。",
+        "eg": "Hard blockers, such as missing credentials.",
+        "egzh": "缺少凭证是硬阻塞。"
+      },
+      "strategy": {
+        "w": "strategy",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "为解决问题选择的行动方案。",
+        "eg": "Adjust its strategy based on error type.",
+        "egzh": "Agent 应根据错误类型调整策略。"
+      },
+      "ai-coding-agents": {
+        "w": "AI coding agents",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "能在代码库中读取、修改、运行和验证代码的 AI Agent。",
+        "eg": "AI coding tools evolved to full coding agents.",
+        "egzh": "AI coding agents 会围绕代码库循环工作。"
+      },
+      "claude-code": {
+        "w": "Claude Code",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "文章列举的 AI coding agent 工具之一。",
+        "eg": "Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering.",
+        "egzh": "Claude Code 依赖 loop engineering。"
+      },
+      "devin": {
+        "w": "Devin",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "文章列举的 AI coding agent 工具之一。",
+        "eg": "Tools such as Claude Code, Devin, and OpenAI's Codex Agent rely on loop engineering.",
+        "egzh": "Devin 是文中列举的编码 Agent。"
+      },
+      "codex-agent": {
+        "w": "Codex Agent",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "文章列举的 OpenAI 编码 Agent。",
+        "eg": "OpenAI's Codex Agent rely on loop engineering.",
+        "egzh": "Codex Agent 依赖 loop engineering。"
+      },
+      "base-model": {
+        "w": "base model",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "Agent 底层使用的大语言模型。",
+        "eg": "The quality difference is often not the base model, but the loop design.",
+        "egzh": "质量差异通常不在基础模型。"
+      },
+      "loop-design": {
+        "w": "loop design",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "围绕行动、反馈、上下文、验证和停止条件设计循环的方式。",
+        "eg": "The quality difference is often the loop design.",
+        "egzh": "质量差异常常来自 loop 设计。"
+      },
+      "stack-trace": {
+        "w": "stack trace",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "程序错误时显示调用路径和错误位置的信息。",
+        "eg": "Whether they read the full stack trace.",
+        "egzh": "好的 Agent 会读取完整 stack trace。"
+      },
+      "verify-output": {
+        "w": "verify output",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "确认输出确实可用，而不只是生成了文本或通过编译。",
+        "eg": "Whether they verify output.",
+        "egzh": "验证输出是好 Agent 的关键差异。"
+      },
+      "planning-agent": {
+        "w": "planning agent",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "负责把大任务拆分为子任务的 Agent。",
+        "eg": "A planning agent breaks a large task into subtasks.",
+        "egzh": "规划 Agent 拆解大任务。"
+      },
+      "executor-agents": {
+        "w": "executor agents",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "负责执行子任务的 Agent。",
+        "eg": "Multiple executor agents handle subtasks in parallel.",
+        "egzh": "执行 Agent 并行处理子任务。"
+      },
+      "reviewer-agent": {
+        "w": "reviewer agent",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "检查产出并把失败路由回去修正的 Agent。",
+        "eg": "A reviewer agent checks outputs and routes failures back for correction.",
+        "egzh": "审核 Agent 检查输出并路由失败。"
+      },
+      "retry-loop": {
+        "w": "Retry Loop",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "尝试、检查、失败后重试的最简单循环模式。",
+        "eg": "The retry loop tries something, checks if it worked, and retries if it did not.",
+        "egzh": "Retry loop 会失败后重试。"
+      },
+      "plan-execute-verify-loop": {
+        "w": "Plan-Execute-Verify Loop",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "先规划、逐步执行、每步验证后再继续的循环模式。",
+        "eg": "The plan-execute-verify loop plans first, executes it step by step, and verifies each step.",
+        "egzh": "Plan-Execute-Verify 先规划、执行并验证。"
+      },
+      "explore-narrow-loop": {
+        "w": "Explore-Narrow Loop",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "先探索多个方案，再收敛到最有希望方案的循环模式。",
+        "eg": "The explore-narrow loop explores multiple solution paths, then narrows to the most promising one.",
+        "egzh": "Explore-Narrow 会先探索再收敛。"
+      },
+      "human-in-the-loop": {
+        "w": "Human-in-the-Loop",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "在歧义、风险或生产变更中引入人类判断的循环方式。",
+        "eg": "The human-in-the-loop pauses for human input.",
+        "egzh": "Human-in-the-loop 会暂停等待人类输入。"
+      },
+      "tool-call-budgets": {
+        "w": "tool call budgets",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "限制每次循环可调用工具的次数或成本。",
+        "eg": "Set strict tool call budgets.",
+        "egzh": "工具调用预算可控制成本。"
+      },
+      "failure-cases": {
+        "w": "failure cases",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "用来测试系统失败处理能力的场景。",
+        "eg": "Test your loops on failure cases, not just happy paths.",
+        "egzh": "应测试失败场景，而不只测顺利路径。"
+      },
+      "happy-paths": {
+        "w": "happy paths",
+        "ipa": "/",
+        "pos": "noun",
+        "level": "B2",
+        "def": "一切按预期成功的顺利流程。",
+        "eg": "Test loops on failure cases, not just happy paths.",
+        "egzh": "不能只测试 happy path。"
+      },
+      "raw-output": {
+        "w": "raw output",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "未经结构化处理的原始工具或命令输出。",
+        "eg": "Give the agent structured feedback, not just raw output.",
+        "egzh": "给 Agent 结构化反馈，而不只是原始输出。"
+      },
+      "previous-attempts": {
+        "w": "previous attempts",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "Agent 在此前迭代中已经尝试过的方法或路径。",
+        "eg": "The agent will hit token limits or lose track of previous attempts.",
+        "egzh": "Agent 可能触达 token 限制，或忘记之前的尝试。"
+      },
+      "coordinated-loops": {
+        "w": "coordinated loops",
+        "ipa": "/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "多个 Agent 或循环按分工协同推进任务的结构。",
+        "eg": "Some tasks benefit from multiple agents running in coordinated loops.",
+        "egzh": "有些任务适合多个 Agent 在协调循环中运行。"
+      }
+    },
+    "autowrap": [
+      [
+        "loop engineering",
+        "i",
+        "loop-engineering"
+      ],
+      [
+        "goal-based automation",
+        "i",
+        "goal-based-automation"
+      ],
+      [
+        "agentic AI",
+        "i",
+        "agentic-ai"
+      ],
+      [
+        "repeating cycle",
+        "i",
+        "repeating-cycle"
+      ],
+      [
+        "feedback",
+        "i",
+        "feedback"
+      ],
+      [
+        "environment",
+        "i",
+        "environment"
+      ],
+      [
+        "termination condition",
+        "i",
+        "termination-condition"
+      ],
+      [
+        "stopping criterion",
+        "i",
+        "stopping-criterion"
+      ],
+      [
+        "chain",
+        "i",
+        "chain"
+      ],
+      [
+        "dynamic",
+        "i",
+        "dynamic"
+      ],
+      [
+        "modified approach",
+        "i",
+        "modified-approach"
+      ],
+      [
+        "ReAct pattern",
+        "i",
+        "react-pattern"
+      ],
+      [
+        "interleave",
+        "i",
+        "interleave"
+      ],
+      [
+        "reasoning steps",
+        "i",
+        "reasoning-steps"
+      ],
+      [
+        "action steps",
+        "i",
+        "action-steps"
+      ],
+      [
+        "observe",
+        "i",
+        "observe"
+      ],
+      [
+        "code generation",
+        "i",
+        "code-generation"
+      ],
+      [
+        "runtime errors",
+        "i",
+        "runtime-errors"
+      ],
+      [
+        "environment-specific issues",
+        "i",
+        "environment-specific-issues"
+      ],
+      [
+        "feedback gap",
+        "i",
+        "feedback-gap"
+      ],
+      [
+        "hallucinates progress",
+        "i",
+        "hallucinates-progress"
+      ],
+      [
+        "task definition",
+        "i",
+        "task-definition"
+      ],
+      [
+        "testable sub-tasks",
+        "i",
+        "testable-sub-tasks"
+      ],
+      [
+        "over-reach",
+        "i",
+        "over-reach"
+      ],
+      [
+        "code execution",
+        "i",
+        "code-execution"
+      ],
+      [
+        "file system access",
+        "i",
+        "file-system-access"
+      ],
+      [
+        "test runners",
+        "i",
+        "test-runners"
+      ],
+      [
+        "context management",
+        "i",
+        "context-management"
+      ],
+      [
+        "token limits",
+        "i",
+        "token-limits"
+      ],
+      [
+        "working memory",
+        "i",
+        "working-memory"
+      ],
+      [
+        "structured log",
+        "i",
+        "structured-log"
+      ],
+      [
+        "pruning",
+        "i",
+        "pruning"
+      ],
+      [
+        "termination logic",
+        "i",
+        "termination-logic"
+      ],
+      [
+        "success conditions",
+        "i",
+        "success-conditions"
+      ],
+      [
+        "failure conditions",
+        "i",
+        "failure-conditions"
+      ]
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents",
+    "sourceText": "What Is Loop Engineering? The New Meta for AI Coding Agents"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "resources": {
+    "bilingual-reader:what-is-loop-engineering-ai-coding-agents": {
+      "skill": "bilingual-reader",
+      "slug": "what-is-loop-engineering-ai-coding-agents",
+      "status": "confirmed",
+      "markdownPath": "resources/07/what-is-loop-engineering-ai-coding-agents.md",
+      "source": "https://www.mindstudio.ai/blog/what-is-loop-engineering-ai-coding-agents",
+      "sourceType": "url",
+      "generatedAt": "2026-06-21T09:08:03Z",
+      "confirmed": true,
+      "confirmedAt": "2026-06-21T09:09:50Z",
+      "confirmedBy": "agent",
+      "confirmationNotes": "正文、图片、视觉区块、链接和阅读顺序已确认"
+    },
+    "bilingual-reader:breaking-down-context-engineering": {
+      "skill": "bilingual-reader",
+      "slug": "breaking-down-context-engineering",
+      "status": "confirmed",
+      "markdownPath": "resources/07/breaking-down-context-engineering.md",
+      "source": "https://www.newsletter.swirlai.com/p/breaking-down-context-engineering",
+      "sourceType": "url",
+      "generatedAt": "2026-06-21T10:45:21Z",
+      "confirmed": true,
+      "confirmedAt": "2026-06-21T10:52:43Z",
+      "confirmedBy": "agent",
+      "confirmationNotes": "用户确认 Markdown 已可继续生成；图片已嵌入为 data:image Markdown 图片"
+    }
+  },
+  "parallel": {
+    "allowed": true,
+    "gateSkill": "bilingual-reader",
+    "gateSlug": "breaking-down-context-engineering",
+    "tasks": [
+      {
+        "skill": "content-slides",
+        "status": "ready",
+        "gateSkill": "bilingual-reader"
+      }
+    ],
+    "startedAt": "2026-06-21T10:52:45Z"
+  }
+}

@@ -1,0 +1,332 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ===== 水墨 — 生宣·焦墨·留白 light theme ===== */
+  /* 可切换强调色（默认 墨青），由 use-accent 在 <html> 上覆盖 */
+  --vermillion: 200 28% 30%; /* 墨青 */
+
+  --background: hsl(40 18% 90%); /* 生宣 */
+  --foreground: hsl(220 14% 13%); /* 焦墨 */
+  --card: hsl(42 24% 94%); /* 留白 */
+  --card-foreground: hsl(220 14% 13%);
+  --popover: hsl(42 24% 94%);
+  --popover-foreground: hsl(220 14% 13%);
+  --primary: hsl(var(--vermillion));
+  --primary-foreground: hsl(42 24% 95%);
+  --secondary: hsl(40 14% 83%);
+  --secondary-foreground: hsl(220 14% 13%);
+  --muted: hsl(40 12% 84%);
+  --muted-foreground: hsl(220 8% 38%);
+  --accent: hsl(40 14% 83%);
+  --accent-foreground: hsl(220 14% 13%);
+  --destructive: hsl(2 62% 46%);
+  --destructive-foreground: hsl(42 24% 95%);
+  --border: hsl(30 10% 72%);
+  --input: hsl(30 10% 72%);
+  --ring: hsl(var(--vermillion));
+  --radius: 0.25rem;
+
+  /* Brand tokens — 水墨 */
+  --ink: 220 14% 13%; /* 焦墨 */
+  --paper: 40 18% 90%; /* 生宣 */
+  --blueprint: 210 16% 40%; /* 淡墨 */
+  --ochre: 38 30% 55%; /* 赭石(柔) */
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-chinese: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.dark {
+  /* ===== 玄墨 — 夜色·宣白·留白 dark theme ===== */
+  --vermillion: 200 45% 58%; /* 墨青(亮) */
+
+  --background: hsl(220 16% 8%); /* 玄 */
+  --foreground: hsl(40 16% 88%); /* 宣白 */
+  --card: hsl(220 14% 12%);
+  --card-foreground: hsl(40 16% 88%);
+  --popover: hsl(220 14% 12%);
+  --popover-foreground: hsl(40 16% 88%);
+  --primary: hsl(var(--vermillion));
+  --primary-foreground: hsl(220 16% 8%);
+  --secondary: hsl(220 10% 18%);
+  --secondary-foreground: hsl(40 16% 88%);
+  --muted: hsl(220 10% 16%);
+  --muted-foreground: hsl(40 8% 60%);
+  --accent: hsl(220 10% 18%);
+  --accent-foreground: hsl(40 16% 88%);
+  --destructive: hsl(4 66% 54%);
+  --destructive-foreground: hsl(40 16% 88%);
+  --border: hsl(30 6% 28%);
+  --input: hsl(30 6% 28%);
+  --ring: hsl(var(--vermillion));
+
+  --ink: 40 16% 88%;
+  --paper: 220 16% 8%;
+  --blueprint: 210 18% 56%;
+  --ochre: 38 32% 60%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ink: hsl(var(--ink));
+  --color-paper: hsl(var(--paper));
+  --color-vermillion: hsl(var(--vermillion));
+  --color-blueprint: hsl(var(--blueprint));
+  --color-ochre: hsl(var(--ochre));
+
+  --font-display: var(--font-display);
+  --font-chinese: var(--font-chinese);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --radius-lg: var(--radius);
+  --radius-md: var(--radius);
+  --radius-sm: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+}
+
+/* ============================================================
+   水墨 (INK-WASH) THEME
+   ============================================================ */
+
+/* Rice-paper backdrop: layered ink washes + faint fibre texture */
+.paper-backdrop {
+  position: relative;
+  isolation: isolate;
+  background-color: hsl(var(--paper));
+  background-image:
+    radial-gradient(ellipse 70% 55% at 12% -8%, hsl(var(--ink) / 0.1), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 92% 4%, hsl(var(--vermillion) / 0.1), transparent 55%),
+    radial-gradient(ellipse 80% 50% at 50% 116%, hsl(var(--blueprint) / 0.1), transparent 60%);
+}
+
+/* Fine paper-fibre veil */
+.paper-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--ink) / 0.025) 0,
+      hsl(var(--ink) / 0.025) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      hsl(var(--ink) / 0.02) 0,
+      hsl(var(--ink) / 0.02) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+}
+
+/* Display + mono helpers */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+.font-chinese {
+  font-family: var(--font-chinese);
+  font-optical-sizing: auto;
+}
+.font-mono-tech {
+  font-family: var(--font-mono);
+}
+
+.nav-menu-link {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  padding-bottom: 0.35rem;
+  --nav-highlight-origin: center;
+  --nav-highlight-shift: 0;
+}
+.nav-menu-link[data-exit="left"] {
+  --nav-highlight-origin: right;
+  --nav-highlight-shift: -0.2rem;
+}
+.nav-menu-link[data-exit="right"] {
+  --nav-highlight-origin: left;
+  --nav-highlight-shift: 0.2rem;
+}
+.nav-menu-link:hover {
+  --nav-highlight-origin: center;
+  --nav-highlight-shift: 0;
+}
+.nav-menu-link::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: hsl(var(--vermillion));
+  opacity: 0;
+  transform: translateX(var(--nav-highlight-shift)) scaleX(0);
+  transform-origin: var(--nav-highlight-origin);
+  will-change: transform, opacity;
+  transition:
+    transform 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.28s ease;
+}
+.nav-menu-link:hover::after,
+.nav-menu-link-active::after {
+  opacity: 1;
+  transform: translateX(0) scaleX(1);
+}
+
+/* Section eyebrow label with tick */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: hsl(var(--vermillion));
+}
+.eyebrow::before {
+  content: "";
+  width: 1.75rem;
+  height: 1px;
+  background: hsl(var(--vermillion));
+}
+
+/* Vermillion underline highlight for display headings */
+.ink-underline {
+  background-image: linear-gradient(hsl(var(--vermillion) / 0.28), hsl(var(--vermillion) / 0.28));
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 100% 0.32em;
+}
+
+/* Ruled "index card" — sharp ink border + offset shadow */
+.index-card {
+  position: relative;
+  background: hsl(var(--card));
+  border: 1.5px solid hsl(var(--ink));
+  border-radius: var(--radius);
+  box-shadow: 6px 6px 0 0 hsl(var(--ink));
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.index-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 9px 9px 0 0 hsl(var(--vermillion));
+}
+
+/* Soft paper card (no hard shadow) */
+.soft-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+/* Filled primary button (push effect) */
+.btn-ink {
+  border: 1.5px solid hsl(var(--ink));
+  box-shadow: 3px 3px 0 0 hsl(var(--ink));
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.btn-ink:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 hsl(var(--ink));
+}
+.btn-ink:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 hsl(var(--ink));
+}
+
+/* Staggered entrance reveal */
+@keyframes rise {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translate3d(0, 16px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.reveal {
+  opacity: 0;
+  transform-origin: top right;
+  animation: rise 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: filter, opacity, transform;
+}
+
+/* Marquee-style underline draw on the counter number */
+@keyframes blink-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.caret {
+  animation: blink-caret 1.4s steps(2, start) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .caret {
+    animation: none;
+  }
+  .reveal {
+    filter: none;
+    opacity: 1;
+    transform: none;
+  }
+}
