@@ -55,6 +55,7 @@ resources/<id>/
 | `pnpm test`           | Run unit tests once                          |
 | `pnpm test:coverage`  | Run unit tests with a coverage report        |
 | `pnpm verify:studies` | Assert study HTML is byte-identical to generator output (offline) |
+| `pnpm verify:dist` | Assert `dist` is deployable (after `pnpm build`) |
 
 ## Coding conventions
 
@@ -100,11 +101,12 @@ chore: bump dependencies
 2. Make your changes and add tests where appropriate.
 3. Ensure all checks pass locally:
    ```bash
-   pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm verify:studies && pnpm build
+   pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm verify:studies && pnpm build && pnpm verify:dist
    ```
 4. Open a pull request and fill out the PR template.
 
-CI will run lint, type-check, tests, the study-artifact drift check, and build on every pull request.
+CI will run lint, type-check, tests, the study-artifact drift check, build, and the dist
+deployment-readiness check on every pull request.
 
 If you change `.skills/bilingual-reader` rendering or any `resources/<id>/studies/*.html`, do not
 hand-edit study HTML. Change the generator, then re-render; `pnpm verify:studies` enforces that the

@@ -89,6 +89,7 @@ pnpm dev
 | `pnpm test:watch` | 以 watch 模式运行测试 |
 | `pnpm test:coverage` | 生成测试覆盖率报告 |
 | `pnpm verify:studies` | 校验精读页 HTML 与生成器输出逐字节一致（离线可用） |
+| `pnpm verify:dist` | 校验 `dist` 可部署：资源页已产出、同源资源可解析、无外部脚本 |
 
 ## 项目结构
 

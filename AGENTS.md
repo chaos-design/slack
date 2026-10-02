@@ -182,6 +182,8 @@ import.meta.glob("../../resources/*/slides/*.html", {
 
 `pnpm verify:studies`（`scripts/verify-studies.mjs`）用 `.skills/bilingual-reader/scripts/static_reader.py` 重新渲染每个 `resources/<id>/studies/*.html`，并要求结果与已提交产物**逐字节一致**。它锁定「产物 = 生成器输出」这条不变量，CI 必须执行。图片字节由 `<stem>-images/` 缓存提供，所以该检查不需要联网。任何失败都意味着产物已与生成器脱节：先确认改动是否应改生成器，再重渲染产物，不要手工编辑 study HTML。
 
+`pnpm verify:dist`（`scripts/verify-dist.mjs`）在 `pnpm build` 之后校验 `dist` 是否可部署：存在 `index.html`、`index.html` 引用的同源资源都能在 `dist` 中解析、`resources/` 定义的每个 study/slide 都已产出到 `dist/assets`、且应用外壳不加载外部脚本。CI 证明应用能构建，但 Vercel 是直接把 `dist` 当静态目录提供并套一层 SPA fallback，因此产物缺失一个资源页就是线上坏链而 CI 仍然全绿——这道门禁专门覆盖该缺口。
+
 ### 样式与交互
 
 全局样式在 `src/styles/globals.css`。项目采用 Tailwind CSS 4 CSS-first 配置，设计 token 使用 `@theme inline` 暴露，未使用 `tailwind.config.ts`。
@@ -380,6 +382,7 @@ pnpm test           # 运行单元测试
 pnpm test:coverage  # 运行覆盖率测试
 pnpm verify:studies # 校验 study HTML 与生成器输出逐字节一致（离线）
 pnpm build          # 类型检查并构建生产产物
+pnpm verify:dist    # 校验 dist 可部署（资源页已产出、同源资源可解析、无外部脚本）
 pnpm preview        # 本地预览 dist
 ```
 
@@ -406,7 +409,13 @@ pnpm test:coverage
 pnpm verify:studies
 ```
 
-CI 位于 `.github/workflows/ci.yml`，在 Node 24 环境中以 `pnpm install --frozen-lockfile` 执行 lint、typecheck、coverage test、study 产物一致性和 production build。
+改动 `src/`、`index.html`、`public/` 或 `vite.config.ts`（影响构建产物）时，还必须运行：
+
+```bash
+pnpm build && pnpm verify:dist
+```
+
+CI 位于 `.github/workflows/ci.yml`，在 Node 24 环境中以 `pnpm install --frozen-lockfile` 执行 lint、typecheck、coverage test、study 产物一致性、production build 与 dist 可部署性检查。
 
 ## 协作流程
 
