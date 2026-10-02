@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import html
 import json
-import mimetypes
 import re
 import sys
+import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -43,9 +44,18 @@ TEMPLATE_ROOT = ROOT / "assets" / "templates"
 RUNTIME_CSS = ROOT / "assets" / "runtime.css"
 TEMPLATE_INDEX = TEMPLATE_ROOT / "templates.json"
 BASE_TEMPLATE = ROOT / "assets" / "template.html"
-HIGHLIGHT_JS_CSS = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
-HIGHLIGHT_JS_SCRIPT = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
+# Highlight.js is vendored locally and inlined so published study pages stay
+# self-contained and never depend on a CDN at view time.
+HIGHLIGHT_JS_CSS_PATH = ROOT / "assets" / "highlight-theme.min.css"
+HIGHLIGHT_JS_SCRIPT_PATH = ROOT / "assets" / "highlight.min.js"
+CODE_BLOCK_MARKER = "<pre"
 MAX_JSON_BYTES = 20 * 1024 * 1024
+IMAGE_CACHE_SUFFIX = "-images"
+IMAGE_MANIFEST_NAME = "manifest.json"
+IMAGE_FETCH_TIMEOUT = 30
+IMAGE_FETCH_ATTEMPTS = 3
+IMAGE_FETCH_BACKOFF_SECONDS = 1.0
+IMAGE_MIN_BYTES = 64
 
 
 TRANSLATION_HINTS = {
@@ -423,36 +433,187 @@ def render_runtime_bootstrap(data: dict[str, object]) -> str:
   </script>"""
 
 
-def render_code_sdk_head() -> str:
-    """Render third-party code highlighting assets."""
+def render_code_sdk_head(enabled: bool) -> str:
+    """Inline the vendored Highlight.js theme when the page has code blocks."""
 
-    return f'  <link rel="stylesheet" href="{HIGHLIGHT_JS_CSS}">\n'
-
-
-def render_code_sdk_script() -> str:
-    """Load Highlight.js for source code blocks."""
-
-    return f'  <script defer src="{HIGHLIGHT_JS_SCRIPT}"></script>'
+    if not enabled:
+        return ""
+    theme = HIGHLIGHT_JS_CSS_PATH.read_text(encoding="utf-8")
+    return f"  <style>\n{theme}  </style>\n"
 
 
-def inline_image(url: str, image_cache: dict[str, str], enabled: bool) -> str:
-    """Inline an accessible image as data URI, or keep the source URL."""
+def render_code_sdk_script(enabled: bool) -> str:
+    """Inline the vendored Highlight.js runtime when the page has code blocks."""
 
-    if not enabled or url.startswith("data:"):
-        return url
-    if url in image_cache:
-        return image_cache[url]
-    try:
+    if not enabled:
+        return ""
+    runtime = HIGHLIGHT_JS_SCRIPT_PATH.read_text(encoding="utf-8")
+    return f"  <script>\n{runtime}  </script>\n"
+
+
+def sniff_image_type(payload: bytes) -> str | None:
+    """Identify an image format from its magic bytes.
+
+    Content-Type headers from image hosts are frequently wrong or generic
+    (`application/octet-stream`), and a failed request can return an HTML error
+    page labelled as an image. Trusting the bytes keeps both the cache manifest
+    and the emitted data URI accurate.
+    """
+
+    if not payload:
+        return None
+    for signature, mime in (
+        (b"\x89PNG\r\n\x1a\n", "image/png"),
+        (b"\xff\xd8\xff", "image/jpeg"),
+        (b"GIF87a", "image/gif"),
+        (b"GIF89a", "image/gif"),
+        (b"BM", "image/bmp"),
+        (b"\x00\x00\x01\x00", "image/x-icon"),
+        (b"II*\x00", "image/tiff"),
+        (b"MM\x00*", "image/tiff"),
+    ):
+        if payload.startswith(signature):
+            return mime
+    if payload[:4] == b"RIFF" and payload[8:12] == b"WEBP":
+        return "image/webp"
+    if payload[4:8] == b"ftyp":
+        brand = payload[8:12]
+        if brand in (b"avif", b"avis"):
+            return "image/avif"
+        if brand[:4] in (b"heic", b"heix", b"mif1", b"msf1"):
+            return "image/heic"
+    head = payload[:512].lstrip()
+    if head.startswith(b"<?xml") or head.startswith(b"<!DOCTYPE svg") or b"<svg" in head:
+        return "image/svg+xml"
+    return None
+
+
+class ImageCache:
+    """Persistent, content-pinned cache for source images.
+
+    Remote image endpoints (CDNs, image optimizers) negotiate their response
+    format per request, so the same URL can return different bytes months
+    later. Persisting the fetched bytes keeps rendered pages reproducible, and
+    turning a failed fetch into a hard error keeps published pages offline.
+    """
+
+    def __init__(self, directory: Path | None, enabled: bool = True) -> None:
+        self.directory = directory
+        self.enabled = enabled
+        self.entries: dict[str, str] = {}
+        self.failures: list[str] = []
+        self.downloaded = 0
+        self.reused = 0
+
+    def _manifest_path(self) -> Path | None:
+        return self.directory / IMAGE_MANIFEST_NAME if self.directory else None
+
+    def _load_manifest(self) -> dict[str, dict[str, str]]:
+        manifest = self._manifest_path()
+        if not manifest or not manifest.exists():
+            return {}
+        try:
+            loaded = json.loads(manifest.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        return loaded if isinstance(loaded, dict) else {}
+
+    def _save_manifest(self, manifest: dict[str, dict[str, str]]) -> None:
+        target = self._manifest_path()
+        if not target:
+            return
+        self.directory.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def _fetch(self, url: str) -> tuple[bytes, str]:
+        """Download one image with retries, returning validated bytes and type."""
+
         request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(request, timeout=20) as response:
-            payload = response.read()
-            content_type = response.headers.get("content-type", "").split(";")[0]
-        if not content_type:
-            content_type = mimetypes.guess_type(url.split("?")[0])[0] or "image/webp"
-        image_cache[url] = f"data:{content_type};base64,{base64.b64encode(payload).decode('ascii')}"
-    except Exception:
-        image_cache[url] = url
-    return image_cache[url]
+        last_error = "unknown error"
+        for attempt in range(1, IMAGE_FETCH_ATTEMPTS + 1):
+            try:
+                with urlopen(request, timeout=IMAGE_FETCH_TIMEOUT) as response:
+                    payload = response.read()
+            except Exception as exc:
+                last_error = f"{type(exc).__name__}: {exc}"
+                if attempt < IMAGE_FETCH_ATTEMPTS:
+                    time.sleep(IMAGE_FETCH_BACKOFF_SECONDS * attempt)
+                continue
+
+            if len(payload) < IMAGE_MIN_BYTES:
+                last_error = f"response too small ({len(payload)} bytes)"
+            else:
+                sniffed = sniff_image_type(payload)
+                if sniffed is None:
+                    preview = payload[:80].decode("utf-8", errors="replace").replace("\n", " ")
+                    last_error = f"payload is not a recognised image (starts with {preview!r})"
+                else:
+                    return payload, sniffed
+            if attempt < IMAGE_FETCH_ATTEMPTS:
+                time.sleep(IMAGE_FETCH_BACKOFF_SECONDS * attempt)
+
+        raise ValueError(f"{url} -> {last_error}")
+
+    def data_uri(self, url: str) -> str:
+        """Return a data URI for one source image, fetching and pinning on miss.
+
+        Fetch failures are recorded rather than raised so a single run reports
+        every unreachable source image, not just the first one. Callers must
+        call :meth:`raise_for_failures` before writing any output.
+        """
+
+        if not self.enabled or url.startswith("data:"):
+            return url
+        if url in self.entries:
+            self.reused += 1
+            return self.entries[url]
+
+        manifest = self._load_manifest()
+        record = manifest.get(url)
+        if record:
+            cached = self.directory / record["file"] if self.directory else None
+            if cached and cached.exists():
+                payload = cached.read_bytes()
+                self.entries[url] = f"data:{record['contentType']};base64,{base64.b64encode(payload).decode('ascii')}"
+                self.reused += 1
+                return self.entries[url]
+
+        try:
+            payload, content_type = self._fetch(url)
+        except ValueError as exc:
+            hint = f" Fetch it manually into {self.directory}/ and add a {IMAGE_MANIFEST_NAME} entry." if self.directory else ""
+            self.failures.append(f"{exc}.{hint}")
+            return ""
+
+        if content_type == "image/svg+xml":
+            payload = payload.decode("utf-8", errors="replace").encode("utf-8")
+
+        if self.directory:
+            suffix = content_type.split("/", 1)[-1].split("+")[0]
+            filename = f"{hashlib.sha256(url.encode('utf-8')).hexdigest()[:20]}.{suffix}"
+            self.directory.mkdir(parents=True, exist_ok=True)
+            (self.directory / filename).write_bytes(payload)
+            manifest[url] = {"file": filename, "contentType": content_type, "bytes": len(payload)}
+            self._save_manifest(manifest)
+
+        self.downloaded += 1
+        self.entries[url] = f"data:{content_type};base64,{base64.b64encode(payload).decode('ascii')}"
+        return self.entries[url]
+
+    def raise_for_failures(self) -> None:
+        """Fail the render when any source image could not be pinned.
+
+        Emitting the remote URL instead would publish a page that breaks offline
+        and violates the self-contained HTML contract, so a gap is always fatal.
+        """
+
+        if not self.failures:
+            return
+        listed = "\n".join(f"  - {failure}" for failure in self.failures)
+        raise ValueError(
+            f"{len(self.failures)} source image(s) could not be fetched or validated; "
+            f"no page was written.\n{listed}"
+        )
 
 
 def build_data(markdown_file: Path) -> dict[str, object]:
@@ -1072,7 +1233,7 @@ def media_caption(row: dict[str, object]) -> str:
     return caption or alt or "原文图片"
 
 
-def render_original_row(row: dict[str, object], mode: str, images: dict[str, str], inline_images: bool) -> str:
+def render_original_row(row: dict[str, object], mode: str, images: ImageCache, inline_images: bool) -> str:
     """Render one original-view row, preserving media order."""
 
     row_type = row.get("type")
@@ -1080,7 +1241,7 @@ def render_original_row(row: dict[str, object], mode: str, images: dict[str, str
         heading_html = safe_original_html(row.get("html"), row.get("text", ""))
         return f'<div class="og-subheading md-source">{heading_html}</div>'
     if row_type == "image":
-        source = inline_image(str(row["src"]), images, inline_images)
+        source = images.data_uri(str(row["src"])) if inline_images else str(row["src"])
         caption = media_caption(row)
         return f"""
       <figure class="source-figure og-media">
@@ -1268,7 +1429,7 @@ def render_original_intro(data: dict[str, object], original: dict[str, object]) 
         </div>"""
 
 
-def render_original(data: dict[str, object], mode: str, images: dict[str, str], inline_images: bool) -> str:
+def render_original(data: dict[str, object], mode: str, images: ImageCache, inline_images: bool) -> str:
     """Render original tab content."""
 
     original = data["original"]
@@ -1737,12 +1898,12 @@ def render_header_title(title: str, template_name: str) -> str:
 def render_page(
     data: dict[str, object],
     template_name: str,
-    image_cache: dict[str, str] | None = None,
+    image_cache: ImageCache | None = None,
     inline_images: bool = True,
 ) -> str:
     """Render one complete static HTML page."""
 
-    image_cache = image_cache if image_cache is not None else {}
+    image_cache = image_cache if image_cache is not None else ImageCache(None)
     css = load_template_css(template_name)
     mode = row_mode(css)
     metadata = data["metadata"]
@@ -1758,13 +1919,14 @@ def render_page(
         + render_original(data, mode, image_cache, inline_images)
     )
     footer = data["footer"]
+    has_code_blocks = CODE_BLOCK_MARKER in body
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{escape(metadata["title"])} · 中英对照精读 · {escape(template_name)}</title>
-{render_code_sdk_head()}  <style>
+{render_code_sdk_head(has_code_blocks)}  <style>
 {css}
 {static_overrides()}
   </style>
@@ -1789,8 +1951,7 @@ def render_page(
 {body}
   </div>
   <footer>原文：<a href="{escape(footer["sourceUrl"])}" target="_blank" rel="noopener">《{escape(footer["sourceText"])}》</a></footer>
-{render_code_sdk_script()}
-{render_script(data)}
+{render_code_sdk_script(has_code_blocks)}{render_script(data)}
 </body>
 </html>
 """
@@ -1846,6 +2007,7 @@ def generate_previews(
     data_file: Path | None = None,
     data_only: bool = False,
     stdout_html: bool = False,
+    image_cache_dir: Path | None = None,
 ) -> None:
     """Generate data and preview pages for one template by default."""
 
@@ -1861,7 +2023,10 @@ def generate_previews(
         data = build_data(markdown_file)
     else:
         raise ValueError("Either markdown_file or --data-file is required.")
-    image_cache: dict[str, str] = {}
+    image_cache = ImageCache(
+        resolve_image_cache_dir(data_file=data_file, output_dir=output_dir, explicit=image_cache_dir),
+        enabled=inline_images,
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     data_output = output_dir / "data.json"
     if not data_file or data_output.resolve() != Path(data_file).expanduser().resolve():
@@ -1872,18 +2037,46 @@ def generate_previews(
     templates = selected_templates(template_name)
     if stdout_html:
         page = render_page(data, str(templates[0]["name"]), image_cache=image_cache, inline_images=inline_images)
+        image_cache.raise_for_failures()
         sys.stdout.write(page)
         if not page.endswith("\n"):
             sys.stdout.write("\n")
         return
-    for template in templates:
-        name = str(template["name"])
+    # Render every template before writing anything so an image gap cannot leave
+    # partially generated pages behind.
+    rendered = [
+        (str(template["name"]), render_page(data, str(template["name"]), image_cache=image_cache, inline_images=inline_images))
+        for template in templates
+    ]
+    image_cache.raise_for_failures()
+    for name, page in rendered:
         page_dir = output_dir / name
         page_dir.mkdir(parents=True, exist_ok=True)
-        page = render_page(data, name, image_cache=image_cache, inline_images=inline_images)
         (page_dir / "index.html").write_text(page, encoding="utf-8")
     render_preview_index(templates, output_dir)
-    print(f"generated={len(templates)} images_total={len(image_cache)}")
+    print(
+        f"generated={len(templates)} images_reused={image_cache.reused} "
+        f"images_downloaded={image_cache.downloaded} cache_dir={image_cache.directory or 'none'}"
+    )
+
+
+def resolve_image_cache_dir(data_file: Path | None, output_dir: Path, explicit: Path | None) -> Path | None:
+    """Pick the on-disk image cache directory.
+
+    Keeping it next to the reviewed data file makes the cache travel with the
+    artifact it belongs to, which is what makes re-rendering reproducible.
+    """
+
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    if data_file:
+        source = Path(data_file).expanduser().resolve()
+        stem = source.name[: -len(source.suffix)] if source.suffix else source.name
+        # `article.data.json` and `data.json` both resolve to `article-images` / `images`.
+        if stem.endswith(".data"):
+            stem = stem[: -len(".data")]
+        return source.parent / f"{stem}{IMAGE_CACHE_SUFFIX}"
+    return output_dir / IMAGE_CACHE_SUFFIX.lstrip("-")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1906,6 +2099,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--stdout-html",
         action="store_true",
         help="Write the selected complete standalone HTML document to stdout with no status text.",
+    )
+    parser.add_argument(
+        "--image-cache-dir",
+        type=Path,
+        help="Persist fetched source image bytes here so re-rendering stays byte-stable. Defaults to <data-file-stem>-images.",
     )
     return parser
 
@@ -1953,6 +2151,7 @@ def main(argv: list[str] | None = None) -> int:
                 data_file=data_file,
                 data_only=args.data_only,
                 stdout_html=args.stdout_html,
+                image_cache_dir=args.image_cache_dir,
             )
     except Exception as exc:
         print(f"static_reader failed: {exc}", file=sys.stderr)

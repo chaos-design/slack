@@ -151,6 +151,9 @@ out
 # pnpm
 .pnpm-store
 
+# Python
+__pycache__/
+
 # yarn v3
 .pnp.*
 .yarn/*

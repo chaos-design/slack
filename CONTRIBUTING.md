@@ -5,7 +5,7 @@ the project, the conventions we follow, and how to submit changes.
 
 ## Prerequisites
 
-- **Node.js** >= 20.19.0 (Node 22 LTS recommended)
+- **Node.js** 24.x (pinned via `engines.node`; local, CI, and Vercel all use Node 24 LTS. Node 20 is EOL)
 - **pnpm** 10 (`corepack enable` is the easiest way to get the pinned version)
 
 ## Getting started
@@ -54,6 +54,7 @@ resources/<id>/
 | `pnpm typecheck`      | Run the TypeScript compiler (no emit)        |
 | `pnpm test`           | Run unit tests once                          |
 | `pnpm test:coverage`  | Run unit tests with a coverage report        |
+| `pnpm verify:studies` | Assert study HTML is byte-identical to generator output (offline) |
 
 ## Coding conventions
 
@@ -99,11 +100,17 @@ chore: bump dependencies
 2. Make your changes and add tests where appropriate.
 3. Ensure all checks pass locally:
    ```bash
-   pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build
+   pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm verify:studies && pnpm build
    ```
 4. Open a pull request and fill out the PR template.
 
-CI will run lint, type-check, tests, and build on every pull request.
+CI will run lint, type-check, tests, the study-artifact drift check, and build on every pull request.
+
+If you change `.skills/bilingual-reader` rendering or any `resources/<id>/studies/*.html`, do not
+hand-edit study HTML. Change the generator, then re-render; `pnpm verify:studies` enforces that the
+published pages stay byte-identical to generator output. Source image bytes are pinned in
+`resources/<id>/artifacts/<stem>-images/` because remote image endpoints renegotiate their format
+per request.
 
 ## Reporting bugs & requesting features
 

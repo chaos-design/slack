@@ -13,10 +13,10 @@ Load this document only after the user has approved the normalized Markdown.
   or failed instead of generating substitute output.
 - Do not invent source content, source images, captions, metadata, quiz evidence, or glossary terms.
 - Do not invent template descriptions or descriptive page modules. Template-related copy must be derived from the approved Markdown and the selected template metadata, and unsupported details must be omitted or identified as source gaps.
-- Preserve source code blocks as content. Do not translate identifiers, comments, strings, CLI commands, API URLs, config keys, placeholders, indentation, or line breaks. Keep the approved code highlighting SDK so fenced code remains syntax-highlighted while the raw `<pre><code>` content stays readable without JavaScript.
+- Preserve source code blocks as content. Do not translate identifiers, comments, strings, CLI commands, API URLs, config keys, placeholders, indentation, or line breaks. Keep the vendored code highlighting SDK so fenced code remains syntax-highlighted while the raw `<pre><code>` content stays readable without JavaScript.
 - Preserve source tables in the original view as editable HTML `<table>` elements in reading order. Translate table text in the paired Chinese table while preserving table structure and inline styles; do not flatten tables into bilingual rows.
 - Preserve links, lists, bold, italic, blockquotes, and tables as styled translated HTML. Images and code blocks must remain source-only and must not be translated.
-- Preserve accessible source images in the original view near their source position. Inline image bytes as data URIs when accessible. Render source images centered in a fixed 720x405 bounded image box with `object-fit: contain`. If an image is referenced but inaccessible, state the gap; do not substitute generated, stock, decorative, or placeholder images.
+- Preserve accessible source images in the original view near their source position. Inline image bytes as data URIs. Bytes are pinned on disk in a `<data-file-stem>-images/` cache (`manifest.json` maps source URL to stored file and content type) so re-rendering stays byte-stable; remote image endpoints renegotiate their format per request and would otherwise silently change output between runs. Every download is retried, and the payload is identified from its magic bytes rather than its `Content-Type`, so an HTML error page served with a 200 or an `image/*` header is rejected instead of being inlined as a broken image. Any image that cannot be fetched or validated is a hard failure reported for every offending URL in one pass, and no page is written — never fall back to emitting the remote URL, which would publish a page that breaks offline. Render source images centered in a fixed 720x405 bounded image box with `object-fit: contain`. If an image is referenced but inaccessible, state the gap; do not substitute generated, stock, decorative, or placeholder images.
 - For screenshots or scans, OCR only visible English text in reading order and state uncertainty for unclear regions.
 
 ## Language And Learning Content
@@ -76,13 +76,13 @@ Before delivery, verify that generated HTML contains:
 - no user-visible template-name explanation;
 - no user-visible `DOCxxx`, `TPLxxx`, or `DOMxxx` markers;
 - no unreplaced placeholders such as `__DATA_JSON__` or `__THEME_JSON__`;
-- no external scripts or stylesheets except an approved code highlighting SDK;
+- no external scripts or stylesheets; the vendored Highlight.js runtime and theme are inlined instead;
 - no `fetch()`;
 - no module imports;
 - no unresolved runtime data blobs;
 - no invented replacement images;
 - no unconstrained original-view image dimensions;
 - no translated images or code blocks;
-- code blocks keep `language-*` classes and approved Highlight.js CSS/JS for syntax highlighting;
+- code blocks keep `language-*` classes and inlined Highlight.js CSS/JS for syntax highlighting;
 - no flattened table translations;
 - translated links, lists, bold, italic, blockquotes, and tables preserve their source structure.

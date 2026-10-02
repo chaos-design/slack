@@ -48,10 +48,6 @@ FORBIDDEN_HTML_RE = re.compile(
     r"__DATA_JSON__|__THEME_JSON__|\b(?:DOC|TPL|DOM)\d+\b|fetch\s*\(|type=[\"']module[\"']",
     re.IGNORECASE,
 )
-APPROVED_CODE_HIGHLIGHT_ASSETS = {
-    "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css",
-    "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js",
-}
 
 
 @dataclass
@@ -563,10 +559,10 @@ def review_html_contract(text: str, collector: TagCollector, path: Path, issues:
     if has_code_blocks and "language-" not in text:
         add_issue(issues, "warning", "html.code_language_missing", "html", str(path), "代码块缺少 language class。", "保留代码语言信息。")
     if has_code_blocks:
-        stylesheet_urls = [attrs.get("href", "") for tag, attrs in collector.tags if tag == "link" and attrs.get("rel") == "stylesheet"]
-        script_urls = [attrs.get("src", "") for tag, attrs in collector.tags if tag == "script"]
-        has_highlight_css = any(is_approved_code_highlight_asset(url) and url.endswith(".css") for url in stylesheet_urls)
-        has_highlight_script = any(is_approved_code_highlight_asset(url) and url.endswith(".min.js") for url in script_urls)
+        # Highlight.js is vendored into the skill and inlined, so detect the
+        # bundled runtime/theme instead of an approved CDN URL.
+        has_highlight_script = "var hljs=" in text
+        has_highlight_css = "code.hljs{" in text or ".hljs{" in text
         if not has_highlight_css or not has_highlight_script:
             add_issue(
                 issues,
@@ -574,8 +570,8 @@ def review_html_contract(text: str, collector: TagCollector, path: Path, issues:
                 "html.code_highlight_missing",
                 "html",
                 str(path),
-                "页面包含代码块但缺少批准的代码高亮 SDK。",
-                "保留 Highlight.js CSS 与脚本，同时确保代码内容仍以 <pre><code> 可见。",
+                "页面包含代码块但缺少内联的代码高亮运行时。",
+                "由 static_reader.py 内联 vendor 的 Highlight.js 主题与运行时，同时确保代码内容仍以 <pre><code> 可见。",
             )
 
 
@@ -594,17 +590,11 @@ def review_layout_boundaries(text: str, collector: TagCollector, path: Path, iss
         check_image_bounds(attrs, index, path, issues)
     for tag, attrs in collector.tags:
         if tag == "link" and attrs.get("rel") == "stylesheet" and attrs.get("href", "").startswith(("http://", "https://")):
-            if not is_approved_code_highlight_asset(attrs.get("href", "")):
-                add_issue(issues, "warning", "html.external_stylesheet", "html", str(path), f"外部样式：{attrs.get('href')}", "最终交付应内联 CSS，代码高亮 SDK 除外。")
+            add_issue(issues, "warning", "html.external_stylesheet", "html", str(path), f"外部样式：{attrs.get('href')}", "最终交付应内联 CSS；Highlight.js 已随技能本地 vendor，不应再走 CDN。")
         if tag == "script" and attrs.get("src", "").startswith(("http://", "https://")):
-            if not is_approved_code_highlight_asset(attrs.get("src", "")):
-                add_issue(issues, "warning", "html.external_script", "html", str(path), f"外部脚本：{attrs.get('src')}", "最终交付应内联 JS，代码高亮 SDK 除外。")
-
-
-def is_approved_code_highlight_asset(url: str) -> bool:
-    """Return true for approved external assets used only for code highlighting."""
-
-    return url in APPROVED_CODE_HIGHLIGHT_ASSETS
+            add_issue(issues, "warning", "html.external_script", "html", str(path), f"外部脚本：{attrs.get('src')}", "最终交付应内联 JS；Highlight.js 已随技能本地 vendor，不应再走 CDN。")
+        if tag == "img" and attrs.get("src", "").startswith(("http://", "https://")):
+            add_issue(issues, "error", "html.external_image", "html", str(path), f"外部图片：{attrs.get('src')}", "源图片字节必须内联为 data URI 并落入 <stem>-images/ 缓存；static_reader.py 不会回退到远端 URL。")
 
 
 def check_image_bounds(attrs: dict[str, str], index: int, path: Path, issues: list[Issue]) -> None:

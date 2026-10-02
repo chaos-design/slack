@@ -44,7 +44,7 @@ Slack 是一个面向 AI Agent 学习资料的 React 单页站点。项目按
 
 | 层级 | 工具 |
 | --- | --- |
-| Runtime | Node.js >= 20.19.0 |
+| Runtime | Node.js 24.x |
 | Framework | React 19, TypeScript |
 | Build | Vite 8 |
 | Routing | React Router 7 |
@@ -59,7 +59,9 @@ Slack 是一个面向 AI Agent 学习资料的 React 单页站点。项目按
 
 ## 环境要求
 
-- **Node.js** >= 20.19.0，CI 使用 Node 22。
+- **Node.js** 24.x（`package.json` 的 `engines.node`）。本地开发、CI 与 Vercel 构建统一使用 Node 24 LTS。
+  该下限由依赖树决定：Vite 8 要求 `>=22.12.0`，Vitest 5 要求 `^22.12.0 || ^24.0.0 || >=26.0.0`；
+  Node 20 已 EOL 且 Vercel 已于 2026-10-01 起弃用。
 - **pnpm** 10，推荐通过 `corepack enable` 启用；精确版本见 `package.json`
   的 `packageManager` 字段。
 
@@ -86,6 +88,7 @@ pnpm dev
 | `pnpm test` | 运行单元测试 |
 | `pnpm test:watch` | 以 watch 模式运行测试 |
 | `pnpm test:coverage` | 生成测试覆盖率报告 |
+| `pnpm verify:studies` | 校验精读页 HTML 与生成器输出逐字节一致（离线可用） |
 
 ## 项目结构
 

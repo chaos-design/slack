@@ -133,7 +133,7 @@ The generated HTML must be static, self-contained, and functional from `file://`
    - Footer must contain the visible `原文：` source link label.
 3. **Content rendering**
    - Code blocks should preserve a language class when language is known.
-   - HTML containing code blocks must keep the approved Highlight.js CSS and script so syntax highlighting remains active.
+   - HTML containing code blocks must keep the inlined Highlight.js CSS and script so syntax highlighting remains active.
    - Tables, code, images, source links, and original sections must be rendered as visible DOM.
 4. **Close-reading evidence chain**
    - Every close-reading block must pair evidence with analysis.

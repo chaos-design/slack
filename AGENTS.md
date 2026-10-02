@@ -10,7 +10,7 @@ Slack 是一个面向 AI Agent 学习资料的 React 单页应用。项目按 `r
 
 | 层级 | 当前选择 |
 | --- | --- |
-| Runtime | Node.js `>=20.19.0`，pnpm `10.18.1` |
+| Runtime | Node.js `24.x`（本地、CI、Vercel 统一），pnpm `10.18.1` |
 | Frontend | React 19, TypeScript, React Router 7 |
 | Build | Vite 8 |
 | Styling | Tailwind CSS 4 CSS-first, shadcn/ui, Emotion |
@@ -157,9 +157,10 @@ import.meta.glob("../../resources/*/slides/*.html", {
 - `slides[].path` 对应 `resources/<id>/slides/<path>.html`，不写 `.html`。
 - `resources/<id>/<slug>.md` 是 ai-doc-creator / web-markdown 中间稿；不要使用旧式 `resources/<id>/source.md`。
 - `resources/<id>/artifacts/data.json` 或按 slug 命名的 `*.data.json` 是 bilingual-reader 结构化数据，重渲染 studies 后必须与 HTML 中的中文富文本结构同步。
+- `resources/<id>/artifacts/<stem>-images/` 是源图片字节缓存，`manifest.json` 把来源 URL 映射到落盘文件与 content type。该目录需要提交到版本库：远端图片端点（CDN、图片优化器）会按请求协商返回格式，同一 URL 隔月可能返回不同字节，没有缓存就无法稳定重渲染。
 - `name`、`description`、`tags` 用于首页、学习页菜单和搜索。
 - 前端不解析资源 HTML 内容，Studies 与 Slides 都通过 iframe 原样渲染。
-- `resources/` 与 `.skills/` 被 Biome 排除，资源 HTML 与技能模板的质量由生成流程、人工检查、`review_artifacts.py` 和 `src/lib/resource-artifacts.test.ts` 保证。
+- `resources/` 与 `.skills/` 被 Biome 排除，资源 HTML 与技能模板的质量由生成流程、人工检查、`review_artifacts.py`、`src/lib/resource-artifacts.test.ts` 和 `pnpm verify:studies` 保证。
 
 ### 页面模块
 
@@ -178,6 +179,8 @@ import.meta.glob("../../resources/*/slides/*.html", {
 - studies 保留词汇悬浮提示 runtime、来源图像和关键术语。
 - slides 保持最新控制器合约、互不重复的设计 profile、平衡网格、多页内容密度和离线图片嵌入。
 - 外部图片 URL、模板化图义说明和外部 CDN 不应进入 HTML 产物。
+
+`pnpm verify:studies`（`scripts/verify-studies.mjs`）用 `.skills/bilingual-reader/scripts/static_reader.py` 重新渲染每个 `resources/<id>/studies/*.html`，并要求结果与已提交产物**逐字节一致**。它锁定「产物 = 生成器输出」这条不变量，CI 必须执行。图片字节由 `<stem>-images/` 缓存提供，所以该检查不需要联网。任何失败都意味着产物已与生成器脱节：先确认改动是否应改生成器，再重渲染产物，不要手工编辑 study HTML。
 
 ### 样式与交互
 
@@ -375,6 +378,7 @@ pnpm format         # 格式化代码
 pnpm typecheck      # TypeScript 类型检查
 pnpm test           # 运行单元测试
 pnpm test:coverage  # 运行覆盖率测试
+pnpm verify:studies # 校验 study HTML 与生成器输出逐字节一致（离线）
 pnpm build          # 类型检查并构建生产产物
 pnpm preview        # 本地预览 dist
 ```
@@ -396,7 +400,13 @@ pnpm build
 pnpm test:coverage
 ```
 
-CI 位于 `.github/workflows/ci.yml`，在 Node 22 环境中执行 lint、typecheck、coverage test 和 production build。
+改动 `.skills/bilingual-reader` 生成逻辑、资源图片缓存或 `resources/<id>/studies/*.html` 时，还必须运行：
+
+```bash
+pnpm verify:studies
+```
+
+CI 位于 `.github/workflows/ci.yml`，在 Node 24 环境中以 `pnpm install --frozen-lockfile` 执行 lint、typecheck、coverage test、study 产物一致性和 production build。
 
 ## 协作流程
 
@@ -417,5 +427,9 @@ CI 位于 `.github/workflows/ci.yml`，在 Node 22 环境中执行 lint、typech
 - Build command: `pnpm build`
 - Output directory: `dist`
 - SPA fallback: `/(.*)` rewrite 到 `/index.html`
+
+Vercel 只提供 Node `24.x` / `22.x` / `20.x` 三个 major，且于 2026-10-01 起弃用 Node 20。构建用 Node 版本由
+`package.json` 的 `engines.node`（`24.x`）决定，因此该字段必须保持为 Vercel 能识别的单一 semver 区间，
+不要改成 `||` 组合区间，否则 Vercel 的版本解析行为无文档保证。本地、CI 与 Vercel 应始终对齐同一 major。
 
 不要在未同步更新 README 和部署说明的情况下修改构建命令、输出目录或 rewrite 策略。

@@ -22,7 +22,7 @@ If the delivery target is stdout or chat instead of a file, emit the same comple
 - Do not hide source content in `window.BILINGUAL_READER_DATA`, `window.DATA`, JSON blobs, `fetch()`, module imports, generated render functions, or external files.
 - Inline CSS in `<style>`.
 - Inline only the JavaScript needed for interactions: view switching, DOM-derived tooltip placement, pronunciation, quiz feedback, theme switching, anchors, and reading progress.
-- Keep the approved third-party code highlighting SDK for syntax-highlighted code blocks, while ensuring code content remains visible as normal `<pre><code>` HTML when the SDK is unavailable.
+- Keep the vendored code highlighting SDK (`assets/highlight.min.js` and `assets/highlight-theme.min.css`) inlined for syntax-highlighted code blocks, while ensuring code content remains visible as normal `<pre><code>` HTML when the SDK is unavailable. Never load it from a CDN.
 - The page must open directly from `file://`.
 - The page must include a complete document shell: `<!DOCTYPE html>`, `<html>`, `<head>`, and `<body>`.
 - Format the generated HTML with 2-space indentation for HTML/CSS/JavaScript while preserving source code block indentation exactly.
