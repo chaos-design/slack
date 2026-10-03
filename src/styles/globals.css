@@ -34,10 +34,17 @@
   --blueprint: 210 16% 40%; /* 淡墨 */
   --ochre: 38 30% 55%; /* 赭石(柔) */
 
-  --font-display: "Fraunces", Georgia, serif;
-  --font-chinese: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* System-only font stacks: no webfont request, so first paint never waits on
+     a third-party CDN (which is unreachable from mainland China) and there is
+     no flash of invisible text. */
+  --font-display: Georgia, "Times New Roman", "Songti SC", serif;
+  --font-chinese: "Songti SC", "STSong", SimSun, "Noto Serif CJK SC", serif;
+  --font-body:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New",
+    monospace;
 }
 
 .dark {
@@ -164,11 +171,9 @@
 /* Display + mono helpers */
 .font-display {
   font-family: var(--font-display);
-  font-optical-sizing: auto;
 }
 .font-chinese {
   font-family: var(--font-chinese);
-  font-optical-sizing: auto;
 }
 .font-mono-tech {
   font-family: var(--font-mono);

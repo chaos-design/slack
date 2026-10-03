@@ -54,6 +54,28 @@ if (errors.length === 0) {
   for (const [, url] of html.matchAll(/<script[^>]+src="([^"]+)"/g)) {
     if (/^https?:/i.test(url)) fail(`index.html loads an external script: ${url}`);
   }
+
+  // A remote webfont is a render-blocking request to a domain that is
+  // unreachable from mainland China, which stalls first paint until timeout.
+  for (const [, url] of html.matchAll(/<link[^>]+href="(https?:\/\/[^"]+)"/g)) {
+    if (/fonts\.(googleapis|gstatic)\.com/i.test(url)) {
+      fail(
+        `index.html loads a remote webfont: ${url} - use a system font stack or self-host under public/fonts/`,
+      );
+    }
+  }
+
+  // Belt-and-braces: a stray @font-face pointing at a CDN would slip past the
+  // index.html check.
+  const cssFiles = readdirSync(join(distDir, "assets")).filter((f) => f.endsWith(".css"));
+  for (const file of cssFiles) {
+    const css = readFileSync(join(distDir, "assets", file), "utf8");
+    for (const [, url] of css.matchAll(/url\((?:"|')?(https?:\/\/[^)"']+)(?:"|')?\)/g)) {
+      if (/fonts\.(googleapis|gstatic)\.com/i.test(url)) {
+        fail(`dist/assets/${file} references a remote webfont: ${url}`);
+      }
+    }
+  }
 }
 
 // Every published study/slide page must survive the build.

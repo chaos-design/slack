@@ -190,6 +190,8 @@ import.meta.glob("../../resources/*/slides/*.html", {
 
 当前视觉系统是水墨风格：米纸背景、焦墨文字、硬边卡片、偏移阴影、朱砂/墨青强调色。主题色由 `src/hooks/use-accent.ts` 管理，并由 `src/components/accent-picker.tsx` 持久化到 `localStorage`。
 
+字体只使用系统字体栈，不加载任何 webfont。`--font-display` / `--font-chinese` / `--font-body` / `--font-mono` 在 `src/styles/globals.css` 中定义，`index.html` 不引用 `fonts.googleapis.com`。原因：Google Fonts 在中国大陆不可达，作为渲染阻塞样式表会让首屏一直等待到超时；同时移除后没有 FOUT，也不必 vendor 字体二进制。若要恢复 webfont，必须改为本地自托管（放入 `public/fonts/` 并用 `@font-face`），不允许回退到外部 CDN。
+
 样式优先级：
 
 1. Tailwind utility classes。
