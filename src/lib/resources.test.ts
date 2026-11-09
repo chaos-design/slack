@@ -107,38 +107,40 @@ describe("resources", () => {
 
   it("searches resources by trimmed keyword, tag, and no-match input", () => {
     expect(searchResources("  openai  ").map((resource) => resource.id)).toEqual([
-      "02",
-      "03",
       "08-2",
       "08-3",
+      "03",
+      "02",
     ]);
     expect(searchResources("LLM").map((resource) => resource.id)).toEqual(["01"]);
     expect(searchResources("Anthropic").map((resource) => resource.id)).toEqual([
-      "01",
-      "04",
-      "07-2",
+      "09",
       "08-5",
+      "07-2",
+      "04",
+      "01",
     ]);
     expect(searchResources("")).toEqual(getResources());
     expect(searchResources("not-a-resource")).toEqual([]);
   });
 
-  it("sorts resources by route id", () => {
+  it("sorts resources by route id (newest folder first)", () => {
     expect(getResources().map((resource) => resource.id)).toEqual([
-      "01",
-      "02",
-      "03",
-      "04",
-      "05",
-      "06",
-      "07",
-      "07-2",
-      "07-3",
+      "09",
       "08",
       "08-2",
       "08-3",
       "08-4",
       "08-5",
+      "07",
+      "07-2",
+      "07-3",
+      "06",
+      "05",
+      "04",
+      "03",
+      "02",
+      "01",
     ]);
   });
 });
