@@ -115,6 +115,7 @@ describe("resources", () => {
     expect(searchResources("LLM").map((resource) => resource.id)).toEqual(["01"]);
     expect(searchResources("Anthropic").map((resource) => resource.id)).toEqual([
       "09",
+      "09-2",
       "08-5",
       "07-2",
       "04",
@@ -127,6 +128,7 @@ describe("resources", () => {
   it("sorts resources by route id (newest folder first)", () => {
     expect(getResources().map((resource) => resource.id)).toEqual([
       "09",
+      "09-2",
       "08",
       "08-2",
       "08-3",
