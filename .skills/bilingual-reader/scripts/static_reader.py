@@ -43,8 +43,11 @@ TEMPLATE_ROOT = ROOT / "assets" / "templates"
 RUNTIME_CSS = ROOT / "assets" / "runtime.css"
 TEMPLATE_INDEX = TEMPLATE_ROOT / "templates.json"
 BASE_TEMPLATE = ROOT / "assets" / "template.html"
-HIGHLIGHT_JS_CSS = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
-HIGHLIGHT_JS_SCRIPT = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
+# Highlight.js is vendored locally and inlined so published study pages stay
+# self-contained and never depend on a CDN at view time.
+HIGHLIGHT_JS_CSS_PATH = ROOT / "assets" / "highlight-theme.min.css"
+HIGHLIGHT_JS_SCRIPT_PATH = ROOT / "assets" / "highlight.min.js"
+CODE_BLOCK_MARKER = "<pre"
 MAX_JSON_BYTES = 20 * 1024 * 1024
 
 
@@ -423,16 +426,22 @@ def render_runtime_bootstrap(data: dict[str, object]) -> str:
   </script>"""
 
 
-def render_code_sdk_head() -> str:
-    """Render third-party code highlighting assets."""
+def render_code_sdk_head(enabled: bool) -> str:
+    """Inline the vendored Highlight.js theme when the page has code blocks."""
 
-    return f'  <link rel="stylesheet" href="{HIGHLIGHT_JS_CSS}">\n'
+    if not enabled:
+        return ""
+    theme = HIGHLIGHT_JS_CSS_PATH.read_text(encoding="utf-8")
+    return f"  <style>\n{theme}  </style>\n"
 
 
-def render_code_sdk_script() -> str:
-    """Load Highlight.js for source code blocks."""
+def render_code_sdk_script(enabled: bool) -> str:
+    """Inline the vendored Highlight.js runtime when the page has code blocks."""
 
-    return f'  <script defer src="{HIGHLIGHT_JS_SCRIPT}"></script>'
+    if not enabled:
+        return ""
+    runtime = HIGHLIGHT_JS_SCRIPT_PATH.read_text(encoding="utf-8")
+    return f"  <script>\n{runtime}  </script>\n"
 
 
 IMAGE_BASE_DIRS: tuple[Path, ...] = ()
@@ -452,6 +461,25 @@ def resolve_local_image(url: str) -> Path | None:
             if candidate.is_file():
                 return candidate
     return None
+
+
+# Shown when an external image cannot be fetched and has no local copy, so a
+# published study page never depends on a network resource at view time.
+OFFLINE_IMAGE_PLACEHOLDER = (
+    "data:image/svg+xml;base64,"
+    + base64.b64encode(
+        b'<svg xmlns="http://www.w3.org/2000/svg" width="720" height="405" viewBox="0 0 720 405">'
+        b'<rect width="720" height="405" fill="#f1f3f5"/>'
+        b'<rect x="2" y="2" width="716" height="401" fill="none" stroke="#d0d5dd" stroke-width="2"/>'
+        b'<text x="360" y="190" font-family="sans-serif" font-size="24" fill="#667085" text-anchor="middle">'
+        b'\xe5\x9b\xbe\xe7\x89\x87\xe7\xa6\xbb\xe7\xba\xbf\xe4\xb8\x8d\xe5\x8f\xaf\xe7\x94\xa8'
+        b'</text>'
+        b'<text x="360" y="224" font-family="sans-serif" font-size="16" fill="#98a2b3" text-anchor="middle">'
+        b'\xe8\xaf\xb7\xe9\x80\x9a\xe8\xbf\x87\xe5\x9b\xbe\xe6\xb3\xa8\xe4\xb8\xad\xe7\x9a\x84\xe3\x80\x8c\xe5\x8e\x9f\xe5\xa7\x8b\xe5\x9b\xbe\xe7\x89\x87\xe9\x93\xbe\xe6\x8e\xa5\xe3\x80\x8d\xe8\x81\x94\xe7\xbd\x91\xe6\x9f\xa5\xe7\x9c\x8b'
+        b'</text>'
+        b'</svg>'
+    ).decode("ascii")
+)
 
 
 def inline_image(url: str, image_cache: dict[str, str], enabled: bool) -> str:
@@ -476,7 +504,7 @@ def inline_image(url: str, image_cache: dict[str, str], enabled: bool) -> str:
             content_type = mimetypes.guess_type(url.split("?")[0])[0] or "image/webp"
         image_cache[url] = f"data:{content_type};base64,{base64.b64encode(payload).decode('ascii')}"
     except Exception:
-        image_cache[url] = url
+        image_cache[url] = OFFLINE_IMAGE_PLACEHOLDER
     return image_cache[url]
 
 
@@ -1789,13 +1817,14 @@ def render_page(
         + render_original(data, mode, image_cache, inline_images)
     )
     footer = data["footer"]
+    has_code_blocks = CODE_BLOCK_MARKER in body
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{escape(metadata["title"])} · 中英对照精读 · {escape(template_name)}</title>
-{render_code_sdk_head()}  <style>
+{render_code_sdk_head(has_code_blocks)}  <style>
 {css}
 {static_overrides()}
   </style>
@@ -1820,7 +1849,7 @@ def render_page(
 {body}
   </div>
   <footer>原文：<a href="{escape(footer["sourceUrl"])}" target="_blank" rel="noopener">《{escape(footer["sourceText"])}》</a></footer>
-{render_code_sdk_script()}
+{render_code_sdk_script(has_code_blocks)}
 {render_script(data)}
 </body>
 </html>
