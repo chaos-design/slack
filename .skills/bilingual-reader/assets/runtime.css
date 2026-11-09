@@ -11,7 +11,6 @@
   position:relative; z-index:20; cursor:help; padding:0 1px;
   color:color-mix(in srgb,var(--accent) 82%,var(--text));
   background:transparent!important;
-  text-decoration-line:underline; text-decoration-style:double;
   text-decoration-color:var(--accent); text-decoration-thickness:1.5px;
   text-underline-offset:4px; transition:color .15s,text-decoration-color .15s;
 }

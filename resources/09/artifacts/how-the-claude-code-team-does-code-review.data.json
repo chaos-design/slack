@@ -1,0 +1,1490 @@
+{
+  "pageTitle": "Claude Code 团队怎么做代码评审",
+  "headerTitle": "How the Claude Code team does <span>code review</span>",
+  "metadata": {
+    "title": "How the Claude Code team does code review",
+    "sourceUrl": "https://claude.dev/blog/solving-code-review-at-anthropic",
+    "fetchedAt": "2026-11-09 13:30:00",
+    "publishedAt": "2026-10-15"
+  },
+  "article": {
+    "title": "How the Claude Code team does code review",
+    "sourceUrl": "https://claude.dev/blog/solving-code-review-at-anthropic",
+    "fetchedAt": "2026-11-09 13:30:00",
+    "publishedAt": "2026-10-15",
+    "tags": [
+      "Claude Code",
+      "Code Review",
+      "AI Agent",
+      "工程实践"
+    ],
+    "anchors": [
+      {
+        "id": "section-1",
+        "label": "重设问题"
+      },
+      {
+        "id": "section-2",
+        "label": "稀缺资源"
+      },
+      {
+        "id": "section-3",
+        "label": "一次变更的旅程"
+      },
+      {
+        "id": "section-4",
+        "label": "七层检查"
+      },
+      {
+        "id": "section-5",
+        "label": "分级批准"
+      },
+      {
+        "id": "section-6",
+        "label": "评审器进化"
+      },
+      {
+        "id": "section-7",
+        "label": "人的位置"
+      },
+      {
+        "id": "section-8",
+        "label": "共享上下文"
+      },
+      {
+        "id": "section-9",
+        "label": "责任与落地"
+      }
+    ]
+  },
+  "hero": {
+    "title": "How the Claude Code team does code review",
+    "meta": "Anthropic · Claude Code 团队 · 2026-10-15",
+    "en": "Claude writes about 90 percent of Claude Code's own code. This is how the team reviews it: seven layers of checks, human approval scaled by risk, and a reviewer that keeps learning from its own incidents.",
+    "zh": "Claude 写下了 Claude Code 自身约 90% 的代码。这支团队随之重写了评审本身：七层检查、按风险分级的人工批准，以及一个会从事故中持续学习的评审器。"
+  },
+  "summary": {
+    "overviewTitle": "全文速览",
+    "thesis": "这篇复盘的核心不是“用 AI 替代代码评审”，而是把评审从“人逐行读一遍”改造成一套分层、可度量、可回滚的风险控制系统。",
+    "lead": "Claude 写下了 Claude Code 自身约 90% 的代码，团队由此放弃用“有没有人读过”来判断质量，转而追问：这次改动可能出什么问题，哪一种检查才接得住。答案是七层检查：自我验证、AI 查 bug、安全评审、CI、按风险分级的人工批准、合并队列与开关、快速回滚。人的时间被重新定义为唯一稀缺资源，度量方式也随之明确——每个 PR 的人工批准次数与等待时长，而回滚率与事故率是护栏，一旦上升就说明时间只是被挪走了。",
+    "cards": [
+      {
+        "icon": "01",
+        "title": "评审从关卡变成拼写检查",
+        "body": "旧流程是写完代码、开 PR、等人看。新流程让评审持续发生，大多数改动在被交到人手上之前，已经被 Claude 评审并修过至少一轮。"
+      },
+      {
+        "icon": "02",
+        "title": "人的时间要两头一起算",
+        "body": "评审成本包含“看代码”和“修坏代码”两端。只压缩前者，成本会从另一端冒出来，所以回滚率与事故率被设为护栏而不是附带指标。"
+      },
+      {
+        "icon": "03",
+        "title": "批准强度由改动决定",
+        "body": "分类器读取改动本身来定风险档，再由第二个分类器判断是否需要额外的人。作者信任名单只影响能否走轻量路径，Agent 的批准永远不算人的批准。"
+      },
+      {
+        "icon": "04",
+        "title": "评审器要有评测集和噪音指标",
+        "body": "每次事故都进入长期评测集并每日回放；评论按作者反应分类来度量噪音，还会在已知干净的 PR 上统计“若照做会有害”的比例。"
+      },
+      {
+        "icon": "05",
+        "title": "收敛比召回更稀缺",
+        "body": "反复标记的代码里约 59% 在首轮之前就存在。团队因此设三轮上限、只看新 diff、按 bug 类别标记、不重复已发发现。"
+      },
+      {
+        "icon": "06",
+        "title": "人守住判断与责任",
+        "body": "方向、范围、高风险代码、会被效仿的架构、对证据的阅读，以及为每一个上线改动负责——这些不随自动化转移。"
+      }
+    ],
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "评审的目标不是“读了多少代码”，而是“哪种检查能接住这类风险”。一旦这样提问，评审的时机、分层和度量方式都会跟着改变。"
+      },
+      {
+        "label": "机制设计",
+        "text": "七层检查各管一段：前四层靠自动化把常规错误挡在 PR 之外，后三层靠分级批准、合并队列与回滚承接剩余风险，而不是指望某一层做到万无一失。"
+      },
+      {
+        "label": "协作代价",
+        "text": "当作者和评审者都是 Agent 时，噪音与轮次会被放大：人可以在几秒内挥走一条挑剔的评论，Agent 却会为它再提交一次。收敛机制正是为此而设。"
+      },
+      {
+        "label": "组织前提",
+        "text": "这套流程成立依赖几个非技术条件：改动小、一切可逆、爆炸半径决定门槛、以及“合入即负责”且不用于追责的团队文化。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "重设问题",
+        "summary": "90% 代码由 Claude 写下，“人有没有读过”失效；改问哪种检查能接住哪类风险。"
+      },
+      {
+        "id": "fw-2",
+        "label": "锁定稀缺资源",
+        "summary": "人的时间覆盖评审与修复两端，回滚率与事故率成为护栏，目标是最多一人在环内合并。"
+      },
+      {
+        "id": "fw-3",
+        "label": "七层检查",
+        "summary": "自我验证、AI 查 bug、安全评审、CI、分级人工批准、合并队列与开关、快速回滚。"
+      },
+      {
+        "id": "fw-4",
+        "label": "分级批准",
+        "summary": "改动本身定风险档，信任作者走轻量路径，Agent 批准不能占人的位置，一次批准只覆盖一个提交。"
+      },
+      {
+        "id": "fw-5",
+        "label": "评审器进化",
+        "summary": "事故转评测集、按作者反应度量噪音、并针对轮次失控做收敛改造。"
+      },
+      {
+        "id": "fw-6",
+        "label": "人的位置",
+        "summary": "方向、风险代码、架构范式、证据阅读与最终责任仍然由人承担。"
+      },
+      {
+        "id": "fw-7",
+        "label": "共享理解",
+        "summary": "用按需讲解与可视化产物替代逐行读 diff，公开频道让上下文自然流动。"
+      },
+      {
+        "id": "fw-8",
+        "label": "落地清单",
+        "summary": "PR 前、PR 上、批准、合并与之后四段动作，全部基于已有工具。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      },
+      {
+        "from": "fw-6",
+        "to": "fw-7"
+      },
+      {
+        "from": "fw-7",
+        "to": "fw-8"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "重设问题",
+      "title": "当 90% 的代码由 Claude 写，评审该怎么做",
+      "rows": [
+        {
+          "en": "Claude writes roughly 90 percent of Claude Code's own code, so the team replaced \"did a human read it?\" with a sharper question: what could go wrong with this change, and which check is the right one to catch it?",
+          "zh": "Claude 写下了 Claude Code 自身约 90% 的代码，团队因此必须换掉“有没有人读过”这个粗指标，改问一个更锋利的问题：这次改动可能出什么问题，哪一种检查才正好能抓住它？"
+        },
+        {
+          "en": "Code review does two jobs: catch issues before they ship, and spread codebase understanding. This article targets the first one, and returns to the second near the end.",
+          "zh": "代码评审有两个职责：上线前拦住问题，以及在团队里传播对代码库的理解。本文的机制设计针对第一个职责，第二个职责留到后文单独讨论。"
+        },
+        {
+          "en": "The old model treated review as a gate at the end of the road. The new model runs it continuously, more like spellcheck while you write, so most changes are already reviewed and fixed before a person is asked to look.",
+          "zh": "旧模型把评审当作流程终点的关卡；新模型让评审持续发生，像写作时的拼写检查。等到人来看的时候，大多数改动已经被评审并修过至少一轮。"
+        },
+        {
+          "en": "The result is not less review but earlier and cheaper review: from June to September merged PRs more than doubled while reverts fell by more than 40 percent.",
+          "zh": "结果不是更少的评审，而是更早、更便宜的评审：6 月到 9 月合并的 PR 翻了不止一倍，需要回滚的比例反而下降了 40% 以上。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "稀缺资源",
+      "title": "真正稀缺的是人的时间与注意力",
+      "rows": [
+        {
+          "en": "Human time has two sides: the time spent reviewing, and the time spent repairing what bad code breaks. Cutting only the first just moves the cost to the other end.",
+          "zh": "人的时间有两端：花在评审上的，和花在修复坏代码造成的破坏上的。只削减前者，只是把成本挪到另一端。"
+        },
+        {
+          "en": "The target: most PRs in the Claude Code repos merge with at most one human in the loop, who can be the author, with no increase in reverts or incidents.",
+          "zh": "目标是：Claude Code 各仓库中的大多数 PR，在回滚率与事故率不上升的前提下，最多一个人在环内（可以是作者本人）即可合并。"
+        },
+        {
+          "en": "Measurement is explicit: approvals per PR at median and 95th percentile, human comments, and how long a PR waits on a person. Revert and incident rates are the guardrail, not a vanity metric.",
+          "zh": "度量方式很明确：PR 的人工批准次数（中位数与 95 分位）、人工评论数、PR 等待某个人的时长。回滚率与事故率是护栏，而不是装点门面的指标。"
+        },
+        {
+          "en": "One team that declared its review bottleneck solved still kept human review for changes from outside the team, so someone keeps asking whether the work should exist at all.",
+          "zh": "有一个团队宣布自己的评审瓶颈已经解决，但对来自团队外部的改动依然保留人工评审——总得有人继续问，“这件事到底该不该做”。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "一次变更的旅程",
+      "title": "一次变更要穿过七层检查",
+      "rows": [
+        {
+          "en": "A change flows from verified work, through AI bug review and blocking security review, past blocking CI, into risk-tiered human approval, then a merge queue, flags and staged release, with fast rollback underneath everything.",
+          "zh": "一个改动依次穿过：先自我验证，再经过 AI 查 bug 与可阻断的安全评审，然后是能拦合并的 CI，接着按风险分级的人工批准，最后进入合并队列、开关与分阶段发布，整个流程下面由快速回滚托底。"
+        },
+        {
+          "en": "Every layer catches something and misses something else. Few changes survive all of them untouched, which is why rollback is designed to be boring and fast.",
+          "zh": "每一层都能抓住一些问题，也都会漏掉另一些问题。很少有改动能毫发无伤地穿过全部检查，所以回滚必须做得平淡、快速、不惊动人。"
+        },
+        {
+          "en": "The design intent is to spend human attention where the risk actually is, instead of spreading a little attention evenly across every line of every diff.",
+          "zh": "设计意图是把人的注意力放到真正的风险上，而不是把它均匀地撒在每一个 diff 的每一行上。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "七层检查",
+      "title": "七层检查：从自我验证到快速回滚",
+      "rows": [
+        {
+          "en": "Layer 1, verification before anyone looks: give Claude something it can run (tests, a build, a screenshot against the design) and ask it to show the output instead of claiming success. A subagent then reviews the diff with fresh context.",
+          "zh": "第 1 层，在任何人看之前先自我验证：给 Claude 一些能运行的东西（测试、构建、对照设计稿的截图），要求它展示输出而不是宣称完成；随后由子 Agent 在全新上下文中评审 diff。"
+        },
+        {
+          "en": "Layer 2, AI review on every PR: it reads the diff against the whole repo and the PR's stated intent. Findings are cross-voted by other agents before posting, then tagged Important, Nit or Pre-existing and sorted by severity.",
+          "zh": "第 2 层，每个 PR 都过 AI 评审：把 diff 放进整个仓库与 PR 声明的意图里读；发现先由其他 Agent 交叉投票，再标注 Important、Nit 或 Pre-existing 并按严重程度排序。"
+        },
+        {
+          "en": "Layer 3, blocking security review: a PR cannot merge while any bug or security finding is open; a later commit that fixes the issue clears the finding on its own.",
+          "zh": "第 3 层，可阻断的安全评审：只要 bug 评审或安全评审还有未关闭的发现，PR 就不能合并；若后续提交修好了问题，这条发现会自动消除。"
+        },
+        {
+          "en": "Layer 4, ordinary CI: lint, type checks, tests on every platform and a build. A typical CLI PR may run dozens of checks before anyone looks, and the PR template asks how it was tested and how to undo it.",
+          "zh": "第 4 层，常规 CI：lint、类型检查、各平台测试与构建。一个典型的 CLI PR 在有人看之前可能已跑了几十项检查，PR 模板则会问这次改动怎么验证、怎么撤销。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "分级批准",
+      "title": "批准强度由改动决定，而不是由作者决定",
+      "rows": [
+        {
+          "en": "Low risk (docs, copy, internal-only features, additive changes behind a flag) needs no human once automated review and security checks are green; medium needs one person; high needs two.",
+          "zh": "低风险（文档、文案、仅内部可见的功能、藏在开关后的增量改动）在自动评审与安全检查全绿后无需人工；中风险一人；高风险两人。"
+        },
+        {
+          "en": "A classifier reads the change to set the tier, and a second classifier asks whether this particular change needs another person even when the tier says it does not.",
+          "zh": "一个分类器读取改动的具体内容来定档，第二个分类器再判断：即便这一档本不需要，这个特定改动是否仍然需要另一个人。"
+        },
+        {
+          "en": "Only authors on the repo's trusted list get the lighter paths. An agent's approval never counts as a person's: automation can clear a low-risk change but cannot fill a slot that calls for a human.",
+          "zh": "只有仓库信任名单上的作者才能走更轻的路径。Agent 的批准永远不算人的批准：自动评审可以放行低风险改动，却填不上一个本来要求由人占据的位置。"
+        },
+        {
+          "en": "Whoever prompted the change is on the hook for it, and an approval covers one specific commit: new commits the system cannot vouch for require approval again.",
+          "zh": "谁发起改动，谁就对它负责；一次批准只覆盖一个特定提交，系统无法担保的新提交（例如 Agent 推送或手工解决的合并）需要重新批准。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "评审器进化",
+      "title": "把事故变成评测集，把噪音变成指标",
+      "rows": [
+        {
+          "en": "Every incident becomes a permanent eval case, confirmed by engineers who know that code, and the reviewer is scored against the whole set daily.",
+          "zh": "每一次事故都会变成一条长期保留的评测用例，由熟悉那段代码的工程师确认，评审器每天对整个集合打分。"
+        },
+        {
+          "en": "Noise is measured behaviourally: every comment is classified by how the author responded, and the reviewer also runs on known-clean PRs to count suggestions that would have caused harm.",
+          "zh": "噪音用行为来度量：每条评论都按作者的反应归类；评审器还会跑在已知干净的 PR 上，统计它给出过多少次会导致有害改动的建议。"
+        },
+        {
+          "en": "Convergence was the harder lesson: about 59% of what the reviewer kept flagging pre-dated its first pass, so more rounds mostly re-found old bugs.",
+          "zh": "更难的一课是收敛：评审器反复标记的代码里约 59% 在它第一轮之前就已存在，多跑几轮主要是在重复翻出旧 bug。"
+        },
+        {
+          "en": "The fix was structural: a three-round cap, diff-only re-review after the first passes, flagging the class of bug instead of one line, and no repeats of findings already posted.",
+          "zh": "修法是结构性的：三轮上限、首轮之后只看新增 diff、按 bug 类别标记而不是指出某一行、已经发过的发现不再重复。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "人的位置",
+      "title": "自动化之后，人还负责什么",
+      "rows": [
+        {
+          "en": "People keep direction and scope, risky areas such as billing, the auto-updater and CI workflows, architecture that others will copy, the reading of evidence, and accountability for whatever ships.",
+          "zh": "人继续负责方向与范围，负责账单、自动更新器、CI workflow 这类高风险区域，负责会被他人效仿的架构，负责阅读证据，并为每一个上线的改动担责。"
+        },
+        {
+          "en": "Reading the evidence means test output, the command that ran and what it returned, a screenshot, the reviewer's findings. If you cannot say what the checks would miss, ask for a real review instead of a quick approval.",
+          "zh": "阅读证据指的是测试输出、实际执行的命令及返回、截图、评审器的发现。如果你说不出这些检查会漏掉什么，那就该要求一次真正的评审，而不是随手点通过。"
+        },
+        {
+          "en": "Pulling a senior engineer out of deep work to catch a routine mistake costs far more than an automated review, which is exactly why the split between layers has to be explicit.",
+          "zh": "把资深工程师从深度工作中拽出来抓一个常规错误，代价远高于一次自动评审——这正是层与层之间必须划清的原因。"
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "toc": "共享上下文",
+      "title": "机器读代码之后，人怎么学代码",
+      "rows": [
+        {
+          "en": "Nobody carries a complete mental model of the codebase, and the team argues nobody needs to. When understanding is needed, Claude writes an explainer for exactly that slice, or builds a small artifact that visualizes it.",
+          "zh": "没有人把整个代码库装进脑子里，团队认为也不需要。需要理解时，就让 Claude 针对那一小块写讲解，或者做一个小产物把它可视化。"
+        },
+        {
+          "en": "Compared with reading trivial diffs line by line, an explainer for the module you are about to change spends human attention far better.",
+          "zh": "与逐行读琐碎的 diff 相比，为“你即将改动的模块”写一份讲解，能把人的注意力花得值得多。"
+        },
+        {
+          "en": "A culture of working in open Slack channels helps too: you see what others are building while they build it, and feedback arrives from people who do not own the code.",
+          "zh": "默认在公开 Slack 频道里工作的文化同样重要：别人做东西的过程你能实时看见，反馈也来自并不拥有这段代码的人。"
+        }
+      ]
+    },
+    {
+      "num": "9",
+      "toc": "责任与落地",
+      "title": "责任随代码一起落地，流程才搬得走",
+      "rows": [
+        {
+          "en": "Landing a change means owning the fix if it breaks. The norm holds because changes are small, everything is reversible, blast radius sets the bar and telemetry surfaces regressions fast.",
+          "zh": "合入一个改动，就意味着出问题时你来修。这个惯例能成立，是因为改动小、一切可逆、爆炸半径决定门槛、遥测能快速暴露回归。"
+        },
+        {
+          "en": "It is not blame: owning a fix means you hold the most context, and incident reviews examine the system rather than the person. Starting work is cheap, so closing a PR early is not a loss either.",
+          "zh": "这不是追责：负责修复意味着你掌握最多上下文，事故复盘看的是系统而不是人。开始做一件事很便宜，所以早早关掉一个 PR 也不算损失。"
+        },
+        {
+          "en": "For other teams the checklist is four stages: before the PR (a CLAUDE.md, local /code-review and /security-review, a REVIEW.md), on every PR (CI, AI reviewer, blocking security review, round caps), approval (tiers written down, CODEOWNERS, no bot approvals) and merge and after (queue, flags, eval set).",
+          "zh": "给其他团队的清单分四段：PR 之前（CLAUDE.md、本地 /code-review 与 /security-review、一份 REVIEW.md）、每个 PR（CI、AI 评审器、可阻断的安全评审、轮次上限）、批准（把分级写下来、CODEOWNERS、不接受机器人批准）、合并与之后（队列、开关、评测集）。"
+        },
+        {
+          "en": "The direction is explicit: the product posts findings rather than approvals, while Anthropic's own repos let owners decide which low-risk changes merge on automated checks alone, and that line keeps moving.",
+          "zh": "方向说得很清楚：产品只发布发现、不发批准；而 Anthropic 自己的仓库由 owner 决定哪些低风险改动可以只凭自动检查合并，这条线还在继续移动。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "文章认为，判断一次改动该由哪种检查把关，最有效的提问方式是什么？",
+      "options": [
+        "这次改动可能出什么问题，哪一种检查——自动的还是人工的——正好能接住它？",
+        "这段代码有没有至少一个人类逐行读过？",
+        "改动的行数是否超过 1,000 行？",
+        "作者是否在仓库的信任名单上？"
+      ],
+      "answer": 0,
+      "explain": "原文明确说“有没有人类读过代码”只是一个不精确的替代指标，真正该问的是“这次改动可能出什么问题，哪种检查才正好抓住它”。行数与作者信任名单只影响具体流程分档，不能替代这个判断。",
+      "wrongReason": "其余选项都是流程中的局部信号：行数影响 findings 概率，信任名单只决定能否走轻量路径，而“有没有人读过”正是文章要替换掉的那个旧问法。",
+      "sourceAnchor": "重新定义代码评审的用途"
+    },
+    {
+      "question": "为什么团队把回滚率与事故率称为“护栏”，而不是普通的效率指标？",
+      "options": [
+        "因为一旦这两项上升，说明省下的人工时间只是被挪到了修复端，并没有真正节省。",
+        "因为这两项数据由安全团队单独维护，工程团队无法修改。",
+        "因为回滚率越低，说明自动评审发现的 bug 越多。",
+        "因为这两项指标只在 Deep 档评审中才会被统计。"
+      ],
+      "answer": 0,
+      "explain": "原文指出评审成本包含“看代码”和“修坏代码”两端，所以用回滚率与事故率做护栏：如果它们上升，就没有真正省下人的时间，只是把时间转移到了另一端。",
+      "wrongReason": "护栏的含义是防止指标被单方面优化，与其他选项描述的归属、因果或档位设定无关。",
+      "sourceAnchor": "稀缺资源：人的时间与注意力"
+    },
+    {
+      "question": "关于人工批准，下列哪一项最符合原文？",
+      "options": [
+        "风险档由改动本身决定，受信任作者可走轻量路径，且一次批准只覆盖一个特定提交。",
+        "风险档由作者资历决定，资深工程师的改动一律无需人工批准。",
+        "Agent 的批准可以占据一个必需的人类批准名额。",
+        "一次批准在 PR 生命周期内持续有效，新提交无需重新批准。"
+      ],
+      "answer": 0,
+      "explain": "原文强调“分档由改动而非作者决定”，只有信任名单上的作者能走轻量路径，Agent 批准永远不算人的批准，并且新提交（例如 Agent 推送或手工解决的合并）需要重新批准。",
+      "wrongReason": "其余三项分别错在把分档归因于作者、允许机器人填补人类名额、以及把批准当成终身有效。",
+      "sourceAnchor": "逐层拆解：七层检查"
+    },
+    {
+      "question": "团队为什么要给评审设“轮次上限”并改成只看新 diff？",
+      "options": [
+        "因为多轮评审标记的代码里约 59% 在首轮之前就已存在，继续跑主要是翻旧账而非发现新问题。",
+        "因为每多跑一轮，模型调用成本会线性上升，团队需要控制预算。",
+        "因为超过三轮后，评审器会开始漏掉新引入的 bug。",
+        "因为 GitHub 对同一 PR 的评论数量有硬性限制。"
+      ],
+      "answer": 0,
+      "explain": "原文用 git blame 检查后发现，被反复标记的代码中约 59% 自首轮起就存在，评审器很少发现新 bug，只是在每轮多翻出几个旧 bug，因此需要收敛机制。",
+      "wrongReason": "文中讨论的是收敛与注意力成本，而不是调用预算、模型退化或平台限制。",
+      "sourceAnchor": "让评审器变得更好"
+    }
+  ],
+  "original": {
+    "title": "How the Claude Code team does code review",
+    "meta": "Anthropic · Claude Code 团队 · 2026-10-15",
+    "groups": [
+      {
+        "group": "引言：90% 代码由 Claude 写就 · Introduction",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "We've said before that Claude writes about 90 percent of Claude Code's own code. So how do we review code at the volume we produce it? Does anyone read code anymore? And if something breaks, who catches it?",
+            "zh": "我们此前说过，Claude 编写了 Claude Code 自身大约 90% 的代码。那么我们如何评审自己产出的这种量级的代码？现在还有人在读代码吗？如果出了问题，谁来接住？",
+            "html": "We've said before that Claude writes about 90 percent of <a href=\"https://claude.com/product/claude-code\" target=\"_blank\" rel=\"noopener\">Claude Code</a>'s own code. So how do we review code at the volume we produce it? Does anyone read code anymore? And if something breaks, who catches it?"
+          },
+          {
+            "type": "bilingual",
+            "en": "This post covers the code review flow on the Claude Code team and how it has evolved. From June to September, merged pull requests to Claude Code's codebase more than doubled while the share that had to be reverted fell by more than 40 percent. We didn't remove review. But we did move most of the reading to machines, optimized for human time and attention, and invested heavily in making it fast and easy to undo mistakes.",
+            "zh": "本文介绍 Claude Code 团队的代码评审流程及其演进。6 月到 9 月，合入 Claude Code 代码库的 PR 数量增长了一倍多，而需要回滚的比例下降了 40% 以上。我们并没有取消评审：我们把大部分“阅读”交给机器，围绕人的时间与注意力做优化，并大量投入让撤销错误变得又快又容易。"
+          }
+        ]
+      },
+      {
+        "group": "重新定义代码评审的用途 · Rethinking the purpose of code review",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "When agents write code, the number of changes goes up, fast. In Anthropic's monorepo, changes landing per day went from about 2,500 in May to more than 30,000 in September this year. Claude Code lives in its own repository, separate from the monorepo, but it's seeing a lot of pressure too. When you are shipping this fast, manual, line-by-line code review is incredibly difficult if not impossible.",
+            "zh": "当 Agent 开始写代码，变更数量会迅速上升。在 Anthropic 的 monorepo 中，每天落地的变更从今年 5 月的约 2,500 个增长到 9 月的 30,000 多个。Claude Code 位于独立仓库，与 monorepo 分开，但同样承受着巨大压力：以这样的速度交付，逐行的人工评审极其困难，甚至根本不可能。",
+            "html": "When agents write code, the number of changes goes up, fast. In Anthropic's monorepo, changes landing per day went from about <a href=\"https://www.anthropic.com/engineering/redesigning-source-control\" target=\"_blank\" rel=\"noopener\">2,500 in May to more than 30,000 in September</a> this year. Claude Code lives in its own repository, separate from the monorepo, but it's seeing a lot of pressure too. When you are shipping this fast, manual, line-by-line code review is incredibly difficult if not impossible."
+          },
+          {
+            "type": "bilingual",
+            "en": "Code review does two jobs: find and fix issues before they ship, and build shared context and codebase understanding across the team. This article mainly focuses on finding and fixing issues, but we will come back to the second job near the end.",
+            "zh": "代码评审有两个职责：在上线前发现并修复问题；在团队中建立共享上下文与对代码库的共同理解。本文主要讨论第一件事，第二件事留到接近结尾处再谈。",
+            "html": "Code review does two jobs:<br>1. Find and fix issues before they ship.<br>2. Build shared context and codebase understanding across the team.<br>This article mainly focuses on finding and fixing issues, but we will come back to the second job near the end.",
+            "zhHtml": "代码评审有两个职责：<br>1. 在上线前发现并修复问题。<br>2. 在团队中建立共享上下文与对代码库的共同理解。<br>本文主要讨论第一件事，第二件事留到接近结尾处再谈。"
+          },
+          {
+            "type": "bilingual",
+            "en": "We think \"did a human read the code?\" is an imprecise proxy for \"what could go wrong with this change, and which check—automated or human—is the right one to catch it?\" Asking that question also changed when review happens.",
+            "zh": "我们认为，“有没有人类读过这段代码”是对另一个问题的粗略替代：这次变更可能出什么问题，哪种检查（自动的还是人工的）才正好能抓住它。换一个问法，也改变了评审发生的时机。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Before, review was a gate at the end of the road: write the code, open a PR, wait for your colleague. Now, review runs continuously, more like spellcheck while you write. Most changes have been reviewed and fixed by Claude at least once before a human is asked to look. This catches most routine mistakes, and saves team attention for higher-level questions and scrutiny.",
+            "zh": "过去，评审是流程终点的关卡：写代码、开 PR、等同事。现在评审是持续的，更像写作过程中的拼写检查。大多数变更在被交到人手上之前，已经由 Claude 评审并修复过至少一轮。这挡掉了大部分常规错误，把团队的注意力留给更高层的问题与判断。"
+          }
+        ]
+      },
+      {
+        "group": "稀缺资源：人的时间与注意力 · The scarce resource",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "We want to preserve human time and attention for issues only humans can solve and make sure automated checks catch the rest. At our current rate of change, there is still an incredible amount of work for humans to do, and our team encounters new and novel challenges almost daily.",
+            "zh": "我们希望把人的时间与注意力留给只有人能解决的问题，其余交给自动检查。以当前的变化速度，人要做的事依然极多，团队几乎每天都会遇到新的、前所未有的挑战。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Human time covers both sides of review's cost: the time people spend reviewing, and the time they spend fixing what bad code breaks. Cutting the first doesn't help if the time just shows up in the second.",
+            "zh": "“人的时间”覆盖评审成本的两端：一是人们花在评审上的时间，二是他们花在修复坏代码所造成的破坏上的时间。如果省下的第一种时间又以第二种形式冒出来，那并没有真正省下什么。"
+          },
+          {
+            "type": "bilingual",
+            "en": "So the goal is that most pull requests in the Claude Code repos (the CLI, the desktop and web apps, and the mobile apps) merge with at most one human in the loop, who can be the author, with no increase in reverts or incidents. To measure human time, we track human approvals per PR (median and 95th percentile), human comments, and how long a PR waits on a person. Revert and incident rates are the guardrail: if they rise, we haven't saved human time, we've only moved it.",
+            "zh": "因此目标是：Claude Code 各个仓库（CLI、桌面端与 Web 应用、移动应用）中的大多数 PR，在回滚率与事故率不上升的前提下，最多只需要一个人在环内（这个人可以是作者本人）即可合并。为了度量人的时间，我们跟踪每个 PR 的人工批准次数（中位数与 95 分位）、人工评论数，以及 PR 等待某个人的时长。回滚率与事故率是护栏：一旦上升，就说明我们并没有真的省下人的时间，只是把它挪到了别处。"
+          }
+        ]
+      },
+      {
+        "group": "一次变更的旅程 · The life of a change",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "A typical change, from an engineer's laptop (or a Claude session in Slack), goes through multiple layers of code review.",
+            "zh": "一次典型的变更，从工程师的笔记本（或 Slack 里的一个 Claude 会话）出发，要经过多层代码评审。"
+          },
+          {
+            "type": "image",
+            "src": "assets/figure-a-life-of-a-change.svg",
+            "alt": "A typical Claude Code change, from the author's machine to users",
+            "caption": "图 A：一次典型 Claude Code 变更的完整链路——先自我验证，再逐层自动评审，人工注意力按风险投放，最后靠开关与回滚兜底。"
+          }
+        ]
+      },
+      {
+        "group": "逐层拆解：七层检查 · Layer by layer",
+        "rows": [
+          {
+            "type": "image",
+            "src": "assets/figure-b-six-layers.svg",
+            "alt": "Six layers of checks, with rollback under them",
+            "caption": "图 B：六层检查逐层过滤问题，底层由回滚承接；每层都会漏掉一些，很少有变更能全部通过，剩下的交给回滚。"
+          },
+          {
+            "type": "bilingual",
+            "en": "1 · The work is verified before anyone else looks. Most review now happens before a PR exists. We give Claude something it can run—like tests, a build or a screenshot to compare against the design—and ask it to show the output instead of saying it's done. Then a subagent reviews the diff with fresh context. Both habits come from our best-practices guide.",
+            "zh": "第 1 层：在任何人看之前先自我验证。现在大部分评审发生在 PR 存在之前。我们给 Claude 一些它能运行的东西——测试、构建，或一张可与设计稿比对的截图——并要求它展示输出，而不是口头宣称“做完了”。随后由一个子 Agent 在全新上下文中评审这次 diff。这两个习惯都来自我们的最佳实践指南。",
+            "html": "1 · The work is verified before anyone else looks. Most review now happens before a PR exists. We give Claude something it can run—like tests, a build or a screenshot to compare against the design—and ask it to show the output instead of saying it's done. Then a subagent reviews the diff with fresh context. Both habits come from our <a href=\"https://code.claude.com/docs/en/best-practices\" target=\"_blank\" rel=\"noopener\">best-practices guide</a>."
+          },
+          {
+            "type": "bilingual",
+            "en": "Before opening a PR, many of us also run a few internal skills: one hunts for bugs, one simplifies the diff, and one checks the behavior end to end. UI changes also get checked against our design guidelines. Boris Cherny, who created Claude Code, has called giving Claude a way to verify its work probably the most important thing for getting good results. He estimates it makes the final result two to three times better.",
+            "zh": "在开 PR 之前，很多人还会跑几个内部 skill：一个专门找 bug，一个负责简化 diff，一个做端到端行为检查。UI 变更还要对照设计规范检查。Claude Code 的创造者 Boris Cherny 曾说，给 Claude 一条能验证自己工作的路径，大概是拿到好结果最关键的事。他估计这能让最终结果好上两到三倍。",
+            "html": "Before opening a PR, many of us also run a few <a href=\"https://claude.dev/blog/lessons-from-building-claude-code-how-we-use-skills/\" target=\"_blank\" rel=\"noopener\">internal skills</a>: one hunts for bugs, one simplifies the diff, and one checks the behavior end to end. UI changes also get checked against our design guidelines. Boris Cherny, who created Claude Code, has called giving Claude a way to verify its work <a href=\"https://x.com/bcherny/status/2007179861115511237\" target=\"_blank\" rel=\"noopener\">probably the most important thing</a> for getting good results. He estimates it makes the final result two to three times better."
+          },
+          {
+            "type": "bilingual",
+            "en": "Verification looks different for each domain. It might be as simple as running a bash command, or running a test suite, or testing the app in a browser or phone simulator. — Boris Cherny",
+            "zh": "验证在每个领域长得都不一样。它可能只是跑一条 bash 命令，跑一套测试，或者在浏览器、手机模拟器里把应用试一遍。—— Boris Cherny"
+          },
+          {
+            "type": "bilingual",
+            "en": "When the automated reviewer keeps flagging the same thing, we fix it at the source: in the skill, with a lint rule, or with updates to instructional files such as CLAUDE.md and REVIEW.md.",
+            "zh": "当自动评审器反复标记同一个问题时，我们会在源头修掉它：改 skill、加一条 lint 规则，或者更新 CLAUDE.md、REVIEW.md 这类指导文件。",
+            "html": "<b>When the automated reviewer keeps flagging the same thing, we fix it at the source:</b> in the skill, with a lint rule, or with updates to instructional files such as <code>CLAUDE.md</code> and <code>REVIEW.md</code>."
+          },
+          {
+            "type": "bilingual",
+            "en": "CLAUDE.md tells Claude what the project is: the stack, the conventions, the goals and the non-goals. Every review loads it, so in a large codebase we keep it short and point to other docs from there. The reviewer also flags code that breaks a convention in it, and changes that make a line in it out of date.",
+            "zh": "CLAUDE.md 告诉 Claude 这个项目是什么：技术栈、约定、目标与非目标。每次评审都会加载它，所以在大型代码库里我们会保持它简短，并从那里指向其他文档。评审器也会标出违反其中约定的代码，以及让某一行约定过时的改动。",
+            "html": "• <code>CLAUDE.md</code> tells Claude what the project is: the stack, the conventions, the goals and the non-goals. Every review loads it, so in a large codebase we keep it short and point to other docs from there. The reviewer also flags code that breaks a convention in it, and changes that make a line in it out of date.",
+            "zhHtml": "• CLAUDE.md 告诉 Claude 这个项目是什么：技术栈、约定、目标与非目标。每次评审都会加载它，所以在大型代码库里我们会保持它简短，并从那里指向其他文档。评审器也会标出违反其中约定的代码，以及让某一行约定过时的改动。"
+          },
+          {
+            "type": "bilingual",
+            "en": "REVIEW.md, written by code owners, tells the reviewer what matters in their part of the code. We check separately whether the reviewer actually follows it. The good ones are short. They say what failure looks like in that repo (for docs it's \"it lies,\" for config it's \"it misroutes\"), cap the nits, list paths to skip, and ask for a file and line as evidence instead of a guess from a name.",
+            "zh": "REVIEW.md 由代码 owner 撰写，告诉评审器在他们负责的那部分代码里什么才是重要的。我们会单独检查评审器是否真的照做。写得好的都很短：说清这个仓库里“失败”长什么样（文档仓库是“它在说谎”，配置仓库是“它把流量路由错了”），限制吹毛求疵的数量，列出可以跳过的路径，并要求给出文件和行号作为证据，而不是靠名字猜。",
+            "html": "• <code>REVIEW.md</code>, written by code owners, tells the reviewer what matters in their part of the code. We check separately whether the reviewer actually follows it. The good ones are short. They say what failure looks like in that repo (for docs it's \"it lies,\" for config it's \"it misroutes\"), cap the nits, list paths to skip, and ask for a file and line as evidence instead of a guess from a name.",
+            "zhHtml": "• REVIEW.md 由代码 owner 撰写，告诉评审器在他们负责的那部分代码里什么才是重要的。我们会单独检查评审器是否真的照做。写得好的都很短：说清这个仓库里“失败”长什么样（文档仓库是“它在说谎”，配置仓库是“它把流量路由错了”），限制吹毛求疵的数量，列出可以跳过的路径，并要求给出文件和行号作为证据，而不是靠名字猜。"
+          },
+          {
+            "type": "bilingual",
+            "en": "2 · AI review on every pull request. Every pull request gets a Claude review before a person looks. It reads the diff against the whole repo and the PR's stated intent, and asks: does the change solve its problem, fit the system, or break something else? On a bug fix, it looks for the root cause.",
+            "zh": "第 2 层：每个 PR 都有 AI 评审。在任何人看之前，每个 PR 都会先过一遍 Claude 评审。它把 diff 放进整个仓库和 PR 声明的意图里去读，追问：这个改动解决了它该解决的问题吗？契合系统吗？有没有弄坏别的东西？如果是一个 bug 修复，它会去找根因。",
+            "html": "2 · AI review on every pull request. Every pull request gets a Claude review before a person looks. It reads the diff against the whole repo and the PR's stated intent, and asks: does the change solve its problem, fit the system, or break something else? On a bug fix, it looks for the root cause."
+          },
+          {
+            "type": "bilingual",
+            "en": "The public version, Code Review for Claude Code, is now generally available on Team and Enterprise plans, and /code-review runs a lighter version locally. When we launched the research preview, the share of internal PRs getting substantive review comments went from 16% to 54%. Most PRs over 1,000 lines get findings, and most small ones come back clean. Admins set each repo to Quick, Standard, or Deep. Deep is worth it where one missed bug costs more than the extra review time.",
+            "zh": "公开发布的 Code Review for Claude Code 已在 Team 与 Enterprise 版全面可用，/code-review 命令则在本地跑一个更轻的版本。研究预览上线时，内部 PR 中获得实质评审意见的比例从 16% 升到 54%。超过 1,000 行的 PR 大多能查出问题，小 PR 大多干净返回。管理员可以为每个仓库选择 Quick、Standard 或 Deep 档；当漏掉一个 bug 的代价高于多花的评审时间时，Deep 就是值得的。",
+            "html": "The public version, <a href=\"https://code.claude.com/docs/en/code-review\" target=\"_blank\" rel=\"noopener\">Code Review for Claude Code</a>, is now generally available on Team and Enterprise plans, and <code>/code-review</code> runs a lighter version locally. When we <a href=\"https://claude.com/resources/articles/code-review\" target=\"_blank\" rel=\"noopener\">launched the research preview</a>, the share of internal PRs getting substantive review comments went from 16% to 54%. Most PRs over 1,000 lines get findings, and most small ones come back clean. Admins set each repo to Quick, Standard, or Deep. Deep is worth it where one missed bug costs more than the extra review time."
+          },
+          {
+            "type": "bilingual",
+            "en": "Findings get verified by other agents before humans review them. Several agents look for bugs at the same time. Then a separate group votes on each finding, and it only gets posted if enough of them agree it's real. Findings that are only about style, diagnostics, or cleanup get dropped. What's left shows up as inline comments sorted by severity. Each is tagged Important, Nit, or Pre-existing, so a bug the PR didn't introduce doesn't look like the author's fault.",
+            "zh": "问题在被人类看到之前，先由其他 Agent 验证。多个 Agent 同时找 bug，再由另一组对每条发现投票，票数足够才发出来。只涉及风格、诊断信息或代码清理的发现会被丢掉——这些过滤规则我们都先在自己的 PR 上做过 A/B 才保留。剩下的以行内评论呈现，按严重程度排序，并标注 Important、Nit 或 Pre-existing，这样 PR 之前就存在的 bug 不会被误当成作者的责任。",
+            "html": "<b>Findings get verified by other agents before humans review them.</b> Several agents look for bugs at the same time. Then a separate group votes on each finding, and it only gets posted if enough of them agree it's real. Findings that are only about style, diagnostics, or cleanup get dropped. We A/B tested those filters on our own PRs before keeping them. What's left shows up as inline comments sorted by severity. Each is tagged Important, Nit, or Pre-existing, so a bug the PR didn't introduce doesn't look like the author's fault."
+          },
+          {
+            "type": "bilingual",
+            "en": "Every finding has to be answered. You either fix it or resolve the thread with a reason. Often an agent picks up the fix overnight, so the author comes back to a PR that's already been through another round.",
+            "zh": "每条发现都必须被回应：要么修掉，要么写明理由后关闭讨论。常常是 Agent 在夜里就把修复做了，作者第二天回来时，PR 已经又过了一轮。",
+            "html": "<b>Every finding has to be answered.</b> You either fix it or resolve the thread with a reason. Often an agent picks up the fix overnight, so the author comes back to a PR that's already been through another round.",
+            "zhHtml": "<b>每条发现都必须被回应：</b>要么修掉，要么写明理由后关闭讨论。常常是 Agent 在夜里就把修复做了，作者第二天回来时，PR 已经又过了一轮。"
+          },
+          {
+            "type": "bilingual",
+            "en": "3 · Security review that can block. Security gets its own automated review too. A PR can't merge while any finding from the bug review or the security review is still open. You either fix it or close the thread with a short reason, which is how you clear a false positive. If a later commit fixes the issue, the finding clears on its own.",
+            "zh": "第 3 层：能拦住合并的安全评审。安全有独立的自动评审。只要 bug 评审或安全评审中还有任何一条未关闭的发现，PR 就不能合并；你要么修复，要么用简短理由关闭讨论——这也是清除误报的方式。如果后续某个提交修好了问题，这条发现会自动消除。",
+            "html": "3 · Security review that can block. Security gets its own automated review too. A PR can't merge while any finding from the bug review or the security review is still open. You either fix it or close the thread with a short reason, which is how you clear a false positive. If a later commit fixes the issue, the finding clears on its own."
+          },
+          {
+            "type": "bilingual",
+            "en": "You can set up the same thing with the open-source security review GitHub Action or the /security-review command. Setup is covered in automated security reviews in Claude Code.",
+            "zh": "你可以用开源的 security review GitHub Action 或 /security-review 命令搭起同样的机制，具体配置见 Claude Code 的自动安全评审文档。",
+            "html": "You can set up the same thing with the open-source security review GitHub Action or the <code>/security-review</code> command. Setup is covered in <a href=\"https://support.claude.com/en/articles/11932705-automated-security-reviews-in-claude-code\" target=\"_blank\" rel=\"noopener\">automated security reviews in Claude Code</a>."
+          },
+          {
+            "type": "bilingual",
+            "en": "4 · Automated checks that block. The usual: lint, type checks, tests on every platform, and a build. A typical CLI pull request may run dozens of checks before anyone looks at it. The PR template asks how the change was tested and how to undo it. Claude can fill that in, but the person who asked for the change signs off on it.",
+            "zh": "第 4 层：能拦住合并的自动检查。都是常规项：lint、类型检查、各平台上的测试，以及构建。一个典型的 CLI PR，在有人看之前可能已经跑了几十项检查。PR 模板会问这次改动用什么方式验证过、以及怎么撤销。Claude 可以替你填，但提出这个改动的人要对它签字确认。",
+            "html": "4 · Automated checks that block. The usual: lint, type checks, tests on every platform, and a build. (We wrote about <a href=\"https://claude.com/resources/articles/agentic-coding-is-straining-ci-heres-how-we-scaled-test-impact-analysis-at-anthropic\" target=\"_blank\" rel=\"noopener\">scaling CI for this volume</a>.) A typical CLI pull request may run dozens of checks before anyone looks at it. The PR template asks how the change was tested and how to undo it. Claude can fill that in, but the person who asked for the change signs off on it."
+          },
+          {
+            "type": "bilingual",
+            "en": "5 · Human approval, scaled by risk. A docs fix and an auto-updater change carry different risk, so they get different review.",
+            "zh": "第 5 层：按风险分级的人工批准。改一处文档和改自动更新器，风险完全不同，评审强度也不该一样。",
+            "html": "5 · Human approval, scaled by risk. A docs fix and an auto-updater change carry different risk, so they get different review."
+          },
+          {
+            "type": "table",
+            "rows": [
+              [
+                "Risk",
+                "Examples",
+                "Human approvals"
+              ],
+              [
+                "Low",
+                "Docs, copy, internal-only features, additive changes behind a flag",
+                "None required once automated review and security checks are green"
+              ],
+              [
+                "Medium",
+                "Ordinary product changes, and changes to sensitive areas such as caching, the auto-updater, or system prompts",
+                "One person"
+              ],
+              [
+                "High",
+                "The highest-risk code, plus a small set of paths that always need two people",
+                "Two people"
+              ]
+            ],
+            "zhRows": [
+              [
+                "风险",
+                "示例",
+                "人工批准"
+              ],
+              [
+                "低",
+                "文档、文案、仅内部可见的功能、藏在开关后面的增量改动",
+                "自动评审与安全检查全绿后无需人工批准"
+              ],
+              [
+                "中",
+                "常规产品改动，以及缓存、自动更新器、系统提示词等敏感区域的改动",
+                "一人批准"
+              ],
+              [
+                "高",
+                "风险最高的代码，以及一小批始终需要两人确认的路径",
+                "两人批准"
+              ]
+            ]
+          },
+          {
+            "type": "bilingual",
+            "en": "The change sets the tier, not the author. A classifier reads the change and picks its risk tier. A second classifier asks whether this particular change needs another person even when its tier says it doesn't. Some paths always need a person, anything owners have listed as sensitive and any CI workflow file.",
+            "zh": "分级由改动本身决定，而不是由作者决定。一个分类器读取改动的具体内容，判定它属于哪个风险档；第二个分类器再问：即便这一档本不需要，这个特定改动是否仍然需要另一个人？有些路径永远需要人：owner 标记为敏感的路径，以及任何 CI workflow 文件。",
+            "html": "<b>The change sets the tier, not the author.</b> A classifier reads the change and picks its risk tier. A second classifier asks whether this particular change needs another person even when its tier says it doesn't. Some paths always need a person, anything owners have listed as sensitive and any CI workflow file.",
+            "zhHtml": "<b>分级由改动本身决定，而不是由作者决定。</b>一个分类器读取改动的具体内容，判定它属于哪个风险档；第二个分类器再问：即便这一档本不需要，这个特定改动是否仍然需要另一个人？有些路径永远需要人：owner 标记为敏感的路径，以及任何 CI workflow 文件。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Only trusted authors get the lighter paths. Only authors on the repo's trusted list get the lighter paths, mostly the team that owns it. Everyone else needs a second person to approve. An agent's approval never counts as a person's, either. Automated review can clear a low-risk change, but it can't fill a slot that calls for a human.",
+            "zh": "只有受信任的作者才能走轻量路径。只有仓库信任名单上的作者（基本就是负责这个仓库的团队）才能走更轻的批准路径，其他人都需要第二个人批准。Agent 的批准永远不算人的批准：自动评审可以放行一个低风险改动，但填不上一个本来要求由人占据的位置。",
+            "html": "<b>Only trusted authors get the lighter paths.</b> Only authors on the repo's trusted list get the lighter paths, mostly the team that owns it. Everyone else needs a second person to approve. An agent's approval never counts as a person's, either. Automated review can clear a low-risk change, but it can't fill a slot that calls for a human.",
+            "zhHtml": "<b>只有受信任的作者才能走轻量路径。</b>只有仓库信任名单上的作者（基本就是负责这个仓库的团队）才能走更轻的批准路径，其他人都需要第二个人批准。Agent 的批准永远不算人的批准：自动评审可以放行一个低风险改动，但填不上一个本来要求由人占据的位置。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Whoever prompted the change is on the hook for it. On an agent-written PR, the person directing the agent counts as one of the required reviewers, the same as if they'd typed the code themselves.",
+            "zh": "谁发起改动，谁就对它负责。在一个由 Agent 写出的 PR 上，指挥 Agent 的那个人算作必需的评审人之一，责任与亲手敲下这些代码时相同。",
+            "html": "<b>Whoever prompted the change is on the hook for it.</b> On an agent-written PR, the person directing the agent counts as one of the required reviewers, the same as if they'd typed the code themselves.",
+            "zhHtml": "<b>谁发起改动，谁就对它负责。</b>在一个由 Agent 写出的 PR 上，指挥 Agent 的那个人算作必需的评审人之一，责任与亲手敲下这些代码时相同。"
+          },
+          {
+            "type": "bilingual",
+            "en": "An approval covers one specific commit. If new commits land that the system can't vouch for, like an agent's push or a merge someone resolved by hand, the approval has to be given again.",
+            "zh": "一次批准只覆盖一个特定提交。如果之后落入了系统无法担保的新提交——比如 Agent 推送的提交，或某人手工解决的合并——批准就必须重新给出。",
+            "html": "<b>An approval covers one specific commit.</b> If new commits land that the system can't vouch for, like an agent's push or a merge someone resolved by hand, the approval has to be given again.",
+            "zhHtml": "<b>一次批准只覆盖一个特定提交。</b>如果之后落入了系统无法担保的新提交——比如 Agent 推送的提交，或某人手工解决的合并——批准就必须重新给出。"
+          },
+          {
+            "type": "bilingual",
+            "en": "6 · Merge queue, flags and a gradual release. The merge queue re-runs every check against main with the change applied, so two PRs that pass separately can't combine into a broken main. New behavior usually ships behind a flag to Anthropic employees first, and our heavy use often surfaces regressions before users do. Public releases go to the latest channel first. The stable channel trails it.",
+            "zh": "第 6 层：合并队列、开关与渐进发布。合并队列会把改动应用到 main 上重跑所有检查，避免两个各自通过的 PR 合起来把 main 弄坏。新行为通常先藏在开关后面发给 Anthropic 内部员工，我们内部的密集使用往往比用户更早暴露回归。公开发布先进 latest 渠道，stable 渠道随后跟进。",
+            "html": "6 · Merge queue, flags and a gradual release. The merge queue re-runs every check against main with the change applied, so two PRs that pass separately can't combine into a broken main. New behavior usually ships behind a flag to Anthropic employees first, and our heavy use often surfaces regressions before users do. Public releases go to the <code>latest</code> channel first. The <code>stable</code> channel trails it."
+          },
+          {
+            "type": "bilingual",
+            "en": "7 · Fast detection, fast rollback. Some mistakes will still get through, so the last layer is about catching them fast. Flags turn off without a deploy. Claude Code has a weekly on-call rotation, and incident reviews ask which layer should have caught the issue.",
+            "zh": "第 7 层：快速发现、快速回滚。总有些错误会漏过去，所以最后一层比的是发现速度。开关可以不经部署就关掉；Claude Code 有每周轮值的 on-call，事故复盘会追问：哪一层本该拦住它？",
+            "html": "7 · Fast detection, fast rollback. Some mistakes will still get through, so the last layer is about catching them fast. Flags turn off without a deploy. Claude Code has a weekly on-call rotation, and incident reviews ask which layer should have caught the issue."
+          },
+          {
+            "type": "bilingual",
+            "en": "Noticing a bad merge still depends on the author and on-call as well as the revert and incident dashboards. We don't yet have circuit breakers that tighten approval when those numbers move; engineers here want them before more code moves to zero-human merges. One colleague said slowing down does lower your error rate, but mostly because you're doing less of everything. We'd rather get faster at noticing and fixing problems.",
+            "zh": "目前发现坏合并，仍然依赖作者、on-call 以及回滚与事故看板。我们还没有“数字一变就自动收紧审批”的熔断机制；团队里的工程师希望在更多代码走向零人工合并之前把它补上。一位同事说，放慢确实会降低错误率，但那主要是因为你什么都做得更少了。我们宁愿把发现和修复问题的速度提上去。"
+          }
+        ]
+      },
+      {
+        "group": "让评审器变得更好 · How we make the reviewer better",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Our code review process is constantly improving in a loop. Any incidents are now an eval. The team collected past PRs that caused incidents, with their fix-forwards and reverts, and had engineers who know that code confirm each bug and where it lived. The reviewer runs against that set daily.",
+            "zh": "我们的代码评审流程在一个闭环里持续变好。现在每一次事故都会变成一条评测用例：团队收集过去引发事故的 PR（连同它们的修复前进与回滚），请熟悉那段代码的工程师确认每个 bug 以及它藏在哪里，评审器每天都会跑这套集合。",
+            "html": "<b>Any incidents are now an eval.</b> The team collected past PRs that caused incidents, with their fix-forwards and reverts, and had engineers who know that code confirm each bug and where it lived. The reviewer runs against that set daily.",
+            "zhHtml": "<b>每一次事故都会变成一条评测用例。</b>团队收集过去引发事故的 PR（连同它们的修复前进与回滚），请熟悉那段代码的工程师确认每个 bug 以及它藏在哪里，评审器每天都会跑这套集合。"
+          },
+          {
+            "type": "image",
+            "src": "assets/figure-c-incident-eval.svg",
+            "alt": "Built from past incidents and reverts, run every day",
+            "caption": "图 C：事故 → 专家确认 → 加入评测集 → 每日回放 → 打分上涨才保留改动；这套集合会随每次事故增长。"
+          },
+          {
+            "type": "bilingual",
+            "en": "We measure noise by watching what people do with the comments. It's easy to catch more bugs if you don't mind flagging a lot of non-bugs, so we need a check on that. We sort every comment the reviewer leaves by how the person on the PR responded: they fixed it, said it was wrong, said the behavior was intentional, or decided it didn't matter. We also run the reviewer on PRs we know are clean and count how often it reports something that would have led someone to make a harmful change. Our priority, written down, is catching real bugs first and cutting review rounds second.",
+            "zh": "我们通过观察人们怎么处理评论来衡量噪音。只要不介意误报，多抓 bug 是容易的，所以必须有制衡。我们把评审器留下的每条评论按 PR 上那个人的反应分类：修了、说它错了、说这个行为是有意为之、或认为无关紧要。我们还会在已知干净的 PR 上跑评审器，统计它报出“若照做会产生有害改动”的频率。我们写下来的优先级是：先抓真 bug，再减少评审轮次。",
+            "html": "<b>We measure noise by watching what people do with the comments.</b> It's easy to catch more bugs if you don't mind flagging a lot of non-bugs, so we need a check on that. We sort every comment the reviewer leaves by how the person on the PR responded: they fixed it, said it was wrong, said the behavior was intentional, or decided it didn't matter. We also run the reviewer on PRs we know are clean and count how often it reports something that would have led someone to make a harmful change. Our priority, written down, is catching real bugs first and cutting review rounds second.",
+            "zhHtml": "<b>我们通过观察人们怎么处理评论来衡量噪音。</b>只要不介意误报，多抓 bug 是容易的，所以必须有制衡。我们把评审器留下的每条评论按 PR 上那个人的反应分类：修了、说它错了、说这个行为是有意为之、或认为无关紧要。我们还会在已知干净的 PR 上跑评审器，统计它报出“若照做会产生有害改动”的频率。我们写下来的优先级是：先抓真 bug，再减少评审轮次。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Noise costs more when the author is an agent. A person can wave off a nit in seconds. An agent fixes it, which means another commit and another round of review.",
+            "zh": "当作者是 Agent 时，噪音的代价更高。人可以在几秒内把一条吹毛求疵的评论挥走；Agent 会去修它，这就意味着又一个提交、又一轮评审。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Review has to converge. An agent author and an agent reviewer can keep each other busy indefinitely. One CLI PR went through more than fifty rounds of review and fixes overnight before its author stopped it.",
+            "zh": "评审必须收敛。一个 Agent 作者和一个 Agent 评审器可以让彼此无限忙碌下去。有一个 CLI 的 PR，一夜之间经历了五十多轮评审与修复，直到作者出手叫停。",
+            "html": "<b>Review has to converge.</b> An agent author and an agent reviewer can keep each other busy indefinitely. One CLI PR went through more than fifty rounds of review and fixes overnight before its author stopped it.",
+            "zhHtml": "<b>评审必须收敛。</b>一个 Agent 作者和一个 Agent 评审器可以让彼此无限忙碌下去。有一个 CLI 的 PR，一夜之间经历了五十多轮评审与修复，直到作者出手叫停。"
+          },
+          {
+            "type": "bilingual",
+            "en": "When we ran git blame on what the reviewer kept flagging, about 59% of it was code that had been there since the reviewer's first pass. The reviewer was rarely finding new bugs, it was finding a few more old ones each round. We made it worse ourselves. We'd gotten used to running several rounds by default, since each pass catches something new. This can be worthwhile on a risky change, but not on every PR.",
+            "zh": "我们对评审器反复标记的代码跑了 git blame，发现其中约 59% 在评审器第一轮时就已经存在。评审器很少在发现新 bug，它只是在每一轮里再翻出几个旧 bug。这一点我们自己也有责任：因为每一轮总能抓到点什么，我们习惯了默认跑好几轮。对高风险改动这也许值得，但不是每个 PR 都值得。"
+          },
+          {
+            "type": "bilingual",
+            "en": "The team now tracks rounds-to-pass alongside recall, and changed re-review: a round cap (after three rounds, the reviewer asks the author to step back and reconsider the approach); diff-only re-review after the first few passes; flag the class of bug, so the author fixes every instance, not one line; no repeats of findings already posted. Review agents also run nightly over existing code, helping us catch old bugs before they show up somewhere else.",
+            "zh": "现在团队把“通过所需轮次”和召回率放在一起跟踪，并改掉了重评审的方式：设置轮次上限（三轮之后，评审器会请作者退一步重新考虑方案）；首轮之后再评审只看新增 diff；按 bug 类别标记，让作者一次修掉所有同类实例而不是一行；已经发过的发现不再重复。评审 Agent 还会每晚扫一遍现有代码，帮我们在旧 bug 冒到别处之前抓住它。",
+            "html": "The team now tracks rounds-to-pass alongside recall, and changed re-review:<br>• <b>A round cap.</b> After three rounds, the reviewer asks the author to step back and reconsider the approach.<br>• <b>Diff-only re-review</b> after the first few passes.<br>• <b>Flag the class of bug,</b> so the author fixes every instance, not one line.<br>• <b>No repeats</b> of findings already posted.<br>Review agents also run nightly over existing code, helping us catch old bugs before they show up somewhere else.",
+            "zhHtml": "现在团队把“通过所需轮次”和召回率放在一起跟踪，并改掉了重评审的方式：<br>• <b>轮次上限。</b>三轮之后，评审器会请作者退一步重新考虑方案。<br>• <b>只看新 diff。</b>首轮之后的评审只针对新增改动。<br>• <b>按 bug 类别标记，</b>让作者一次修掉所有同类实例，而不是一行。<br>• <b>不重复。</b>已经发过的发现不再重发。<br>评审 Agent 还会每晚扫一遍现有代码，帮我们在旧 bug 冒到别处之前抓住它。"
+          },
+          {
+            "type": "image",
+            "src": "assets/figure-d-review-convergence.svg",
+            "alt": "Internal pull requests, before and after the convergence changes",
+            "caption": "图 D：收敛改造前后的内部 PR 数据——一轮即通过的占比从 65% 升到 78%，需要五轮以上的从 8.9% 降到 1.5%，平均评审轮次从 2.08 降到 1.32。"
+          }
+        ]
+      },
+      {
+        "group": "人类仍然守着的位置 · Where humans stay in the loop",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Pulling a senior engineer out of deep work to catch a routine mistake costs far more than an automated review. People on the team are still responsible for deciding whether to build it (direction, taste and scope), reviewing risky code such as billing, the auto-updater and CI workflows, reviewing architecture that sets a pattern others will copy, reading the evidence, and owning the outcome.",
+            "zh": "把一位资深工程师从深度工作中拽出来抓一个常规错误，代价远高于一次自动评审。团队里的人依然要负责：决定这件事该不该做（方向、品味与范围）；评审账单、自动更新器、CI workflow 这类高风险代码；评审会被他人效仿的架构决策；阅读证据；以及为结果负责。",
+            "html": "Pulling a senior engineer out of deep work to catch a routine mistake costs far more than an automated review. People on the team are still responsible for:<br>• <b>Deciding whether to build it.</b> Direction, taste and scope.<br>• <b>Reviewing risky code</b> such as billing, the auto-updater and CI workflows.<br>• <b>Reviewing architecture</b> that sets a pattern others will copy.<br>• <b>Reading the evidence.</b><br>• <b>Owning the outcome.</b>",
+            "zhHtml": "把一位资深工程师从深度工作中拽出来抓一个常规错误，代价远高于一次自动评审。团队里的人依然要负责：<br>• <b>决定这件事该不该做。</b>方向、品味与范围。<br>• <b>评审高风险代码，</b>例如账单、自动更新器和 CI workflow。<br>• <b>评审架构，</b>尤其是会被他人效仿的模式。<br>• <b>阅读证据。</b><br>• <b>为结果负责。</b>"
+          },
+          {
+            "type": "bilingual",
+            "en": "One team that declared its review bottleneck solved still kept human review for changes from outside the team, so someone asks \"should we even do this?\"",
+            "zh": "有一个团队宣布自己的评审瓶颈已经解决，但对来自团队外部的改动依然保留人工评审——总得有人来问一句：“这件事我们到底该不该做？”"
+          },
+          {
+            "type": "bilingual",
+            "en": "Reading the evidence means test output, the command that ran and what it returned, a screenshot, the reviewer's findings. If you can't say what the checks would miss, ask for a real review rather than a quick approval.",
+            "zh": "“阅读证据”指的是测试输出、实际执行的命令及其返回、截图、评审器的发现。如果你说不出这些检查会漏掉什么，那就该要求一次真正的评审，而不是随手点个通过。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Owning the outcome: a person is accountable for every change that ships, whoever typed it.",
+            "zh": "为结果负责：每一个上线的改动都有人对其负责，不管代码是谁敲的。"
+          }
+        ]
+      },
+      {
+        "group": "团队内共享上下文 · Sharing context across the team",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Code review's second job has always been to spread codebase understanding. Reading a teammate's diff is how you learn what changed and how the pieces fit. If machines do most of the reading, how does anyone learn the code?",
+            "zh": "代码评审的第二个职责一直是传播对代码库的理解。读同事的 diff，是了解改了什么、各部件如何咬合的方式。如果大部分阅读都由机器完成，人还怎么学这套代码？"
+          },
+          {
+            "type": "bilingual",
+            "en": "We don't have a formal process for this. Nobody on the team keeps a complete mental model of Claude Code in their head, and we don't think anyone needs to. When someone wants to understand a part of the codebase, they ask Claude to write an explainer for exactly that slice. It takes minutes and reflects the code as it is today.",
+            "zh": "我们对此没有正式流程。团队里没有人把 Claude Code 的完整心智模型装在大脑里，我们认为也不需要。当有人想弄懂代码库的某一部分时，就让 Claude 针对那一小块写一份讲解，几分钟就好，而且反映的是今天的代码。"
+          },
+          {
+            "type": "image",
+            "src": "assets/learning-the-codebase-with-claude.png",
+            "alt": "If machines do most of the reading, how does anyone learn the code?",
+            "caption": "原文配图：不必维护一份完整心智模型——把“想弄懂的那一小块”交给 Claude，换回一份几分钟就能读完的讲解，或者一个可视化产物。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Some of us go a step further and have Claude build a small artifact that visualizes that part of the code and teaches it the way that person likes to learn. If the goal is to spend human attention well, this beats reading trivial diffs line by line. A one-line copy change teaches you almost nothing. An explainer for the module you're about to change teaches you a lot.",
+            "zh": "有些人更进一步，让 Claude 做一个小产物，把那一部分代码可视化，并按这个人喜欢的学法学给它听。如果目标是让人把注意力花得值，这比逐行读那些琐碎的 diff 好得多：一行文案改动能教给你的几乎为零，而针对你即将改动的模块写一份讲解，能教给你很多。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Our culture of defaulting to working on open Slack channels helps too, since you see what others are building while they build it.",
+            "zh": "我们默认在公开 Slack 频道里工作的文化也有帮助：别人做东西的过程，你能实时看见。"
+          }
+        ]
+      },
+      {
+        "group": "\"你合入，你负责\" · You land it, you own it",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "If you land a small or medium change and something still goes wrong, it's a team norm that you usually fix it. A few things keep this from going badly: changes are small, so they're easy to review, debug and revert; everything is reversible; blast radius sets the bar; regressions surface fast through telemetry and internal use; and it isn't blame.",
+            "zh": "如果你合入了一个小或中等规模的改动，后来出了问题，团队惯例是你自己去修。有几件事让这个惯例不至于变糟：改动都很小，因此容易评审、调试和回滚；一切都是可逆的；爆炸半径决定门槛高低；回归会通过遥测和内部使用快速浮现；而且这不是追责。",
+            "html": "If you land a small or medium change and something still goes wrong, it's a team norm that you usually fix it. A few things keep this from going badly:<br>• <b>Changes are small,</b> so they're easy to review, debug and revert.<br>• <b>Everything is reversible.</b> Flags, reverts and staged releases undo most mistakes in minutes.<br>• <b>Blast radius sets the bar.</b> Expensive code gets more people and more checks.<br>• <b>Regressions surface fast</b> through telemetry and internal use.<br>• <b>It isn't blame.</b> Owning a fix means you have the most context; incident reviews look at the system.",
+            "zhHtml": "如果你合入了一个小或中等规模的改动，后来出了问题，团队惯例是你自己去修。有几件事让这个惯例不至于变糟：<br>• <b>改动都很小，</b>因此容易评审、调试和回滚。<br>• <b>一切都是可逆的。</b>开关、回滚和分阶段发布能在几分钟内撤销大部分错误。<br>• <b>爆炸半径决定门槛。</b>代价高的代码会获得更多人和更多检查。<br>• <b>回归很快浮现，</b>靠遥测和内部使用。<br>• <b>这不是追责。</b>负责修复意味着你掌握最多上下文；事故复盘看的是系统。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Ownership is also shared. Much of the team works in open channels where anyone can see what others are building, pick up a thread, or point a Claude at a gap, and feedback comes from people who don't own the code too. That openness is a big part of how quality stays high without a gate on every line.",
+            "zh": "责任也是共享的。团队大部分工作在公开频道里进行，任何人都能看到别人在做什么、接上一条线索，或把一个 Claude 指到一个缺口上；反馈也来自并不拥有这段代码的人。这种开放，是在不对每一行设关卡的前提下仍能保持高质量的重要原因。"
+          }
+        ]
+      },
+      {
+        "group": "当我们改变方向 · When we change direction",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Agents make it cheap to start things, so some work shouldn't land. Usually someone in the channel asks why, points at an earlier decision, or suggests a simpler route, and the author closes or reshapes the PR. Since the code was fast to write, closing the PR doesn't feel like a loss.",
+            "zh": "Agent 让“开始做点什么”变得很便宜，所以总有些活不该落地。通常是频道里有人问一句为什么、指回之前的某个决定，或提出一条更简单的路径，作者就把 PR 关掉或重塑。既然代码写得快，关掉 PR 也不像是一种损失。"
+          },
+          {
+            "type": "bilingual",
+            "en": "The trick is to raise a different direction in the thread early, not as a blocking comment on a finished PR.",
+            "zh": "诀窍在于趁早在线程里提出不同方向，而不是等到 PR 做完再丢一个阻断性评论。"
+          }
+        ]
+      },
+      {
+        "group": "如何把这套流程搬到你的团队 · How you can adopt this process",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Most of the pieces to do this with your team exist today. Before the pull request: give your agent checks it can run, listed in a short CLAUDE.md, plus hooks that run formatters and linters; run /code-review and /security-review locally, or a fresh-context subagent review; add a REVIEW.md, and move repeated review comments into it.",
+            "zh": "要在你自己的团队里这么做，大多数零件今天都已经有了。在 PR 之前：给 Agent 一些它能跑的检查，写在简短的 CLAUDE.md 里，再加上运行格式化和 lint 的 hook；在本地跑 /code-review 与 /security-review，或让一个全新上下文的子 Agent 评审；加一份 REVIEW.md，把重复出现的评审意见搬进去。",
+            "html": "Most of the pieces to do this with your team exist today.<br><b>Before the pull request</b><br>• Give your agent checks it can run, listed in a short <code>CLAUDE.md</code>, plus hooks that run formatters and linters.<br>• Run <code>/code-review</code> and <code>/security-review</code> locally, or a fresh-context subagent review.<br>• Add a <code>REVIEW.md</code>, and move repeated review comments into it.",
+            "zhHtml": "要在你自己的团队里这么做，大多数零件今天都已经有了。<br><b>在 PR 之前</b><br>• 给 Agent 一些它能跑的检查，写在简短的 CLAUDE.md 里，再加上运行格式化和 lint 的 hook。<br>• 在本地跑 /code-review 与 /security-review，或让一个全新上下文的子 Agent 评审。<br>• 加一份 REVIEW.md，把重复出现的评审意见搬进去。"
+          },
+          {
+            "type": "bilingual",
+            "en": "On every pull request: require CI, and add \"Testing\", \"Risk\" and \"How to revert\" to your PR template; add an AI reviewer on one repo, tune REVIEW.md for a few weeks, then widen; add automated security review, and require every review thread resolved before merge; match review effort to risk; cap review rounds, and after the first few, re-review only the new diff.",
+            "zh": "在每个 PR 上：强制 CI，并在 PR 模板里加上“如何测试”“风险”“如何回滚”；先在一个仓库接入 AI 评审器，花几周调整 REVIEW.md，再逐步铺开；加上自动安全评审，并要求合并前所有评审线程都已解决；让评审强度与风险匹配；限制评审轮次，首轮之后只重评审新增 diff。",
+            "html": "<b>On every pull request</b><br>• Require CI, and add \"Testing\", \"Risk\" and \"How to revert\" to your PR template.<br>• Add an AI reviewer (Code Review for Claude Code, or the Claude Code GitHub Action) on one repo, tune <code>REVIEW.md</code> for a few weeks, then widen.<br>• Add automated security review, and require every review thread resolved before merge.<br>• Match review effort to risk: a quick pass on routine changes, a deep one where a missed bug is expensive (Quick, Standard or Deep in Code Review).<br>• Cap review rounds; after the first few, re-review only the new diff.",
+            "zhHtml": "<b>在每个 PR 上</b><br>• 强制 CI，并在 PR 模板里加上“如何测试”“风险”“如何回滚”。<br>• 先在一个仓库接入 AI 评审器（Code Review for Claude Code，或 Claude Code GitHub Action），花几周调整 REVIEW.md，再逐步铺开。<br>• 加上自动安全评审，并要求合并前所有评审线程都已解决。<br>• 让评审强度与风险匹配：常规改动快速过一遍，漏一个 bug 代价高的地方就深评（Code Review 里的 Quick、Standard、Deep）。<br>• 限制评审轮次；首轮之后只重评审新增 diff。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Approval: write down risk tiers, set from the change rather than the author; start strict and loosen with evidence; keep the lighter approval paths for authors you trust; use CODEOWNERS and branch protection so auth, billing, CI and release workflows, and installers always need a person; never let a bot's approval replace a required human's, and dismiss approvals on new commits.",
+            "zh": "批准环节：把风险分级写下来，按改动而非作者分级；从严开始，有证据再放宽；把更轻的批准路径留给你信任的作者；用 CODEOWNERS 与分支保护，让认证、账单、CI 与发布 workflow、安装器永远需要人；绝不让机器人的批准替代必需的人类批准，并在出现新提交时作废旧批准。",
+            "html": "<b>Approval</b><br>• Write down risk tiers, set from the change rather than the author; start strict and loosen with evidence.<br>• Keep the lighter approval paths for authors you trust.<br>• Use CODEOWNERS and branch protection so auth, billing, CI and release workflows, and installers always need a person.<br>• Never let a bot's approval replace a required human's; dismiss approvals on new commits.",
+            "zhHtml": "<b>批准环节</b><br>• 把风险分级写下来，按改动而非作者分级；从严开始，有证据再放宽。<br>• 把更轻的批准路径留给你信任的作者。<br>• 用 CODEOWNERS 与分支保护，让认证、账单、CI 与发布 workflow、安装器永远需要人。<br>• 绝不让机器人的批准替代必需的人类批准；出现新提交时作废旧批准。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Merge and after: use a merge queue, feature flags, internal use first, staged releases and one-step rollback; turn incidents and reverts into an eval set, and rescore the reviewer whenever its prompts, tools or model change; measure human time, with revert and incident rates as the guardrail.",
+            "zh": "合并与之后：使用合并队列、功能开关、内部先用、分阶段发布与一键回滚；把事故与回滚变成评测集，每当评审器的提示词、工具或模型变化时重新打分；度量人的时间，并以回滚率与事故率作为护栏。",
+            "html": "<b>Merge and after</b><br>• Use a merge queue, feature flags, internal use first, staged releases and one-step rollback.<br>• Turn incidents and reverts into an eval set, and rescore the reviewer whenever its prompts, tools or model change.<br>• Measure human time, with revert and incident rates as the guardrail.",
+            "zhHtml": "<b>合并与之后</b><br>• 使用合并队列、功能开关、内部先用、分阶段发布与一键回滚。<br>• 把事故与回滚变成评测集，每当评审器的提示词、工具或模型变化时重新打分。<br>• 度量人的时间，并以回滚率与事故率作为护栏。"
+          }
+        ]
+      },
+      {
+        "group": "走向何方 · Where this is going",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Code Review's announcement said approving a pull request is still a human call; the product posts findings, not approvals. Our own repos go further, letting owners decide which low-risk changes merge on automated checks alone, and that line keeps moving.",
+            "zh": "Code Review 的发布公告说，批准一个 PR 仍然得由人来做；产品只发布发现，不发布批准。我们自己的仓库走得更远：由 owner 决定哪些低风险改动可以只凭自动检查合并，而这条线一直在移动。",
+            "html": "Code Review's <a href=\"https://claude.com/resources/articles/code-review\" target=\"_blank\" rel=\"noopener\">announcement</a> said approving a pull request is still a human call; the product posts findings, not approvals. Our own repos go further, letting owners decide which low-risk changes merge on automated checks alone, and that line keeps moving."
+          },
+          {
+            "type": "bilingual",
+            "en": "When a review misses something, we ask what the model didn't have in front of it and put the fix into a CLAUDE.md, a skill or a new check. The goal hasn't changed: less human time per change, and no more reverts than before.",
+            "zh": "当评审漏掉了什么，我们会问：模型当时眼前缺了什么？然后把修复写进 CLAUDE.md、一个 skill，或一条新的检查。目标没有变：每次变更花掉的人的时间更少，回滚不比以前多。",
+            "html": "When a review misses something, we ask what the model didn't have in front of it and put the fix into a <code>CLAUDE.md</code>, a skill or a new check. The goal hasn't changed: less human time per change, and no more reverts than before."
+          },
+          {
+            "type": "bilingual",
+            "en": "If your team lets agents open pull requests, we'd like to hear which checks you've automated, which still need a person, and what you think we have wrong.",
+            "zh": "如果你的团队也让 Agent 开 PR，我们很想知道：你把哪些检查自动化了，哪些仍然需要人，以及你觉得我们哪里做错了。"
+          },
+          {
+            "type": "bilingual",
+            "en": "With thanks to Emma Webb, Michael Segner and Amie Rotherham for their reviews.",
+            "zh": "感谢 Emma Webb、Michael Segner 与 Amie Rotherham 对本文的评审。"
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://claude.dev/blog/solving-code-review-at-anthropic",
+    "sourceText": "How the Claude Code team does code review"
+  },
+  "glossary": {
+    "groupDesc": {
+      "B1": "入门进阶 · 通用高频词",
+      "B2": "中级 · 工程与产品语境常用",
+      "C1": "高级 · 抽象论证与机制描述词汇",
+      "C2": "精通 · 高阶表达与隐喻用法",
+      "术语": "文章相关专有名词 · 代码评审 / Agent 工程"
+    },
+    "dict": {
+      "proxy": {
+        "w": "proxy",
+        "ipa": "/ˈprɒksi/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "替代指标；用来间接代表某个难以直接衡量的东西。",
+        "eg": "\"Did a human read the code?\" is an imprecise proxy for change risk.",
+        "egzh": "“有没有人读过代码”只是改动风险的一个不精确替代指标。"
+      },
+      "scrutiny": {
+        "w": "scrutiny",
+        "ipa": "/ˈskruːtəni/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "仔细审查、严密审视。",
+        "eg": "Automation saves team attention for higher-level questions and scrutiny.",
+        "egzh": "自动化把团队的注意力省下来，用于更高层的问题与审视。"
+      },
+      "revert": {
+        "w": "revert",
+        "ipa": "/rɪˈvɜːt/",
+        "pos": "v./n.",
+        "level": "B2",
+        "def": "回滚；把代码恢复到改动之前的状态。",
+        "eg": "The share of merged PRs that had to be reverted fell by more than 40 percent.",
+        "egzh": "需要回滚的已合并 PR 比例下降了 40% 以上。"
+      },
+      "incident": {
+        "w": "incident",
+        "ipa": "/ˈɪnsɪdənt/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "事故；影响线上用户或系统的异常事件。",
+        "eg": "Revert and incident rates are the guardrail.",
+        "egzh": "回滚率与事故率构成了护栏。"
+      },
+      "guardrail": {
+        "w": "guardrail",
+        "ipa": "/ˈɡɑːdreɪl/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "护栏；用来防止指标被单方面优化而设的约束。",
+        "eg": "If revert rates rise, we have not saved human time, we have only moved it.",
+        "egzh": "如果回滚率上升，我们就没有真正省下人的时间，只是把它挪走了。"
+      },
+      "substantive": {
+        "w": "substantive",
+        "ipa": "/səbˈstæntɪv/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "实质性的；有真实内容和分量的。",
+        "eg": "The share of internal PRs getting substantive review comments went from 16% to 54%.",
+        "egzh": "获得实质性评审意见的内部 PR 比例从 16% 升到 54%。"
+      },
+      "severity": {
+        "w": "severity",
+        "ipa": "/sɪˈverəti/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "严重程度；问题的轻重等级。",
+        "eg": "What is left shows up as inline comments sorted by severity.",
+        "egzh": "剩下的问题以行内评论呈现，并按严重程度排序。"
+      },
+      "pre-existing": {
+        "w": "pre-existing",
+        "ipa": "/ˌpriːɪɡˈzɪstɪŋ/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "先前就存在的；在这次改动之前就已经有的。",
+        "eg": "Each comment is tagged Important, Nit, or Pre-existing.",
+        "egzh": "每条评论都会被标注为 Important、Nit 或 Pre-existing。"
+      },
+      "nit": {
+        "w": "nit",
+        "ipa": "/nɪt/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "吹毛求疵的小意见；无关紧要的细节问题。",
+        "eg": "A person can wave off a nit in seconds.",
+        "egzh": "人可以在几秒内把一条挑剔的小意见挥走。"
+      },
+      "tier": {
+        "w": "tier",
+        "ipa": "/tɪə/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "层级、档位；按等级划分的一组。",
+        "eg": "The change sets the tier, not the author.",
+        "egzh": "档位由改动本身决定，而不是由作者决定。"
+      },
+      "classifier": {
+        "w": "classifier",
+        "ipa": "/ˈklæsɪfaɪə/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "分类器；用于给输入打上类别标签的模型或规则。",
+        "eg": "A classifier reads the change and picks its risk tier.",
+        "egzh": "一个分类器读取这次改动，判定它的风险档。"
+      },
+      "vouch": {
+        "w": "vouch",
+        "ipa": "/vaʊtʃ/",
+        "pos": "v.",
+        "level": "C1",
+        "def": "担保、保证；为某事的可靠性作证。",
+        "eg": "If new commits land that the system cannot vouch for, the approval has to be given again.",
+        "egzh": "如果落入了系统无法担保的新提交，批准就必须重新给出。"
+      },
+      "accountable": {
+        "w": "accountable",
+        "ipa": "/əˈkaʊntəbl/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "负有责任的；需要对结果作出交代的。",
+        "eg": "A person is accountable for every change that ships, whoever typed it.",
+        "egzh": "每一个上线的改动都有人对其负责，不管代码是谁敲的。"
+      },
+      "reversible": {
+        "w": "reversible",
+        "ipa": "/rɪˈvɜːsəbl/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "可逆的；可以撤销并回到原状的。",
+        "eg": "Everything is reversible: flags, reverts and staged releases undo most mistakes in minutes.",
+        "egzh": "一切都是可逆的：开关、回滚和分阶段发布能在几分钟内撤销大部分错误。"
+      },
+      "telemetry": {
+        "w": "telemetry",
+        "ipa": "/təˈlemətri/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "遥测；系统自动上报的运行数据。",
+        "eg": "Regressions surface fast through telemetry and internal use.",
+        "egzh": "回归会通过遥测和内部使用快速浮现。"
+      },
+      "converge": {
+        "w": "converge",
+        "ipa": "/kənˈvɜːdʒ/",
+        "pos": "v.",
+        "level": "C1",
+        "def": "收敛；从发散状态逐步趋于稳定或一致。",
+        "eg": "Review has to converge, or an agent author and an agent reviewer keep each other busy indefinitely.",
+        "egzh": "评审必须收敛，否则 Agent 作者和 Agent 评审器会让彼此无限忙碌下去。"
+      },
+      "recall": {
+        "w": "recall",
+        "ipa": "/rɪˈkɔːl/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "召回率；应被找出的问题中实际被找出的比例。",
+        "eg": "The team now tracks rounds-to-pass alongside recall.",
+        "egzh": "团队现在把“通过所需轮次”和召回率放在一起跟踪。"
+      },
+      "noise": {
+        "w": "noise",
+        "ipa": "/nɔɪz/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "噪音；无价值、会干扰判断的信息。",
+        "eg": "We measure noise by watching what people do with the comments.",
+        "egzh": "我们通过观察人们怎么处理评论来衡量噪音。"
+      },
+      "indefinitely": {
+        "w": "indefinitely",
+        "ipa": "/ɪnˈdefɪnətli/",
+        "pos": "adv.",
+        "level": "C1",
+        "def": "无限期地；没有明确终止地。",
+        "eg": "Two agents can keep each other busy indefinitely.",
+        "egzh": "两个 Agent 可以让彼此无限忙碌下去。"
+      },
+      "regression": {
+        "w": "regression",
+        "ipa": "/rɪˈɡreʃn/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "回归缺陷；本应正常的功能因改动而变坏。",
+        "eg": "Heavy internal use often surfaces regressions before users do.",
+        "egzh": "内部的密集使用往往比用户更早暴露回归。"
+      },
+      "rollback": {
+        "w": "rollback",
+        "ipa": "/ˈrəʊlbæk/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "回滚；把系统恢复到上一稳定版本的操作。",
+        "eg": "The last layer is fast detection and fast rollback.",
+        "egzh": "最后一层是快速发现与快速回滚。"
+      },
+      "on-call": {
+        "w": "on-call",
+        "ipa": "/ˌɒn ˈkɔːl/",
+        "pos": "adj./n.",
+        "level": "术语",
+        "def": "值班；在指定时段内负责响应线上问题的人。",
+        "eg": "Claude Code has a weekly on-call rotation.",
+        "egzh": "Claude Code 有每周轮值的 on-call。"
+      },
+      "circuit breaker": {
+        "w": "circuit breakers",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "熔断机制；指标异常时自动收紧或阻断流程的保护措施。",
+        "eg": "We do not yet have circuit breakers that tighten approval when those numbers move.",
+        "egzh": "我们还没有“数字一变就自动收紧审批”的熔断机制。"
+      },
+      "blast radius": {
+        "w": "blast radius",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "爆炸半径；一次改动出问题时可能波及的范围。",
+        "eg": "Blast radius sets the bar: expensive code gets more people and more checks.",
+        "egzh": "爆炸半径决定门槛：代价高的代码会获得更多人和更多检查。"
+      },
+      "merge queue": {
+        "w": "merge queue",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "合并队列；在最新主干上重跑检查后再依次合并的机制。",
+        "eg": "The merge queue re-runs every check against main with the change applied.",
+        "egzh": "合并队列会把改动应用到 main 上重跑所有检查。"
+      },
+      "feature flag": {
+        "w": "feature flags",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "功能开关；无需发版即可打开或关闭某段行为的配置项。",
+        "eg": "New behavior usually ships behind a feature flag to employees first.",
+        "egzh": "新行为通常先藏在功能开关后面发给内部员工。"
+      },
+      "staged release": {
+        "w": "staged releases",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "分阶段发布；按渠道或人群逐步放量的发布方式。",
+        "eg": "Flags, reverts and staged releases undo most mistakes in minutes.",
+        "egzh": "开关、回滚和分阶段发布能在几分钟内撤销大部分错误。"
+      },
+      "root cause": {
+        "w": "root cause",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "根因；导致问题发生的根本原因。",
+        "eg": "On a bug fix, the review looks for the root cause.",
+        "egzh": "面对一个 bug 修复，评审会去找根因。"
+      },
+      "diff": {
+        "w": "diff",
+        "ipa": "/dɪf/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "差异；一次改动相对基线的具体变化。",
+        "eg": "A subagent reviews the diff with fresh context.",
+        "egzh": "一个子 Agent 会在全新上下文中评审这次 diff。"
+      },
+      "lint": {
+        "w": "lint",
+        "ipa": "/lɪnt/",
+        "pos": "n./v.",
+        "level": "术语",
+        "def": "静态代码检查；用规则自动发现风格与潜在错误。",
+        "eg": "A typical CLI pull request may run dozens of checks: lint, types, tests and a build.",
+        "egzh": "一个典型的 CLI PR 会跑几十项检查：lint、类型、测试和构建。"
+      },
+      "codebase": {
+        "w": "codebase",
+        "ipa": "/ˈkəʊdbeɪs/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "代码库；一个项目全部源代码的集合。",
+        "eg": "In a large codebase we keep CLAUDE.md short and point to other docs.",
+        "egzh": "在大型代码库里，我们保持 CLAUDE.md 简短，并从那里指向其他文档。"
+      },
+      "monorepo": {
+        "w": "monorepo",
+        "ipa": "/ˈmɒnəʊrepəʊ/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "单一仓库；把多个项目放在同一个代码仓库里管理。",
+        "eg": "In Anthropic's monorepo, daily changes went from about 2,500 to more than 30,000.",
+        "egzh": "在 Anthropic 的 monorepo 中，每日变更从约 2,500 个增长到 30,000 多个。"
+      },
+      "explainer": {
+        "w": "explainer",
+        "ipa": "/ɪkˈspleɪnə/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "讲解材料；用来说明某块内容如何运作的短文或产物。",
+        "eg": "They ask Claude to write an explainer for exactly that slice.",
+        "egzh": "他们让 Claude 针对那一小块写一份讲解。"
+      },
+      "overnight": {
+        "w": "overnight",
+        "ipa": "/ˌəʊvəˈnaɪt/",
+        "pos": "adv.",
+        "level": "B1",
+        "def": "在夜间；一夜之间。",
+        "eg": "One CLI PR went through more than fifty rounds overnight.",
+        "egzh": "有一个 CLI 的 PR 一夜之间经历了五十多轮评审。"
+      },
+      "gate": {
+        "w": "gate",
+        "ipa": "/ɡeɪt/",
+        "pos": "n./v.",
+        "level": "B2",
+        "def": "关卡；必须通过才能继续的检查点。",
+        "eg": "Before, review was a gate at the end of the road.",
+        "egzh": "过去，评审是流程终点的关卡。"
+      },
+      "routine": {
+        "w": "routine",
+        "ipa": "/ruːˈtiːn/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "常规的、例行的；不需要特别判断的。",
+        "eg": "This catches most routine mistakes and saves attention for higher-level questions.",
+        "egzh": "这挡掉了大部分常规错误，把注意力留给更高层的问题。"
+      },
+      "preserve": {
+        "w": "preserve",
+        "ipa": "/prɪˈzɜːv/",
+        "pos": "v.",
+        "level": "B2",
+        "def": "保留、保全；使某物维持原状不被消耗。",
+        "eg": "We want to preserve human time for issues only humans can solve.",
+        "egzh": "我们希望把人的时间留给只有人能解决的问题。"
+      },
+      "novel": {
+        "w": "novel",
+        "ipa": "/ˈnɒvl/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "新颖的、前所未有的。",
+        "eg": "Our team encounters new and novel challenges almost daily.",
+        "egzh": "团队几乎每天都会遇到新的、前所未有的挑战。"
+      },
+      "inline": {
+        "w": "inline",
+        "ipa": "/ˈɪnlaɪn/",
+        "pos": "adj.",
+        "level": "术语",
+        "def": "行内的；直接附在对应代码行旁边的（评论）。",
+        "eg": "What is left shows up as inline comments.",
+        "egzh": "剩下的问题以行内评论的形式出现。"
+      }
+    },
+    "autowrap": [
+      [
+        "\\bproxy\\b",
+        "i",
+        "proxy"
+      ],
+      [
+        "\\bscrutiny\\b",
+        "i",
+        "scrutiny"
+      ],
+      [
+        "\\brevert(?:s|ed|ing)?\\b",
+        "i",
+        "revert"
+      ],
+      [
+        "\\bincidents?\\b",
+        "i",
+        "incident"
+      ],
+      [
+        "\\bguardrail\\b",
+        "i",
+        "guardrail"
+      ],
+      [
+        "\\bsubstantive\\b",
+        "i",
+        "substantive"
+      ],
+      [
+        "\\bseverity\\b",
+        "i",
+        "severity"
+      ],
+      [
+        "\\bPre-existing\\b",
+        "",
+        "pre-existing"
+      ],
+      [
+        "\\bnits?\\b",
+        "i",
+        "nit"
+      ],
+      [
+        "\\btier\\b",
+        "i",
+        "tier"
+      ],
+      [
+        "\\bclassifiers?\\b",
+        "i",
+        "classifier"
+      ],
+      [
+        "\\bvouch\\b",
+        "i",
+        "vouch"
+      ],
+      [
+        "\\baccountable\\b",
+        "i",
+        "accountable"
+      ],
+      [
+        "\\breversible\\b",
+        "i",
+        "reversible"
+      ],
+      [
+        "\\btelemetry\\b",
+        "i",
+        "telemetry"
+      ],
+      [
+        "\\bconverge\\b",
+        "i",
+        "converge"
+      ],
+      [
+        "\\brecall\\b",
+        "i",
+        "recall"
+      ],
+      [
+        "\\bnoise\\b",
+        "i",
+        "noise"
+      ],
+      [
+        "\\bindefinitely\\b",
+        "i",
+        "indefinitely"
+      ],
+      [
+        "\\bregressions?\\b",
+        "i",
+        "regression"
+      ],
+      [
+        "\\brollback\\b",
+        "i",
+        "rollback"
+      ],
+      [
+        "\\bon-call\\b",
+        "i",
+        "on-call"
+      ],
+      [
+        "\\bcircuit breakers?\\b",
+        "i",
+        "circuit breaker"
+      ],
+      [
+        "\\bblast radius\\b",
+        "i",
+        "blast radius"
+      ],
+      [
+        "\\bmerge queue\\b",
+        "i",
+        "merge queue"
+      ],
+      [
+        "\\bfeature flags?\\b",
+        "i",
+        "feature flag"
+      ],
+      [
+        "\\bstaged releases?\\b",
+        "i",
+        "staged release"
+      ],
+      [
+        "\\broot cause\\b",
+        "i",
+        "root cause"
+      ],
+      [
+        "\\bdiff\\b",
+        "i",
+        "diff"
+      ],
+      [
+        "\\blint\\b",
+        "i",
+        "lint"
+      ],
+      [
+        "\\bcodebase\\b",
+        "i",
+        "codebase"
+      ],
+      [
+        "\\bmonorepo\\b",
+        "i",
+        "monorepo"
+      ],
+      [
+        "\\bexplainer\\b",
+        "i",
+        "explainer"
+      ],
+      [
+        "\\bovernight\\b",
+        "i",
+        "overnight"
+      ],
+      [
+        "\\bgate\\b",
+        "i",
+        "gate"
+      ],
+      [
+        "\\broutine\\b",
+        "i",
+        "routine"
+      ],
+      [
+        "\\bpreserve\\b",
+        "i",
+        "preserve"
+      ],
+      [
+        "\\bnovel\\b",
+        "i",
+        "novel"
+      ],
+      [
+        "\\binline\\b",
+        "i",
+        "inline"
+      ]
+    ]
+  }
+}

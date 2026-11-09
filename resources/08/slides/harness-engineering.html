@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Engineering：Agent-first 时代的工程组织方式</title>
+<style>
+:root {
+  --stage-bg: #05070d;
+  --slide-bg: radial-gradient(circle at 12% 8%, rgba(0, 255, 204, 0.18), transparent 28%), radial-gradient(circle at 88% 12%, rgba(255, 0, 170, 0.13), transparent 24%), linear-gradient(135deg, #07111f 0%, #0a0f1c 46%, #02040a 100%);
+  --text-primary: #f6fbff;
+  --text-secondary: #a9bed0;
+  --text-tertiary: #6f8496;
+  --accent: #00ffcc;
+  --accent-2: #ff5cb8;
+  --panel: rgba(255, 255, 255, 0.075);
+  --panel-strong: rgba(0, 255, 204, 0.11);
+  --line: rgba(255, 255, 255, 0.16);
+  --control-accent: var(--accent);
+  --chrome-border: rgba(255,255,255,0.18);
+  --kbd-bar-bg: rgba(12,16,24,0.78);
+  --kbd-text: rgba(255,255,255,0.88);
+  --kbd-bg: rgba(255,255,255,0.16);
+  --kbd-border: rgba(255,255,255,0.28);
+  --kbd-separator: rgba(255,255,255,0.18);
+  --kbd-key-text: #ffffff;
+  --font-display: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --title-size: 104px;
+  --heading-size: 72px;
+  --subtitle-size: 34px;
+  --body-size: 28px;
+  --slide-padding: 96px;
+  --content-gap: 32px;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-normal: 0.6s;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--stage-bg); }
+body { font-family: var(--font-body); color: var(--text-primary); }
+.deck-viewport { position: fixed; inset: 0; overflow: hidden; background: var(--stage-bg); }
+.deck-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; transform-origin: 0 0; background: var(--slide-bg); }
+.slide { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; display: block; visibility: hidden; opacity: 0; pointer-events: none; background: var(--slide-bg); color: var(--text-primary); }
+.slide.active, .slide.visible { visibility: visible; opacity: 1; pointer-events: auto; z-index: 1; }
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.slide::before { content: ""; position: absolute; inset: 42px; border: 1px solid var(--line); border-radius: 34px; pointer-events: none; }
+.slide::after { content: ""; position: absolute; right: 88px; top: 88px; width: 420px; height: 420px; border-radius: 999px; border: 1px solid rgba(0,255,204,.2); opacity: .58; pointer-events: none; }
+.slide-content { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: var(--slide-padding); gap: var(--content-gap); }
+.slide-content.is-thin { justify-content: center; align-items: stretch; }
+.slide-content[data-layout-density="dense"] { --content-gap: 24px; }
+.slide-content[data-layout-density="dense"] h2 { font-size: calc(var(--heading-size) * 0.86); line-height: 1.1; }
+.slide-content[data-layout-density="dense"] p, .slide-content[data-layout-density="dense"] li { font-size: calc(var(--body-size) * 0.9); line-height: 1.32; }
+.slide-layout { width: 100%; min-height: 0; display: grid; gap: var(--content-gap); align-items: center; }
+.slide-layout.split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+h1, h2, h3 { line-height: 1.08; padding-block: 0.08em 0.12em; margin-block: -0.08em 0; text-wrap: balance; color: var(--text-primary); }
+h1 { font-size: var(--title-size); letter-spacing: -0.055em; max-width: 1320px; padding-block: 0.3em 0.2em; }
+h2 { font-size: var(--heading-size); letter-spacing: -0.045em; max-width: 1280px; }
+h3 { font-size: 32px; line-height: 1.18; letter-spacing: -0.025em; }
+a { color: var(--accent); text-decoration-color: rgba(0,255,204,.38); text-underline-offset: .14em; }
+.title-block { width: min(1320px, 100%); display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { color: var(--accent); font-size: 19px; letter-spacing: .2em; text-transform: uppercase; font-weight: 800; }
+.subtitle { color: var(--text-secondary); font-size: var(--subtitle-size); line-height: 1.34; max-width: 1180px; }
+.source-chip, .source-line { color: var(--text-secondary); font-size: 24px; line-height: 1.45; max-width: 1180px; }
+.statement { font-size: 46px; line-height: 1.28; padding: 38px 44px; border-left: 8px solid var(--accent); background: linear-gradient(90deg, rgba(0,255,204,.14), rgba(255,255,255,.04)); border-radius: 26px; max-width: 1320px; }
+.bullets { list-style: none; display: grid; gap: 18px; }
+.bullets li { font-size: 30px; line-height: 1.34; padding: 24px 28px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); }
+.metric-panel { border: 1px solid rgba(0,255,204,.28); border-radius: 28px; background: var(--panel-strong); padding: 34px; display: grid; grid-template-columns: auto 1fr; gap: 18px 24px; align-content: center; }
+.metric-panel b { font-size: 76px; line-height: .9; color: var(--accent); }
+.metric-panel span { align-self: center; color: var(--text-secondary); font-size: 28px; }
+.module-grid { width: 100%; display: grid; gap: var(--content-gap); align-items: stretch; }
+.module-grid[data-count="2"], .module-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1260px; }
+.module-grid[data-count="3"], .module-grid[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.module-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card, .reading-card, .takeaway-list > article { min-width: 0; min-height: 0; border: 1px solid var(--line); border-radius: 28px; padding: 30px; background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.045)); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.card-index { display: inline-block; color: var(--accent); font-size: 19px; font-weight: 900; letter-spacing: .16em; margin-bottom: 18px; }
+.card p, .reading-card p, .takeaway-list p { color: var(--text-secondary); font-size: 25px; line-height: 1.34; margin-top: 14px; }
+.reading-card small { display: block; color: var(--text-tertiary); font-size: 19px; line-height: 1.35; margin-top: 18px; }
+.flow-card { background: linear-gradient(135deg, rgba(0,255,204,.12), rgba(255,92,184,.07)); }
+.takeaway-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
+.takeaway-list strong { color: var(--accent); font-size: 23px; letter-spacing: .08em; text-transform: uppercase; }
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity var(--duration-normal) var(--ease-out-expo), transform var(--duration-normal) var(--ease-out-expo); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.slide.visible .reveal:nth-child(1) { transition-delay: .10s; }
+.slide.visible .reveal:nth-child(2) { transition-delay: .18s; }
+.slide.visible .reveal:nth-child(3) { transition-delay: .26s; }
+.slide.visible .reveal:nth-child(4) { transition-delay: .34s; }
+.deck-controls-zone { position: fixed; left: 0; right: 0; bottom: 0; height: 70px; z-index: 1000; pointer-events: auto; }
+.deck-controls { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%) translateY(24px); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 40px; padding: 5px 8px; border-radius: 999px; background: var(--kbd-bar-bg); border: 1px solid var(--chrome-border); box-shadow: 0 12px 30px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.08); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); font: 700 13px var(--font-body); color: var(--kbd-text); opacity: 0; filter: blur(5px); transition: opacity .42s var(--ease-out-expo), transform .48s var(--ease-out-expo), filter .42s var(--ease-out-expo); width: max-content; max-width: min(92vw, 720px); }
+.deck-controls-zone:hover .deck-controls, .deck-controls-zone.show-controls .deck-controls, .deck-controls-zone:focus-within .deck-controls, .deck-controls:focus { opacity: .96; transform: translateX(-50%) translateY(0); filter: blur(0); }
+.deck-page-controls, .deck-shortcuts { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.deck-page-btn { width: 28px; height: 28px; padding: 0; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--kbd-key-text); transition: color .18s ease, opacity .18s ease, transform .18s ease; }
+.deck-page-btn svg { width: 20px; height: 20px; display: block; }
+.deck-page-btn:hover { color: var(--control-accent); transform: scale(1.08); }
+.deck-page-btn:disabled { opacity: .38; cursor: default; }
+.deck-page-status { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; color: var(--kbd-text); }
+.deck-control-separator { width: 1px; height: 22px; margin: 0 4px; background: var(--kbd-separator); }
+.shortcut-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border-radius: 999px; color: var(--kbd-text); font-weight: 500; }
+.shortcut-keys { display: inline-flex; align-items: center; gap: 4px; }
+kbd { font: 500 11px var(--font-body); min-width: 24px; padding: 4px 7px; text-align: center; border-radius: 7px; background: var(--kbd-bg); border: 1px solid var(--kbd-border); color: var(--kbd-key-text); line-height: 1; }
+.image-lightbox { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: min(6vw, 96px); background: linear-gradient(135deg, rgba(6,10,18,.72), rgba(18,24,38,.48)); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 220ms ease, visibility 220ms ease; }
+.image-lightbox.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
+.image-lightbox[hidden] { display: none; }
+.image-lightbox__panel { position: relative; display: grid; max-width: min(82vw, 1280px); max-height: 82vh; }
+.image-lightbox__image { display: block; width: auto; height: auto; max-width: min(82vw,1280px); max-height: 78vh; object-fit: contain; border-radius: 18px; box-shadow: 0 30px 100px rgba(0,0,0,.48); }
+.image-lightbox__close { position: absolute; top: -18px; right: -18px; width: 44px; height: 44px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(10,14,24,.72); color: #fff; cursor: pointer; font-size: 26px; line-height: 1; }
+@media print { html, body { width: 1920px; height: auto; overflow: visible; background: #fff; } .deck-viewport { position: static; overflow: visible; background: #fff; } .deck-stage { position: static; width: auto; height: auto; transform: none; background: none; } .slide { position: relative; display: block; visibility: visible; opacity: 1; pointer-events: auto; width: 1920px; height: 1080px; break-after: page; page-break-after: always; } .slide:last-child { break-after: auto; page-break-after: auto; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms; transition-duration: .2s; } }
+</style>
+</head>
+<body>
+<div class="deck-viewport"><main class="deck-stage" id="deckStage"><section class="slide active visible title-slide" data-chrome="dark"><div class="slide-content is-thin">
+      <div class="title-block">
+        <p class="eyebrow reveal">Agent Reading Deck</p>
+        <h1 class="reveal">Harness Engineering：Agent-first 时代的工程组织方式</h1>
+        <p class="subtitle reveal">OpenAI 团队刻意采用“0 行人工手写代码”的约束：人类负责设定目标、表达验收标准和编码判断力，Codex 负责执行、审查、修复和合并。这个实验显示，Agent-first 工程的稀缺资源是人类注意力，因此系统必须把 UI、日志、指标、文档、架构规则和质量标准变成 Agent 可直接读取和执行的形式。</p>
+        <p class="source-chip reveal">原文：Harness engineering: leveraging Codex in an agent-first world</p>
+      </div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content">
+      <p class="eyebrow reveal">核心主张</p>
+      <h2 class="reveal">先理解文章真正要解决的问题</h2>
+      <div class="statement reveal">文章的核心不是“让 Agent 多写代码”，而是把软件工程系统改造成 Agent 能理解、验证、修复和持续改进的运行环境。</div>
+      <div class="slide-layout split reveal">
+        <ul class="bullets"><li>工程师的主要工作转为设计 harness：工具、脚手架、约束、文档和反馈回路。</li><li>AGENTS.md 不应成为巨型说明书，而应成为通向仓库内知识系统的目录。</li><li>架构约束、结构测试、自定义 lint 和错误信息共同构成可执行的“品味”。</li></ul>
+        <div class="metric-panel"><b>8</b><span>主题段落</span><b>6</b><span>阅读模块</span></div>
+      </div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+      <p class="eyebrow reveal">结构速览</p>
+      <h2 class="reveal">文章如何组织论证</h2>
+      <div class="module-grid" data-count="6"><article class="card reveal"><span class="card-index">01</span><h3>从空仓库到百万行代码</h3><p>文章从一个强约束实验开始：从空 Git 仓库出发，五个月内由 Codex 生成约百万行代码、合并约 1,500 个 PR，并支撑真实内部用户。重点不是炫耀代码量，而是观察当“人类不再亲自写代码”时，工程系统需要怎样变化。</p></article><article class="card reveal"><span class="card-index">02</span><h3>工程师角色转向 harness 设计</h3><p>人的工作从实现细节上移到系统设计：拆任务、补工具、写可执行规则、把反馈做成循环。失败被视为系统能力缺口，而不是一次提示词不够用力。</p></article><article class="card reveal"><span class="card-index">03</span><h3>让应用对 Agent 可读</h3><p>随着代码吞吐提升，瓶颈变成人类 QA。OpenAI 的做法是把浏览器、DOM、截图、日志、指标和 tracing 暴露给 Codex，使 Agent 能在隔离 worktree 中启动应用、复现问题并验证修复。</p></article><article class="card reveal"><span class="card-index">04</span><h3>仓库知识成为记录系统</h3><p>文章反对把所有规则塞进一个巨大的 AGENTS.md。更有效的方式是让 AGENTS.md 成为地图，真正的知识沉淀在仓库内的 docs、plans、architecture、quality 和 generated schema 中，并通过 lint/CI 维护新鲜度。</p></article><article class="card reveal"><span class="card-index">05</span><h3>架构和品味需要机械化</h3><p>Agent-first 代码库不能只靠文档保持一致性。OpenAI 把依赖方向、领域分层、日志结构、命名、文件大小和平台可靠性做成可检查规则，并把错误信息写成 Agent 可直接执行的修复说明。</p></article><article class="card reveal"><span class="card-index">06</span><h3>吞吐量改变合并策略</h3><p>当 Agent 的产出速度超过人类注意力，传统“长时间阻塞合并”的策略会变得昂贵。文章强调短 PR、少阻塞门和后续快速修复；这只有在自动化验证和持续清理能力足够强时才成立。</p></article></div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">逻辑框架</p>
+          <h2 class="reveal">从问题到方法的推进路径</h2>
+          <div class="module-grid" data-count="6"><article class="card flow-card reveal"><span class="card-index">01</span><h3>从空仓库到百万行代码</h3><p>文章从一个强约束实验开始：从空 Git 仓库出发，五个月内由 Codex 生成约百万行代码、合并约 1,500 个 PR，并支撑真实内部用户。重点不是炫耀代码量，而是观察当“人类不再亲自写代码”时，工程系统需要怎样变化。</p></article><article class="card flow-card reveal"><span class="card-index">02</span><h3>工程师角色转向 harness 设计</h3><p>人的工作从实现细节上移到系统设计：拆任务、补工具、写可执行规则、把反馈做成循环。失败被视为系统能力缺口，而不是一次提示词不够用力。</p></article><article class="card flow-card reveal"><span class="card-index">03</span><h3>让应用对 Agent 可读</h3><p>随着代码吞吐提升，瓶颈变成人类 QA。OpenAI 的做法是把浏览器、DOM、截图、日志、指标和 tracing 暴露给 Codex，使 Agent 能在隔离 worktree 中启动应用、复现问题并验证修复。</p></article><article class="card flow-card reveal"><span class="card-index">04</span><h3>仓库知识成为记录系统</h3><p>文章反对把所有规则塞进一个巨大的 AGENTS.md。更有效的方式是让 AGENTS.md 成为地图，真正的知识沉淀在仓库内的 docs、plans、architecture、quality 和 generated schema 中，并通过</p></article><article class="card flow-card reveal"><span class="card-index">05</span><h3>架构和品味需要机械化</h3><p>Agent-first 代码库不能只靠文档保持一致性。OpenAI 把依赖方向、领域分层、日志结构、命名、文件大小和平台可靠性做成可检查规则，并把错误信息写成 Agent 可直接执行的修复说明。</p></article><article class="card flow-card reveal"><span class="card-index">06</span><h3>吞吐量改变合并策略</h3><p>当 Agent 的产出速度超过人类注意力，传统“长时间阻塞合并”的策略会变得昂贵。文章强调短 PR、少阻塞门和后续快速修复；这只有在自动化验证和持续清理能力足够强时才成立。</p></article></div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">精读切片 · 1-3</p>
+          <h2 class="reveal">从空仓库到百万行代码 / 工程师角色转向 harness 设计</h2>
+          <div class="module-grid" data-count="3">
+            <article class="reading-card reveal"><h3>从空仓库到百万行代码</h3><p>文章从一个强约束实验开始：从空 Git 仓库出发，五个月内由 Codex 生成约百万行代码、合并约 1,500 个 PR，并支撑真实内部用户。重点不是炫耀代码量，而是观察当“人类不再亲自写代码”时，工程系统需要怎样变化。</p><small>OpenAI describes an internal beta built over five months with zero manually-written code. Codex generated application logic, test。</small></article><article class="reading-card reveal"><h3>工程师角色转向 harness 设计</h3><p>人的工作从实现细节上移到系统设计：拆任务、补工具、写可执行规则、把反馈做成循环。失败被视为系统能力缺口，而不是一次提示词不够用力。</p><small>When progress stalled, the answer was not to ask Codex to try harder, but to identify missing capabilities and make them legible。</small></article><article class="reading-card reveal"><h3>让应用对 Agent 可读</h3><p>随着代码吞吐提升，瓶颈变成人类 QA。OpenAI 的做法是把浏览器、DOM、截图、日志、指标和 tracing 暴露给 Codex，使 Agent 能在隔离 worktree 中启动应用、复现问题并验证修复。</p><small>The team made UI, logs, metrics, traces, worktrees, browser automation, and observability directly available to Codex so it could。</small></article>
+          </div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">精读切片 · 4-6</p>
+          <h2 class="reveal">仓库知识成为记录系统 / 架构和品味需要机械化</h2>
+          <div class="module-grid" data-count="3">
+            <article class="reading-card reveal"><h3>仓库知识成为记录系统</h3><p>文章反对把所有规则塞进一个巨大的 AGENTS.md。更有效的方式是让 AGENTS.md 成为地图，真正的知识沉淀在仓库内的 docs、plans、architecture、quality 和 generated schema 中，并通过 lint/CI 维护新鲜度。</p><small>A short AGENTS.md acts as a table of contents, while structured docs, architecture notes, plans, product specs, generated schemas。</small></article><article class="reading-card reveal"><h3>架构和品味需要机械化</h3><p>Agent-first 代码库不能只靠文档保持一致性。OpenAI 把依赖方向、领域分层、日志结构、命名、文件大小和平台可靠性做成可检查规则，并把错误信息写成 Agent 可直接执行的修复说明。</p><small>The codebase uses rigid layer boundaries, custom linters, structural tests, naming rules, file-size limits, and remediation-orien。</small></article><article class="reading-card reveal"><h3>吞吐量改变合并策略</h3><p>当 Agent 的产出速度超过人类注意力，传统“长时间阻塞合并”的策略会变得昂贵。文章强调短 PR、少阻塞门和后续快速修复；这只有在自动化验证和持续清理能力足够强时才成立。</p><small>With high agent throughput, short-lived PRs and low merge friction can outperform slow blocking gates, because correction is chea。</small></article>
+          </div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content">
+      <p class="eyebrow reveal">落地判断</p>
+      <h2 class="reveal">这篇文章给工程实践的直接启发</h2>
+      <div class="takeaway-list">
+        <article class="reveal"><strong>要点 1</strong><p>工程师的主要工作转为设计 harness：工具、脚手架、约束、文档和反馈回路。</p></article><article class="reveal"><strong>要点 2</strong><p>AGENTS.md 不应成为巨型说明书，而应成为通向仓库内知识系统的目录。</p></article><article class="reveal"><strong>要点 3</strong><p>架构约束、结构测试、自定义 lint 和错误信息共同构成可执行的“品味”。</p></article><article class="reveal"><strong>要点 4</strong><p>当吞吐量远高于人类评审能力时，合并哲学会转向短 PR、低等待成本和持续修复。</p></article>
+      </div>
+    </div></section><section class="slide closing" data-chrome="dark"><div class="slide-content is-thin">
+      <p class="eyebrow reveal">继续阅读</p>
+      <h2 class="reveal">回到原文与双语精读</h2>
+      <p class="subtitle reveal">本 deck 按 content-slides 固定 16:9 舞台生成，支持按钮、方向键、空格、PageUp/PageDown、Home/End、触摸滑动、滚轮翻页与内联编辑。</p>
+      <p class="source-line reveal">原文：<a href="https://openai.com/index/harness-engineering/" target="_blank" rel="noopener">《Harness engineering: leveraging Codex in an agent-first world》</a></p>
+    </div></section></main></div>
+<div class="deck-controls-zone"><div class="deck-controls" tabindex="0" aria-label="幻灯片控制"><div class="deck-page-controls" aria-label="幻灯片分页"><button class="deck-page-btn" id="prevSlide" type="button" aria-label="上一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="deck-page-status"><span id="currentSlide">1</span>/<span id="totalSlides">1</span></span><button class="deck-page-btn" id="nextSlide" type="button" aria-label="下一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><span class="deck-control-separator" aria-hidden="true"></span><div class="deck-shortcuts" aria-label="键盘快捷键"><span class="shortcut-chip"><span class="shortcut-label">下一页</span><span class="shortcut-keys"><kbd>Space</kbd><kbd>↓</kbd><kbd>→</kbd></span></span><span class="shortcut-chip"><span class="shortcut-label">上一页</span><span class="shortcut-keys"><kbd>←</kbd><kbd>↑</kbd></span></span><span class="shortcut-chip"><span class="shortcut-label">重置</span><span class="shortcut-keys"><kbd>R</kbd></span></span></div></div></div>
+<div class="image-lightbox" id="imageLightbox" aria-modal="true" role="dialog" aria-label="图片放大视图" hidden><div class="image-lightbox__panel"><button class="image-lightbox__close" id="imageLightboxClose" type="button" aria-label="关闭图片放大视图">×</button><img class="image-lightbox__image" id="imageLightboxImage" alt=""></div></div>
+<script>
+class SlidePresentation {
+  constructor() {
+    this.stage = document.getElementById('deckStage');
+    this.slides = [...document.querySelectorAll('.slide')];
+    this.controlsZone = document.querySelector('.deck-controls-zone');
+    this.controlsBar = document.querySelector('.deck-controls');
+    this.prevButton = document.getElementById('prevSlide');
+    this.nextButton = document.getElementById('nextSlide');
+    this.currentSlideLabel = document.getElementById('currentSlide');
+    this.totalSlidesLabel = document.getElementById('totalSlides');
+    this.current = 0;
+    this.wheelLocked = false;
+    this.controlsTimer = 0;
+    if (this.totalSlidesLabel) this.totalSlidesLabel.textContent = String(this.slides.length);
+    this.bind();
+    this.show(0, { immediate: true });
+    this.resize();
+  }
+  bind() {
+    this.prevButton?.addEventListener('click', () => this.prev());
+    this.nextButton?.addEventListener('click', () => this.next());
+    window.addEventListener('resize', () => this.resize());
+    window.addEventListener('keydown', (event) => this.onKey(event));
+    let startX = 0;
+    window.addEventListener('touchstart', (event) => { startX = event.changedTouches[0].clientX; }, { passive: true });
+    window.addEventListener('touchend', (event) => {
+      const delta = event.changedTouches[0].clientX - startX;
+      if (Math.abs(delta) > 50) delta < 0 ? this.next() : this.prev();
+    }, { passive: true });
+    window.addEventListener('wheel', (event) => {
+      if (this.wheelLocked || Math.abs(event.deltaY) < 40) return;
+      this.wheelLocked = true;
+      event.deltaY > 0 ? this.next() : this.prev();
+      window.setTimeout(() => { this.wheelLocked = false; }, 420);
+    }, { passive: true });
+    window.addEventListener('mousemove', (event) => {
+      if (window.innerHeight - event.clientY < 96) this.revealControls();
+    });
+    this.controlsBar?.addEventListener('focus', () => this.revealControls());
+  }
+  onKey(event) {
+    const tag = event.target?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || event.target?.isContentEditable) return;
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(event.key)) { event.preventDefault(); this.next(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); this.prev(); }
+    else if (event.key === 'Home') { event.preventDefault(); this.show(0); }
+    else if (event.key === 'End') { event.preventDefault(); this.show(this.slides.length - 1); }
+    else if (event.key.toLowerCase() === 'r') { event.preventDefault(); this.show(0); }
+  }
+  resize() {
+    if (!this.stage) return;
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const x = (window.innerWidth - 1920 * scale) / 2;
+    const y = (window.innerHeight - 1080 * scale) / 2;
+    this.stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+  }
+  show(index, options = {}) {
+    if (!this.slides.length) return;
+    this.current = Math.max(0, Math.min(index, this.slides.length - 1));
+    this.slides.forEach((slide, slideIndex) => {
+      const active = slideIndex === this.current;
+      slide.classList.toggle('active', active);
+      slide.classList.toggle('visible', active);
+    });
+    if (this.currentSlideLabel) this.currentSlideLabel.textContent = String(this.current + 1);
+    if (this.prevButton) this.prevButton.disabled = this.current === 0;
+    if (this.nextButton) this.nextButton.disabled = this.current === this.slides.length - 1;
+    if (!options.immediate) this.revealControls();
+  }
+  next() { this.show(this.current + 1); }
+  prev() { this.show(this.current - 1); }
+  revealControls() {
+    if (!this.controlsZone) return;
+    this.controlsZone.classList.add('show-controls');
+    window.clearTimeout(this.controlsTimer);
+    this.controlsTimer = window.setTimeout(() => this.controlsZone.classList.remove('show-controls'), 1600);
+  }
+}
+function setupImageLightbox() {
+  const box = document.getElementById('imageLightbox');
+  const img = document.getElementById('imageLightboxImage');
+  const closeButton = document.getElementById('imageLightboxClose');
+  if (!box || !img || !closeButton) return;
+  const close = () => { box.classList.remove('is-open'); window.setTimeout(() => { box.hidden = true; img.removeAttribute('src'); }, 180); };
+  document.querySelectorAll('.slide img').forEach((image) => {
+    image.addEventListener('click', () => { img.src = image.currentSrc || image.src; img.alt = image.alt || ''; box.hidden = false; requestAnimationFrame(() => box.classList.add('is-open')); });
+  });
+  closeButton.addEventListener('click', close);
+  box.addEventListener('click', (event) => { if (event.target === box) close(); });
+  window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !box.hidden) close(); });
+}
+function setupInlineEditing() {
+  document.querySelectorAll('.slide h1,.slide h2,.slide h3,.slide p,.slide li,.slide blockquote,.slide small,.slide strong').forEach((element) => {
+    element.setAttribute('contenteditable', 'true');
+  });
+}
+const deck = new SlidePresentation();
+setupImageLightbox();
+setupInlineEditing();
+window.__deck = deck;
+</script>
+</body>
+</html>

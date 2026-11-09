@@ -1,0 +1,21 @@
+{
+  "resources": {
+    "bilingual-reader:youre-doing-rag-wrong": {
+      "skill": "bilingual-reader",
+      "slug": "youre-doing-rag-wrong",
+      "status": "confirmed",
+      "markdownPath": "resources/08/youre-doing-rag-wrong.md",
+      "source": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+      "sourceType": "url",
+      "generatedAt": "2026-06-23T02:36:14Z",
+      "confirmed": true,
+      "confirmedAt": "2026-06-23T02:52:52Z",
+      "confirmedBy": "user",
+      "confirmationNotes": "正文、格式、图片、链接和阅读顺序已确认"
+    }
+  },
+  "parallel": {
+    "allowed": false,
+    "tasks": []
+  }
+}

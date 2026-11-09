@@ -1,0 +1,21 @@
+{
+  "resources": {
+    "bilingual-reader:how-the-claude-code-team-does-code-review": {
+      "skill": "bilingual-reader",
+      "slug": "how-the-claude-code-team-does-code-review",
+      "status": "confirmed",
+      "markdownPath": "resources/09/how-the-claude-code-team-does-code-review.md",
+      "source": "https://claude.dev/blog/solving-code-review-at-anthropic",
+      "sourceType": "url",
+      "generatedAt": "2026-11-09T05:29:30Z",
+      "confirmed": true,
+      "confirmedAt": "2026-11-09T05:32:14Z",
+      "confirmedBy": "user",
+      "confirmationNotes": "正文、格式、图片、表格、链接和阅读顺序已确认；图片迁入 resources/09/assets 并可正常预览"
+    }
+  },
+  "parallel": {
+    "allowed": false,
+    "tasks": []
+  }
+}

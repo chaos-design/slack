@@ -1,0 +1,30 @@
+{
+  "id": "09",
+  "source": "https://claude.dev/blog/solving-code-review-at-anthropic",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "How the Claude Code team does code review：Agent 产出速度下的代码评审",
+      "name": "Claude Code 团队怎么做代码评审",
+      "description": "Anthropic 复盘 Claude Code 团队的代码评审流程：以七层检查替代逐行人工阅读，用风险分级决定人工批准强度，并把事故转成评审器的长期评测集。",
+      "tags": [
+        "Claude Code",
+        "Code Review",
+        "AI Agent",
+        "工程实践"
+      ],
+      "path": "how-the-claude-code-team-does-code-review",
+      "language": "zh-CN",
+      "createdAt": "2026-11-09 13:47:00",
+      "updatedAt": "2026-11-09 13:47:00"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "how-the-claude-code-team-does-code-review",
+      "createdAt": "2026-11-09 13:47:00",
+      "updatedAt": "2026-11-09 14:00:09"
+    }
+  ]
+}

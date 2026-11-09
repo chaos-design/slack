@@ -1,0 +1,124 @@
+{
+  "id": "08",
+  "source": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+  "sourceType": "url",
+  "studies": [
+    {
+      "title": "You're Doing RAG Wrong：用问答知识单元替代文本切块",
+      "name": "You're Doing RAG Wrong：用问答知识单元替代文本切块",
+      "description": "Akshay Pachaar 的 X Article 讨论 RAG 中以文本 chunk 作为嵌入单元的局限，并介绍以问题、验证答案和治理字段组成的 IdeaBlock / QA Packet 作为更可靠检索单元。",
+      "tags": [
+        "RAG",
+        "Vector Search",
+        "Knowledge Distillation",
+        "AI Agent"
+      ],
+      "path": "youre-doing-rag-wrong",
+      "language": "zh-CN",
+      "source": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+      "sourceType": "url",
+      "createdAt": "2026-06-23 10:36:24",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "title": "Responses API 的计算机环境",
+      "name": "Responses API 的计算机环境",
+      "description": "OpenAI 说明 Responses API 的价值在于把 shell tool、托管容器、文件系统、数据库、受控网络、skills 与 compaction 组合成可执行、可复用、可长期运行的 Agent 计算环境。",
+      "tags": [
+        "OpenAI",
+        "Responses API",
+        "Shell Tool",
+        "Agent Skills"
+      ],
+      "path": "responses-api-computer-environment",
+      "language": "zh-CN",
+      "source": "https://openai.com/index/equip-responses-api-computer-environment",
+      "sourceType": "url",
+      "createdAt": "2026-06-23 14:45:00",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "title": "Harness Engineering：Agent-first 时代的工程组织方式",
+      "name": "Harness Engineering：Agent-first 时代的工程组织方式",
+      "description": "OpenAI 复盘一支小团队如何用 Codex 在五个月内构建约百万行代码的内部产品，并把工程师角色从手写代码转向设计环境、约束、反馈回路和可读的代码仓库知识系统。",
+      "tags": [
+        "OpenAI",
+        "Codex",
+        "Harness Engineering",
+        "Agent-first Engineering"
+      ],
+      "path": "harness-engineering",
+      "language": "zh-CN",
+      "source": "https://openai.com/index/harness-engineering/",
+      "sourceType": "url",
+      "createdAt": "2026-06-23 14:45:00",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "title": "The Art of Loop Engineering：把 Agent 能力做成多层反馈循环",
+      "name": "The Art of Loop Engineering：把 Agent 能力做成多层反馈循环",
+      "description": "LangChain 文章把 Agent 能力拆为四层循环：基础 Agent loop、verification loop、event-driven loop 和 hill climbing loop，并说明如何用 LangChain / LangSmith 原语落地。",
+      "tags": [
+        "LangChain",
+        "Loop Engineering",
+        "Deep Agents",
+        "Agent Architecture"
+      ],
+      "path": "the-art-of-loop-engineering",
+      "language": "zh-CN",
+      "source": "https://www.langchain.com/blog/the-art-of-loop-engineering",
+      "sourceType": "url",
+      "createdAt": "2026-06-23 14:45:00",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "title": "Long-running Claude：面向科学计算的长任务 Agent 工作流",
+      "name": "Long-running Claude：面向科学计算的长任务 Agent 工作流",
+      "description": "Anthropic 研究文章展示如何将 Claude Code 用于跨天科学计算任务，通过 CLAUDE.md、CHANGELOG.md、test oracle、Git/tmux/SLURM 与 Ralph loop 建立可恢复、可验证的 Agent 工作流。",
+      "tags": [
+        "Claude Code",
+        "Scientific Computing",
+        "AI Agent",
+        "Long-running Agents"
+      ],
+      "path": "long-running-claude-for-scientific-computing",
+      "language": "zh-CN",
+      "source": "https://www.anthropic.com/research/long-running-Claude",
+      "sourceType": "url",
+      "createdAt": "2026-06-23 17:45:00",
+      "updatedAt": "2026-06-23 17:45:00"
+    }
+  ],
+  "slides": [
+    {
+      "id": "1",
+      "path": "youre-doing-rag-wrong",
+      "createdAt": "2026-06-23 10:36:24",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "id": "2",
+      "path": "responses-api-computer-environment",
+      "createdAt": "2026-06-23 14:45:00",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "id": "3",
+      "path": "harness-engineering",
+      "createdAt": "2026-06-23 14:45:00",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "id": "4",
+      "path": "the-art-of-loop-engineering",
+      "createdAt": "2026-06-23 14:45:00",
+      "updatedAt": "2026-06-23 14:45:00"
+    },
+    {
+      "id": "5",
+      "path": "long-running-claude-for-scientific-computing",
+      "createdAt": "2026-06-23 17:45:00",
+      "updatedAt": "2026-06-23 17:45:00"
+    }
+  ]
+}
