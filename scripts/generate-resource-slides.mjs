@@ -403,6 +403,58 @@ const slideRules = {
     imageIndexes: [0, 1, 2, 3, 4, 5, 6],
     theme: darkTheme("#050812", "#101827", "#eef4ff", "#b9c8df", "#67e8f9", "#a78bfa"),
   },
+  "09/fold-subagents-into-main-agent-loop": {
+    profile: "blueprint-review-pipeline",
+    preset: "Blueprint Studio",
+    className: "theme-blueprint",
+    eyebrow: "Claude Platform · Agent 架构",
+    title: "把子 Agent 折叠进主循环",
+    subtitle:
+      "本文的重点不是「要不要子 Agent」，而是判断哪些子 Agent 还在做模型已能处理的工作；用渐进式披露与工具搜索让单一 Agent 胜任多任务，并把决策权逐步交还给模型本身。",
+    thesis: "子 Agent 仍有其位置，但当它只是把模型已能做好的步骤又包一层时，就该折叠进主循环。",
+    agenda: [
+      "大企业的失败模式",
+      "渐进式披露",
+      "单循环设计",
+      "分阶段折叠",
+      "多团队共建",
+    ],
+    agendaDescriptions: [
+      "每个能力各建一个子 Agent，架构变成组织图的复刻，并带来上下文、Frankenprompt、局部化评测与延迟等即时复杂度。",
+      "让 Agent 只看到技能与工具的简短描述、用到时才完整加载，共享上下文又避免上下文膨胀。",
+      "一个模型一个窗口跑工具循环，模型自写并改写计划，排序进技能、硬性限制进工具。",
+      "建小评测集，按共享上下文从用得最多的子 Agent 开始，逐个折成技能与 MCP 工具再对比。",
+      "领域推理交给知识库/技能/MCP 工具，各团队把所有权从 Agent 转到技能+工具，中央团队守质量。",
+    ],
+    sectionIndexes: [0, 1, 2, 3, 4],
+    imageIndexes: [0, 1, 2],
+    visualPlacements: [
+      { asset: 1, after: 1, title: "按问题类型拆分导致的电话游戏" },
+      { asset: 2, after: 2, title: "把子 Agent 折叠进主循环" },
+    ],
+    leadVisualTitle: "子 Agent 架构 vs 单 Agent 循环",
+    closingTitle: "架构会过时，原则不会",
+    closingLead:
+      "任何单一架构都不如它背后的原则重要：度量、一次只改一件事、保留经得起检验的部分。随着模型更强、Agent 运行更久，更多子 Agent 都能变成技能与工具——建一个小评测，折进一个子 Agent，只有折叠版更差才保留，然后重复。",
+    visualNarratives: [
+      {
+        caption: "子 Agent 架构的典型形态",
+        explanation:
+          "这张动画展示由协调器统一调度的多子 Agent 结构：每个子 Agent 拥有自己的上下文窗口、工具与指令。它能做好验证、并行与模块化授权，但也正是企业里子 Agent 蔓延、上下文交接失真与延迟的来源。",
+      },
+      {
+        caption: "按问题类型拆分的电话游戏",
+        explanation:
+          "当 Agent 按问题类型拆分时，信息在每次交接中像电话游戏一样失真。图中强调：切分边界应按上下文而非按问题类型——给每个子 Agent 一件几乎不需要系统其余部分配合的工作，让它回交一个紧凑结果。",
+      },
+      {
+        caption: "把子 Agent 折叠进主循环",
+        explanation:
+          "这张动画示意折叠过程：把子 Agent 的提示变成技能、把 API 调用变成 MCP 工具，让同一个模型在同一个上下文里既规划又执行，从而消除嵌套循环与有损交接。",
+      },
+    ],
+    theme: darkTheme("#050d18", "#0a1729", "#e6f4ff", "#8fb4cf", "#38bdf8", "#f59e0b"),
+  },
 };
 
 function lightTheme(slide, secondary, primary, muted, accent, accent2) {
@@ -781,7 +833,11 @@ async function fetchAsDataUrl(url, imageCache, resourceDir) {
 function inferMime(url) {
   if (/\.svg(?:\?|$)/i.test(url)) return "image/svg+xml";
   if (/\.webp(?:\?|$)/i.test(url)) return "image/webp";
+  if (/\.gif(?:\?|$)/i.test(url)) return "image/gif";
   if (/\.png(?:\?|$)/i.test(url)) return "image/png";
+  if (/\.avif(?:\?|$)/i.test(url)) return "image/avif";
+  if (/\.bmp(?:\?|$)/i.test(url)) return "image/bmp";
+  if (/\.jpe?g(?:\?|$)/i.test(url)) return "image/jpeg";
   return "image/jpeg";
 }
 

@@ -17,6 +17,21 @@
       "language": "zh-CN",
       "createdAt": "2026-11-09 13:47:00",
       "updatedAt": "2026-11-09 13:47:00"
+    },
+    {
+      "title": "When to fold subagents into your main agent loop：何时把子 Agent 折叠进主循环",
+      "name": "何时把子 Agent 折叠进主循环",
+      "description": "Anthropic 的 Applied AI 团队复盘企业级 Agent 部署：何时该把路由器、规划器与领域子 Agent 折叠进单一主循环，以及一套从多 Agent 系统分阶段迁移到单 Agent 循环的可执行路径。",
+      "tags": [
+        "Agent 架构",
+        "Subagents",
+        "Claude Platform",
+        "工程实践"
+      ],
+      "path": "fold-subagents-into-main-agent-loop",
+      "language": "zh-CN",
+      "createdAt": "2026-11-09 16:10:00",
+      "updatedAt": "2026-11-09 16:10:00"
     }
   ],
   "slides": [
@@ -25,6 +40,12 @@
       "path": "how-the-claude-code-team-does-code-review",
       "createdAt": "2026-11-09 13:47:00",
       "updatedAt": "2026-11-09 14:00:09"
+    },
+    {
+      "id": "2",
+      "path": "fold-subagents-into-main-agent-loop",
+      "createdAt": "2026-11-09 16:10:00",
+      "updatedAt": "2026-11-09 16:23:09"
     }
   ]
 }
