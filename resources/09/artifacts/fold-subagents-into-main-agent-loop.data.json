@@ -1,0 +1,1228 @@
+{
+  "pageTitle": "何时把子 Agent 折叠进主循环",
+  "headerTitle": "When to fold <span>subagents</span> into your main agent loop",
+  "metadata": {
+    "title": "Building agents: When to fold subagents into your main agent loop",
+    "sourceUrl": "https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop",
+    "fetchedAt": "2026-11-09 15:54:00",
+    "publishedAt": "2026-10-22"
+  },
+  "article": {
+    "title": "Building agents: When to fold subagents into your main agent loop",
+    "sourceUrl": "https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop",
+    "fetchedAt": "2026-11-09 15:54:00",
+    "publishedAt": "2026-10-22",
+    "author": "Diane Sarkis",
+    "tags": [
+      "Agent 架构",
+      "Subagents",
+      "Claude Platform",
+      "工程实践"
+    ],
+    "anchors": [
+      {
+        "id": "section-1",
+        "label": "大企业的 Agent 构建失败模式"
+      },
+      {
+        "id": "section-2",
+        "label": "用渐进式披露的 Agent 循环"
+      },
+      {
+        "id": "section-3",
+        "label": "如何把子 Agent 折叠进主循环"
+      },
+      {
+        "id": "section-4",
+        "label": "多个团队如何共建一个 Agent"
+      },
+      {
+        "id": "section-5",
+        "label": "加速这项工作的工具"
+      }
+    ]
+  },
+  "hero": {
+    "title": "Building agents: When to fold subagents into your main agent loop",
+    "meta": "Anthropic · Diane Sarkis · 2026-10-22",
+    "en": "Subagents still earn their place, but Applied AI keeps finding enterprise deployments that do better with routers, planners, and domain subagents folded into one main agent loop.",
+    "zh": "子 Agent 仍有其位置，但 Applied AI 团队不断发现：不少企业级部署把路由器、规划器和领域子 Agent 折叠进一个主循环后，反而做得更好。"
+  },
+  "summary": {
+    "overviewTitle": "全文速览",
+    "thesis": "与其给每种能力各配一个子 Agent，不如把能合并的折叠进主循环：用渐进式披露与工具搜索让一个 Agent 胜任多任务，把决策权逐步从编排器交还给模型本身。",
+    "lead": "子 Agent——拥有独立上下文窗口、工具与指令、由协调器统一调度的 Agent——依然是验证、并行与模块化授权的有效手段。但 Applied AI 团队在多家企业部署中发现：把路由器、规划器和领域子 Agent 折叠进单一主循环后，质量常常更好，单位任务的成本与延迟也更低。本文给出判断「何时该折叠」的原则，以及一套从多 Agent 系统分阶段迁移到单 Agent 循环的可执行路径。",
+    "cards": [
+      {
+        "icon": "01",
+        "title": "子 Agent 不是默认答案",
+        "body": "很多「意图分类器 + 固定推理管道 + 多 Agent 编排器」式设计，做的是模型已经不需要人替它做的事。一个清晰的系统提示、4-5 个轻量数据工具加严格的输出护栏，往往就覆盖大部分场景。"
+      },
+      {
+        "icon": "02",
+        "title": "渐进式披露替代拆子 Agent",
+        "body": "让 Agent 只看到技能与工具的简短描述、用到时才完整加载，既能共享上下文、又能防止上下文膨胀。Claude Code 借此把高级模型的系统提示压缩了 80% 以上。"
+      },
+      {
+        "icon": "03",
+        "title": "单循环设计的纪律",
+        "body": "一个模型、一个上下文窗口跑开放式工具循环；模型首轮在上下文里写计划并可中途改写，排序与领域步骤进入技能，硬性限制与记忆查找进入工具。"
+      },
+      {
+        "icon": "04",
+        "title": "用评测驱动折叠",
+        "body": "先建一个端到端评测集，再逐个把子 Agent 折进技能与 MCP 工具，对比有/无子 Agent 的得分，看哪些任务「翻了车」，而不是只看最终分数。"
+      },
+      {
+        "icon": "05",
+        "title": "多团队共建一个 Agent",
+        "body": "领域推理由知识库、技能与 MCP 工具提供；各团队把所有权从「Agent」转移到「技能 + 工具」，由一个小中央团队守住系统提示与端到端质量。"
+      },
+      {
+        "icon": "06",
+        "title": "工具加速迁移",
+        "body": "migration kit 把 build-eval、prompt-audit、hillclimb、cost-optimize 串成一个引导式工作流，用来评估并把多 Agent 系统迁到单 Agent 循环。"
+      }
+    ],
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "问题不是「要不要子 Agent」，而是「这个子 Agent 在架构里是否还承担模型做不了的工作」。当它只是把模型已能处理的步骤又包了一层，就该折叠。"
+      },
+      {
+        "label": "机制设计",
+        "text": "单 Agent 循环靠三条支柱成立：共享上下文带来更好的答案、渐进式披露防止上下文膨胀、模型能力变强让更多决策从编排器回到模型本身。"
+      },
+      {
+        "label": "迁移策略",
+        "text": "不要一步到位。建小评测集 → 按共享上下文从用得最多的子 Agent 开始折叠 → 折成技能+工具后对比评测 → 只有折叠版更差才保留子 Agent，然后重复。"
+      },
+      {
+        "label": "组织前提",
+        "text": "成功依赖一个小的中央团队守住系统提示与端到端质量，并在每个技能/工具/评测上线前做审查；权限、护栏与共享响应结构都收进工具里。"
+      }
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "为什么折叠",
+        "summary": "子 Agent 有效，但企业常给每类问题各配一个，架构变成组织图的复刻（康威定律）；很多结构在做模型已不需要的事。"
+      },
+      {
+        "id": "fw-2",
+        "label": "大企业失败模式",
+        "summary": "上下文管理、子 Agent 蔓延、Frankenprompt、各写各的评测、延迟——五类即时复杂度。"
+      },
+      {
+        "id": "fw-3",
+        "label": "渐进式披露",
+        "summary": "用技能披露上下文、用工具搜索披露工具，让单 Agent 既能共享上下文又能避免上下文膨胀。"
+      },
+      {
+        "id": "fw-4",
+        "label": "单循环设计",
+        "summary": "一个模型一个窗口跑工具循环，模型自写并改写计划，排序进技能、硬性限制进工具。"
+      },
+      {
+        "id": "fw-5",
+        "label": "分阶段折叠",
+        "summary": "建评测集 → 合并领域子 Agent → 作为工具调用 → 折成技能+MCP 工具，逐个对比评测。"
+      },
+      {
+        "id": "fw-6",
+        "label": "多团队共建",
+        "summary": "知识库/技能/MCP 工具提供领域推理，各团队把所有权从 Agent 转到技能+工具，中央团队守质量。"
+      },
+      {
+        "id": "fw-7",
+        "label": "加速工具",
+        "summary": "migration kit 串联 build-eval、prompt-audit、hillclimb、cost-optimize，引导式完成评估与迁移。"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      },
+      {
+        "from": "fw-6",
+        "to": "fw-7"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "大企业的 Agent 构建失败模式",
+      "title": "大企业的 Agent 构建失败模式",
+      "rows": [
+        {
+          "en": "Companies often want to build an agent that unites multiple products and capabilities into a single customer interface.",
+          "zh": "企业常常想做一个把多种产品与能力整合进单一客户界面的 Agent。"
+        },
+        {
+          "en": "Typically, each capability is owned by a separate team, so companies start by letting each individual team build their own agent, then a central platform team builds an orchestrator on top. This looks like the simplest solution but introduces immediate complexity around context management, subagent sprawl, a Frankenprompt, unvetted localized evals, and latency.",
+          "zh": "典型做法是每个能力由独立团队拥有，于是各团队先各自建 Agent，再由中央平台团队在顶层加一个编排器。这看似最简单，却立刻带来上下文管理、子 Agent 蔓延、Frankenprompt、未经审查的局部化评测，以及延迟等复杂度。"
+        },
+        {
+          "en": "One customer that evaluated their multi-agent harness against a single agent loop saw a roughly 2x faster runtime with the latter.",
+          "zh": "有一家客户把自己的多 Agent 框架与单 Agent 循环对比评测，发现后者运行时大约快了 2 倍。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "用渐进式披露的 Agent 循环",
+      "title": "用渐进式披露的 Agent 循环",
+      "rows": [
+        {
+          "en": "Often a more effective approach than orchestrator-subagent is progressively disclosing context via skills and progressively disclosing tools via tool search: the agent sees short descriptions of the skills and tools, which are fully loaded only when needed.",
+          "zh": "比编排器-子 Agent 更有效的做法，常是「用技能渐进式披露上下文、用工具搜索渐进式披露工具」：Agent 只看到技能与工具的简短描述，用到时才完整加载。"
+        },
+        {
+          "en": "Shared context produces better answers for longer-running agents, and progressive disclosure prevents context bloat — we reduced Claude Code's system prompt for more advanced models by over 80%. Models are also more capable: starting with Opus 4.5 they manage far more in a single loop, and recent models narrate their progress and check their work, making some harness elements redundant.",
+          "zh": "对长程 Agent 而言，共享上下文能产出更好的答案；渐进式披露则防止上下文膨胀——我们把 Claude Code 面向更高级模型的系统提示压缩了 80% 以上。模型也更强大了：从 Opus 4.5 起，它们能在单个循环里管理远超团队预期的工作量，近期的模型还会边做边汇报进展、自查工作，让编排器里的某些环节变得多余。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "如何把子 Agent 折叠进主循环",
+      "title": "如何把子 Agent 折叠进主循环",
+      "rows": [
+        {
+          "en": "The single loop design we suggest: one model and one context window running an open-ended tool loop with turn and cost budgets and write gates; each turn the model emits a batch of tool calls, the harness runs them in parallel, and the same model decides the next step.",
+          "zh": "我们建议的单循环设计是：一个模型、一个上下文窗口，在圈定了轮次/成本预算与写入闸门的开放工具循环里运行；每一轮模型发出一批工具调用，编排器并行执行，再由同一个模型决定下一步。"
+        },
+        {
+          "en": "The model writes its plan in context on the first turn and revises it as results arrive — the model that writes the plan is also the one carrying it out, so it can change the plan mid-turn. Ordering and domain procedure move into skills; hard limits and mid-conversation lookups move into tools.",
+          "zh": "模型在首轮于上下文中写下计划，并随结果到达不断修订——写计划的模型也正是执行计划的那一个，因此它可以中途改计划。排序与领域步骤进入技能；硬性限制与对话中出现的查找（如记忆检索）进入工具。"
+        },
+        {
+          "en": "Fold subagents in one at a time by turning each one's prompts into skills and API calls into MCP tools, comparing eval performance with and without the subagent, then deciding which to keep. Don't just look at the final score — look at which tasks flipped.",
+          "zh": "逐个把子 Agent 折进主 Agent：把各自的提示变成技能、把 API 调用变成 MCP 工具，对比有/无该子 Agent 的评测表现，再决定保留哪个。不要只看最终分数——要看哪些任务「翻了车」。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "多个团队如何共建一个 Agent",
+      "title": "多个团队如何共建一个 Agent",
+      "rows": [
+        {
+          "en": "Domain reasoning can be retrieved from knowledge bases, skills, and MCP tools. Individual teams shift ownership from agents to skills and tools, with one small central team keeping ownership of the system prompt and end-to-end quality.",
+          "zh": "领域推理可由知识库、技能与 MCP 工具提供。各团队把所有权从 Agent 转移到技能与工具，由一个小中央团队守住系统提示与端到端质量。"
+        },
+        {
+          "en": "Tools are the right fit for actions, live data, or fixed-shape results; group them by user intent (not one tool per API), since exceeding 30-50 tool definitions degrades tool choice. Skills are the right fit when the agent needs to know how a team does work. Knowledge bases suit reference material needed only some of the time.",
+          "zh": "工具适合「要采取行动、读取实时数据、或返回固定结构结果」的场景，并按用户意图分组（而不是一个 API 一个工具），因为系统提示里超过 30-50 个工具定义会让工具选择变差。技能适合「Agent 需要知道某团队怎么做某件事」。知识库适合那些只是偶尔才需要的参考资料。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "加速这项工作的工具",
+      "title": "加速这项工作的工具",
+      "rows": [
+        {
+          "en": "A migration kit chains Claude API skills together in one guided workflow for assessing and moving multi-agent systems to a single agent loop, including build-eval, prompt-audit, hillclimb, and cost-optimize.",
+          "zh": "migration kit 把多个 Claude API 技能串成一个引导式工作流，用来评估并把多 Agent 系统迁到单 Agent 循环，涵盖 build-eval、prompt-audit、hillclimb 与 cost-optimize。"
+        },
+        {
+          "en": "The principle behind any architecture matters more than the architecture itself: measure, change one thing at a time, and keep what holds up. Build a small end-to-end eval, fold in one subagent, and keep it as a subagent only if the folded version scores worse — then rinse and repeat.",
+          "zh": "比起某个具体架构，其背后的原则更重要：度量、一次只改一件事、保留经得起检验的部分。建一个小端到端评测，折进一个子 Agent，只有当折叠版得分更差时才保留它——然后不断重复。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "文章认为，什么时候还「应该」保留子 Agent，而不是折叠进主循环？",
+      "options": [
+        "当单 Agent 循环因上下文膨胀出现可度量的性能下降、或需要并行处理可丢弃的独立任务、或模型难以选对工具/指令冲突时。",
+        "只要该子 Agent 是由某个具体业务团队提出的，就应保留。",
+        "只要它能降低端到端延迟，就无论如何都要保留。",
+        "只要系统提示里工具数量少于 30 个，就应保留子 Agent。"
+      ],
+      "answer": 0,
+      "explain": "原文明确给出保留子 Agent 的三类条件：单循环因上下文膨胀而可度量地变差、需要并行跑可丢弃上下文的任务、或单 Agent 难以选对工具/指令冲突。其余选项都不是原文的判断依据。",
+      "wrongReason": "其余三项分别把保留理由错归为团队归属、延迟或工具数量阈值，原文并未这样设定。",
+      "sourceAnchor": "如何把子 Agent 折叠进主循环"
+    },
+    {
+      "question": "为什么文章建议把工具「按用户意图」分组，而不是「一个 API 一个工具」？",
+      "options": [
+        "因为系统提示里一旦超过 30-50 个工具定义，模型选择工具的准确率就会下降。",
+        "因为一个 API 一个工具会让代码更难维护。",
+        "因为 Anthropic 的 API 不允许一个工具调用多个端点。",
+        "因为这样才能让每个工具都有独立的系统提示段。"
+      ],
+      "answer": 0,
+      "explain": "原文指出，按用户意图分组工具，是因为一旦在系统提示中定义超过 30-50 个工具，工具选择（tool choice）往往会退化。",
+      "wrongReason": "其余选项都不是文章给出的理由；文章关注的是模型在过多工具定义下的选择质量，而非代码维护或 API 限制。",
+      "sourceAnchor": "多个团队如何共建一个 Agent"
+    },
+    {
+      "question": "在「折叠」过程中，为什么作者强调不要只看最终评测分数？",
+      "options": [
+        "因为应该看哪些任务在折叠后「翻了车」；他们在一个客服 Agent 上就遇到折叠后延迟降低、却破坏了原本通过流程的情况。",
+        "因为最终分数在单 Agent 与多 Agent 架构间永远不可比。",
+        "因为评测分数只能衡量延迟，不能衡量质量。",
+        "因为子 Agent 的分数一定高于折叠后的版本。"
+      ],
+      "answer": 0,
+      "explain": "原文举例：把一个子 Agent 折进另一个后延迟降低了，却破坏了原本能通过的一个流程——主 Agent 自己拿着订单查询工具回答、没去问物流专员要送达日期。所以要看任务级的变化，而非只看总分。",
+      "wrongReason": "其余三项要么把分数说成不可比/只能衡量延迟，要么武断地说子 Agent 一定更高，都不符合原文。",
+      "sourceAnchor": "如何把子 Agent 折叠进主循环"
+    },
+    {
+      "question": "关于「渐进式披露」，下列哪一项最符合原文？",
+      "options": [
+        "让 Agent 只看到技能与工具的简短描述、用到时才完整加载，从而共享上下文又避免上下文膨胀。",
+        "把所有技能与工具的完整内容一次性写进系统提示，以防遗漏。",
+        "把上下文全部交给子 Agent 各自保管，主 Agent 只接收摘要。",
+        "只在模型能力不够时才披露工具，能力够时全部隐藏。"
+      ],
+      "answer": 0,
+      "explain": "原文说渐进式披露是「用技能披露上下文、用工具搜索披露工具」，Agent 看到简短描述、用到时才完整加载；这既能把多任务上下文留在主窗口，又不必把所有内容一次塞进长系统提示。",
+      "wrongReason": "其余选项要么反其道而行（一次性全写进提示、交给子 Agent 保管），要么把披露条件说反，均不符原文。",
+      "sourceAnchor": "用渐进式披露的 Agent 循环"
+    }
+  ],
+  "original": {
+    "title": "Building agents: When to fold subagents into your main agent loop",
+    "meta": "Anthropic · Diane Sarkis · 2026-10-22",
+    "groups": [
+      {
+        "group": "Introduction · 引言",
+        "rows": [
+          {
+            "en": "If you've built an agent in Claude Platform that includes multiple subagents, see which may make sense to fold into the main agent loop using our migration kit. It runs a guided workflow to identify your patterns, evaluate alternatives, and verify the best approach. It includes a demo that you can try on a mock system before running on your agent.",
+            "zh": "如果你在 Claude Platform 上构建过包含多个子 Agent 的 Agent，可以用我们的 migration kit 看看哪些适合折叠进主循环。它提供一个引导式工作流来识别你的模式、评估替代方案并验证最佳做法，还包含一个可以先在模拟系统上试用的演示。",
+            "type": "bilingual"
+          },
+          {
+            "en": "Subagents — agents with their own context window, tools, and instructions, orchestrated by a coordinator — are a core component of agent design. They are effective at verification, parallel work, and modular permissioning. We use them in many of our own agents that we build using Claude Platform, for example our multi-agent research system.",
+            "zh": "子 Agent——拥有自身上下文窗口、工具与指令、由协调器统一调度的 Agent——是 Agent 设计的核心组成部分。它们在验证、并行工作和模块化授权方面很有效。我们自己用 Claude Platform 构建的很多 Agent 都用到了它们，例如我们的多 Agent 研究系统。",
+            "type": "bilingual"
+          },
+          {
+            "en": "However, recently the Applied AI team has found a pattern of enterprise agent deployments that have benefited from folding routers, planners, and domain subagents into the main agent loop. In our comparisons across several enterprise deployments, a single agent with skills frequently outperformed both the one-prompt-for-everything design and the subagent design on quality, and often at a lower cost and latency per task.",
+            "zh": "不过，Applied AI 团队最近发现一种企业级 Agent 部署的规律：把路由器、规划器和领域子 Agent 折叠进主 Agent 循环后效果更好。在我们对多个企业部署的对比中，一个带有技能的单一 Agent 在质量上常常同时胜过「一个提示包打天下」和「子 Agent」两种设计，而且单位任务的成本与延迟往往更低。",
+            "type": "bilingual"
+          },
+          {
+            "en": "For example, one company found the dozen of specialist subagents within its customer-facing agent made a consistent on-brand experience difficult to maintain and added latency that hurt the user experience.",
+            "zh": "例如，有一家公司发现，其面向客户的 Agent 内部那十几个专家子 Agent，让一致的品牌体验难以维持，还增加了损害用户体验的延迟。",
+            "type": "bilingual"
+          },
+          {
+            "en": "We also often see proposed agent designs that follow a familiar progression: an intent classifier, a fixed multi-step reasoning pipeline, user-segment buckets, separate recommendation branches, and a multi-agent orchestrator on top.",
+            "zh": "我们也常看到一些被提议的 Agent 设计遵循一种熟悉的演进路径：意图分类器、固定的多步推理管道、用户分群桶、相互独立的推荐分支，顶层再叠一个多 Agent 编排器。",
+            "type": "bilingual"
+          },
+          {
+            "en": "In these cases feedback is often that most of this structure was doing work the model no longer needed done for it, and that one clear system prompt, 4-5 thin data tools, and firm output guardrails would cover most of the use case.",
+            "zh": "在这些场景里，常见的反馈是：这套结构里的大部分工作，做的其实是模型已经不再需要人替它做的事；而一个清晰的系统提示、4-5 个轻量数据工具，再加严格的输出护栏，就足以覆盖大部分用例。",
+            "type": "bilingual"
+          },
+          {
+            "type": "image",
+            "src": "assets/subagent-design.gif",
+            "alt": "subagent design",
+            "caption": "子 Agent 架构：由协调器统一调度的多个子 Agent（动画）。"
+          }
+        ]
+      },
+      {
+        "group": "When subagents still earn their place · 子 Agent 仍有一席之地",
+        "rows": [
+          {
+            "en": "To be clear, subagents still have their place, including at the research frontier. Use them when: a single agent loop hits measurable performance degradation from context bloat; multiple tasks need to be tackled in parallel with fresh context windows that can be discarded once the task is done; or a single agent struggles to select appropriate tools or there are conflicting instructions in the system prompt.",
+            "zh": "说清楚一点：子 Agent 仍有其位置，包括在研究前沿。在以下情况使用它们：单 Agent 循环因上下文膨胀出现可度量的性能下降；多个任务需要并行处理、且任务结束时上下文窗口可以丢弃；或者单 Agent 难以选对合适的工具、系统提示里存在相互冲突的指令。",
+            "type": "bilingual"
+          },
+          {
+            "en": "But too often we see enterprises give each team or problem type its own subagent, with the agent architecture becoming a copy of their org chart (Conway's law at work).",
+            "zh": "但我们太常看到企业给每个团队或问题类型各配一个子 Agent，结果 Agent 架构变成了它们组织图的复刻——这正是康威定律在起作用。",
+            "type": "bilingual"
+          },
+          {
+            "en": "This post explains when to consider folding subagents into your main agent loop with best practices we've learned from building agents in large organizations.",
+            "zh": "本文结合我们在大型组织里构建 Agent 学到的实践经验，说明何时该考虑把子 Agent 折叠进你的主 Agent 循环。",
+            "type": "bilingual"
+          }
+        ]
+      },
+      {
+        "group": "Agent building failure modes for large organizations · 大企业的失败模式",
+        "rows": [
+          {
+            "en": "Companies often want to build an agent that unites multiple products and capabilities into a single customer interface. Typically, each capability is owned by a separate team, so companies start by letting each individual team build their own agent, then a central platform team builds an orchestrator on top. This can take on several structures including orchestrator-subagent or a single agent with specific agents exposed as MCP tools.",
+            "zh": "企业常常想做一个把多种产品与能力整合进单一客户界面的 Agent。典型做法是每个能力由独立团队拥有，于是各团队先各自构建自己的 Agent，再由中央平台团队在顶层加一个编排器。这可以表现为多种结构，包括编排器-子 Agent，或把特定 Agent 作为 MCP 工具暴露出来的单一 Agent。",
+            "type": "bilingual"
+          },
+          {
+            "en": "This looks like the simplest solution but introduces immediate complexity around: Context management (you lose details in the back and forth); Subagent sprawl (hundreds of overlapping subagents with no enforced standards); the Frankenprompt (conflicting rules, no consistent voice); unvetted, overly localized evals (no one owns the whole set); and Latency (one customer saw a roughly 2x faster runtime with a single agent loop).",
+            "zh": "这看似最简单的方案，却立刻带来几类复杂度：上下文管理（在反复来回中常常丢失细节）；子 Agent 蔓延（成百上千个互相重叠、没有强制标准、也没有明确归属的子 Agent）；Frankenprompt（每个团队往系统提示里加一句，导致规则冲突、语气不一致）；未经审查且过度局部化的评测（没人拥有或维护整套，领导据此做出被稀释的决策）；以及延迟（有客户对比后看到单 Agent 循环大约快 2 倍）。",
+            "type": "bilingual"
+          }
+        ]
+      },
+      {
+        "group": "Using an agent loop with progressive disclosure · 用渐进式披露的 Agent 循环",
+        "rows": [
+          {
+            "en": "The orchestrator-subagent design is a reasonable approach to coordinating specialists built across teams, but often a more effective approach can be progressively disclosing context via skills and progressively disclosing tools via tool search. In other words, the agent sees short descriptions of the skills and tools, which are fully loaded only when needed.",
+            "zh": "编排器-子 Agent 这种设计在协调跨团队构建的专家时是合理的，但往往更有效的做法是「用技能渐进式披露上下文、用工具搜索渐进式披露工具」。换言之，Agent 只看到技能与工具的简短描述，只有在需要时才会完整加载。",
+            "type": "bilingual"
+          },
+          {
+            "en": "There are three reasons this approach makes sense. Shared context produces better answers: an agent that has seen each earlier step can connect them, leading to richer outputs than a set of summaries handed back by subagents, and means fewer context windows and fewer lossy handoffs. Progressive disclosure prevents context bloat: it lets teams build single agents that accomplish many tasks without loading all context into one long system prompt — in fact we reduced Claude Code's system prompt for more advanced models by over 80%. Models are more capable: from Opus 4.5 they manage far more in a single loop; recent models narrate their progress and check their work, making some harness elements redundant, and a simpler loop is easier to move to the next model.",
+            "zh": "这种做法成立有三个理由。共享上下文带来更好的答案：见过每一步结果的 Agent 能把它们串联起来，产出比子 Agent 回传的一堆摘要更丰富的输出，也意味着更少的上下文窗口与更少的有损交接。渐进式披露防止上下文膨胀：它让团队能构建可完成多种任务的单一 Agent，而不必把所有上下文一次性塞进一个超长系统提示——事实上，我们面向更高级模型把 Claude Code 的系统提示压缩了 80% 以上。模型更强大了：从 Opus 4.5 起，它们能在单个循环里管理远超团队预期的工作量；近期模型会边做边汇报进展、自查工作，让编排器里的某些环节变得多余，而更简单的循环也更容易迁移到下一代模型。",
+            "type": "bilingual"
+          },
+          {
+            "en": "The single agent loop design requires discipline: a carefully managed system prompt, skill and tool descriptions that trigger at the right times, and deliberate handling of context windows, memory, and note-taking. One central team should own end-to-end quality and the system prompt, vetting every new tool and eval before it ships. Keeping that central team small helps iteration move quickly and lowers coordination cost across a large org.",
+            "zh": "单 Agent 循环设计需要纪律：精心管理的系统提示、在正确时机触发的技能与工具描述，以及对上下文窗口、记忆与记笔记的有意处理。应当由一个中央团队拥有端到端质量与系统提示，在每个新工具与评测上线前做审查。让这个中央团队保持精简，有助于快速迭代并降低大型组织的协调成本。",
+            "type": "bilingual"
+          },
+          {
+            "en": "If you go the multi-agent route, start with the simplest pattern that could work. Decompose boundaries effectively by dividing by context: give each subagent a piece of work that needs little from the rest of the system and have it hand back a compact result. When agents are split by problem type, they engage in a 'telephone game,' passing information back and forth with each handoff degrading fidelity.",
+            "zh": "如果你要走多 Agent 路线，先从最可能奏效的最简模式开始。按上下文来有效切分边界：给每个子 Agent 一件几乎不需要系统其余部分配合的工作，让它回交一个紧凑的结果。当 Agent 按问题类型拆分时，它们会陷入一场「电话游戏」，信息在每次交接中来回传递、保真度不断下降。",
+            "type": "bilingual"
+          },
+          {
+            "type": "image",
+            "src": "assets/subagents-split-by-problem.png",
+            "alt": "subagents split by problem",
+            "caption": "按问题类型拆分 Agent 时，信息在层层交接中像「电话游戏」一样失真（静态图）。"
+          }
+        ]
+      },
+      {
+        "group": "How to fold subagents into the main agent loop · 如何折叠进主循环",
+        "rows": [
+          {
+            "en": "Many teams already have an orchestrator and a set of specialist agents in production. The following is the single loop design we'd suggest working toward: one model and one context window running an open-ended tool loop, with limits (turn and cost budgets, write gates) set in the harness; each turn the model emits a batch of tool calls, the harness runs them in parallel and returns raw results to the same model, which decides the next step.",
+            "zh": "很多团队已经在生产环境里跑着编排器加一组专家 Agent。下面是我们建议努力达成的单循环设计：一个模型、一个上下文窗口，在圈定了限制（轮次与成本预算、写入闸门）的开放工具循环里运行；每一轮模型发出一批工具调用，编排器并行执行并把原始结果返回给同一个模型，由它决定下一步。",
+            "type": "bilingual"
+          },
+          {
+            "en": "The loop stops when the model answers or hits a budget; a goal or verifier check can optionally run after the answer. The model writes its plan in context on the first turn and revises it as results arrive. This is the main change from the orchestrator setup: the model that writes the plan is also the one carrying it out, so it can change the plan mid-turn.",
+            "zh": "当模型给出答案或撞上预算时，循环停止；在答案之后可以可选地跑一次目标或验证器检查。模型在首轮于上下文中写下计划，并随结果到达而修订它。这是相对编排器方案最大的变化：写计划的模型正是执行计划的那一个，因此它可以中途改计划。",
+            "type": "bilingual"
+          },
+          {
+            "en": "Context still gets loaded, and is managed by the agent itself: a code step that rewrites the plan from a catalog of rules is no longer needed; ordering and domain procedure move into skills; hard limits and mid-conversation lookups move into tools; code can still load anything cheap and almost always relevant (e.g. an entity resolution step) and handle mechanical parts inside tools. This single loop design also helps with the end state many teams are working toward — an agent that understands a user's high-level goals and acts on their behalf — since it keeps everything the agent has learned in one context.",
+            "zh": "上下文仍然会被加载，只是改由 Agent 自己管理：那种根据规则目录重写计划的代码步骤不再需要；排序与领域流程进入技能；硬性限制和对话中出现的查找（如记忆检索）进入工具；代码仍可用于加载那些廉价且几乎总是相关的东西（例如实体解析步骤），并在工具内部处理机械性环节（负载构造、流解析、恢复一次澄清）。这个单循环设计也有助于很多团队正在追求的最终形态——一个理解用户高层目标并代为行动的 Agent——因为它把 Agent 学到的一切都留在同一个上下文里。",
+            "type": "bilingual"
+          }
+        ]
+      },
+      {
+        "group": "Task-completion evals · 任务完成评测",
+        "rows": [
+          {
+            "en": "The first step is to create an eval set that helps you decide whether to fold a subagent in. The structure we've seen work is one shared end-to-end set owned by a central team with smaller eval sets shipped with each skill by the team that owns it; even a set of 10 golden examples is enough to start. Grade the agent's final message against a rubric to track answer quality; while you have an orchestrator, also track routing accuracy, and once a subagent is folded in, check whether the agent loaded the right skill or called the right tool. One approach that worked internally is to record timestamps on important events so they can be replayed later as targeted evals.",
+            "zh": "第一步是创建一个评测集，帮你判断该不该把一个子 Agent 折进去。我们见过有效的结构是：一个由中央团队拥有的共享端到端评测集，加上每个技能由所属团队随技能发布的小评测集；哪怕只有 10 个黄金样例也足以起步。用评分量规（rubric）对 Agent 的最终消息打分以追踪回答质量；在还有编排器时，还要追踪路由准确率，而一旦把子 Agent 折进去了，就改为检查 Agent 是否加载了正确的技能、调用了正确的工具。我们在内部用过的一个办法是：在重要事件上记录时间戳，以便日后作为定向评测重放。",
+            "type": "bilingual"
+          }
+        ]
+      },
+      {
+        "group": "Reducing subagents over time · 随时间削减子 Agent",
+        "rows": [
+          {
+            "en": "Evolving toward a single agent loop involves folding the subagents into tools and skills — by merging domain subagents, calling them as tools, or replacing them with skills and tools.",
+            "zh": "向单 Agent 循环演进，意味着把子 Agent 折进工具与技能——可以通过合并领域子 Agent、把它们作为工具调用，或用技能与工具替换它们来实现。",
+            "type": "bilingual"
+          },
+          {
+            "type": "image",
+            "src": "assets/folding-in-subagents.gif",
+            "alt": "folding in subagents",
+            "caption": "把子 Agent 折叠进主循环的过程示意（动画）。"
+          }
+        ]
+      },
+      {
+        "group": "Combining domain agents & calling as tools · 合并领域 Agent / 作为工具调用",
+        "rows": [
+          {
+            "en": "Build a small end-to-end eval before the first merge. Then fold in by shared context starting with subagents that have the most use. Merge specialists that chain on each other's output, touch the same data, or are often called together — for example, if a significant share of production traffic is one specialist followed by a second, that is a tightly coupled pair worth merging into one domain agent.",
+            "zh": "在第一次合并前先建一个小端到端评测。然后按共享上下文从用得最多的子 Agent 开始折叠。合并那些彼此输出相衔接、触及同一份数据、或经常被一起调用的专家——例如，如果生产流量中有相当一部分是「一个专家之后紧跟另一个」，那它们就是一对紧密耦合、值得合并成一个领域 Agent 的组合。",
+            "type": "bilingual"
+          },
+          {
+            "en": "When one of the three conditions applies and you keep a subagent, have the main agent call subagents as tools so it can keep holding the conversation with the user. We'd only recommend a full handoff — where the subagent takes over the conversation — when it needs to talk to the user directly; everything else can be a skill plus tools. This lets you define a shared response schema, verify the conclusion against real data with the main agent, and trim the input to any final synthesis — a good first step that needs no rewrite and gives you a baseline before deciding to fold.",
+            "zh": "当那三类条件之一成立、你又保留了某个子 Agent 时，可以让主 Agent 把子 Agent 作为工具来调用，从而继续握住与用户的对话。我们只在子 Agent 需要直接与用户交谈时才建议「完全交接」（由子 Agent 接管对话）；其余一切都可以是「技能 + 主循环里的工具」。这样你就能定义共享的响应结构、用主 Agent 对照真实数据验证结论、并裁剪最终综合步骤的输入——这是个不错的起点：不需要重写子 Agent，还能在决定是否折叠前给出一条基线。",
+            "type": "bilingual"
+          },
+          {
+            "en": "However, some failure modes remain: each specialist has its own prompt, context, owner team, and evals; each call still hands back a lossy summary; and every call is a nested model loop that adds latency.",
+            "zh": "不过，一些失败模式依然存在：每个专家仍拥有自己的提示、上下文、归属团队与评测；每次调用仍然回交一份有损的摘要；而且每一次调用都是一个嵌套的模型循环，会带来延迟。",
+            "type": "bilingual"
+          },
+          {
+            "en": "Fold subagents into the main agent one at a time by turning each one's prompts into skills and API calls into MCP tools. Compare eval performance with and without the subagent, then decide which to keep. When you compare, don't just examine the final score — look at which tasks flipped. On a sample support agent, folding one subagent into another lowered latency but broke a process that had been passing: the main agent held the order lookup tool and answered on its own, without asking the shipping specialist for the delivery date. Before each change, make sure your eval has a task for every chain of agents that runs together in production and for every rule the agent must not break, and run each task more than once — a break like this showed up in only one of two runs.",
+            "zh": "把子 Agent 逐个折进主 Agent：把各自的提示变成技能、把 API 调用变成 MCP 工具。对比有/无该子 Agent 的评测表现，再决定保留哪个。对比时，别只看最终分数——要看哪些任务「翻了车」。在一个客服 Agent 样本上，把一个子 Agent 折进另一个后延迟降低了，却破坏了原本能通过的一个流程：主 Agent 自己握着订单查询工具直接作答，没去问物流专员要送达日期。在每次改动前，确保你的评测中包含了生产环境里每一组一起运行的 Agent 链路、以及 Agent 绝不能违反的每一条规则，并且每个任务多次运行——这类故障在两次运行中只有一次暴露。",
+            "type": "bilingual"
+          }
+        ]
+      },
+      {
+        "group": "How several teams can contribute to a single agent · 多团队共建",
+        "rows": [
+          {
+            "en": "Domain reasoning can be retrieved from knowledge bases, skills, and MCP tools. Individual teams shift their ownership from agents to skills and tools, with one small central team keeping ownership of the system prompt and end-to-end quality, vetting new skills, tools, and evals before they ship.",
+            "zh": "领域推理可以从知识库、技能与 MCP 工具获取。各团队把所有权从 Agent 转移到技能与工具，由一个小中央团队守住系统提示与端到端质量，并在新技能、工具与评测上线前做审查。",
+            "type": "bilingual"
+          },
+          {
+            "en": "Tools are the right fit when the agent needs to take an action, read live data, or return a result in a fixed shape; group them by user intent (not one tool per API) because exceeding 30-50 tool definitions degrades tool choice. Use tool search with deferred loading, limit hard preconditions, and move needed ones into the tools; per-user permissions work the same way, with each tool returning a plain refusal the model can read so one loop can serve users with different access. Skills are the right fit when the agent needs to know how a team does work. Our approach to growing skill libraries is to give the maintenance work back to the people writing the skills. Claude can do the heavy lifting with skills that can build, test, and prune other skills. To prevent skill sprawl, have DRIs per team own their skills; /skill-creator authors and audits skills, /skill-doctor shows cost and usage and deletes dead weight.",
+            "zh": "当 Agent 需要采取行动、读取实时数据、或返回固定结构的结果时，工具最合适；按用户意图分组（而不是一个 API 一个工具），因为系统提示里超过 30-50 个工具定义会让工具选择变差。使用带延迟加载的工具搜索，限制硬性前置条件，并把需要的逻辑挪进工具里；按用户的权限也同理——每个工具检查调用者能看到或能做些什么，并返回一个模型可读的直白拒绝，这样一个循环就能服务不同访问权限的用户。当 Agent 需要知道某团队「怎么做某件事」时，技能最合适。我们发展技能库的做法，是把维护工作交还给写技能的人；Claude 可以用「能构建、测试并剪枝其他技能」的技能来承担重活。为防止技能蔓延，可让每个团队有指定的负责人（DRI）来拥有自己的技能：/skill-creator 用于编写与审查技能，/skill-doctor 用于查看每个技能的成本与真实使用频率并删除无用之物。",
+            "type": "bilingual"
+          },
+          {
+            "en": "Knowledge bases are the right fit for reference material the agent only needs some of the time. Facts and reference material (policies, metric definitions, product specs) can sit behind a search or lookup tool the model calls, or ship as reference files inside a skill. Avoid having code retrieve and paste this context into prompts.",
+            "zh": "知识库适合那些只是偶尔才需要的参考资料。事实与参考资料（政策、指标定义、产品规格）可以藏在模型调用的搜索或查找工具背后，也可以作为参考文件随技能一起发布。要避免让代码去检索并把这段上下文粘贴进提示词。",
+            "type": "bilingual"
+          }
+        ]
+      },
+      {
+        "group": "Tools to accelerate this work · 加速工具",
+        "rows": [
+          {
+            "en": "We recently released a set of Claude API skills, and our migration kit chains them together in one guided workflow for assessing and moving multi-agent systems to a single agent loop. /claude-api build-eval helps create the first end-to-end set or small per-skill evals; /claude-api prompt-audit flags instructions written for older models and proposes fixes as a diff; /claude-api hillclimb iteratively improves an app against an existing eval (useful for the folded-in vs kept comparison); /claude-api cost-optimize profiles where calls go and proposes savings one change at a time.",
+            "zh": "我们最近发布了一套 Claude API 技能，而 migration kit 把它们串成一个引导式工作流，用于评估并把多 Agent 系统迁到单 Agent 循环。/claude-api build-eval 帮助创建第一个端到端评测集或每个技能的小评测；/claude-api prompt-audit 标记为旧模型写的指令并以 diff 形式提出修复；/claude-api hillclimb 针对已有评测迭代改进应用（可用于「折进去 vs 保留」的对比）；/claude-api cost-optimize 剖析调用的去向，并一次一项地提出节省方案。",
+            "type": "bilingual"
+          },
+          {
+            "en": "As models evolve, our understanding and best-practice guidance evolve too, which makes any one architecture less important than the principle behind it: measure, change one thing at a time, and keep what holds up. As models get more capable and agents get longer running, more of your subagents can be skills and tools. You don't have to make that move in one step: build a small end-to-end eval, fold in one subagent, and keep it as a subagent only if the folded version scores worse, then rinse and repeat.",
+            "zh": "随着模型演进，我们的理解与最佳实践指引也在演进，这使得任何单一架构都不如它背后的原则重要：度量、一次只改一件事、保留经得起检验的部分。随着模型越来越强、Agent 运行时间越来越长，你的更多子 Agent 都能变成技能与工具。你不必一步到位：建一个小端到端评测，折进一个子 Agent，只有当折叠版得分更差时才保留它，然后不断重复。",
+            "type": "bilingual"
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop",
+    "sourceText": "Building agents: When to fold subagents into your main agent loop"
+  },
+  "glossary": {
+    "groupDesc": {
+      "B1": "入门进阶 · 通用高频词",
+      "B2": "中级 · 工程与产品语境常用",
+      "C1": "高级 · 抽象论证与机制描述词汇",
+      "C2": "精通 · 高阶表达与隐喻用法",
+      "术语": "文章相关专有名词 · Agent 架构 / Claude Platform"
+    },
+    "dict": {
+      "subagent": {
+        "w": "subagents",
+        "ipa": "/ˈsʌbˌeɪdʒənt/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "子 Agent；拥有独立上下文窗口、工具与指令，由协调器统一调度的 Agent。",
+        "eg": "Subagents are a core component of agent design.",
+        "egzh": "子 Agent 是 Agent 设计的核心组成部分。"
+      },
+      "orchestrator": {
+        "w": "orchestrator",
+        "ipa": "/ˈɔːkɪstreɪtə/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "编排器；在多层 Agent 中负责拆解任务、调度子 Agent 并整合结果的协调组件。",
+        "eg": "A central platform team builds an orchestrator on top.",
+        "egzh": "中央平台团队在顶层构建一个编排器。"
+      },
+      "coordinator": {
+        "w": "coordinator",
+        "ipa": "/kəʊˈɔːdɪneɪtə/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "协调器；负责统一调度多个子 Agent 的组件。",
+        "eg": "Subagents orchestrated by a coordinator.",
+        "egzh": "由协调器统一调度的子 Agent。"
+      },
+      "context_window": {
+        "w": "context window",
+        "ipa": "/ˈkɒntekst ˈwɪndəʊ/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "上下文窗口；模型一次能处理的全部 token 范围，包含提示、对话历史与中间结果。",
+        "eg": "One context window running an open-ended tool loop.",
+        "egzh": "一个在开放工具循环里运行的上下文窗口。"
+      },
+      "progressive_disclosure": {
+        "w": "progressive disclosure",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "渐进式披露；只在用到时才完整加载技能/工具详情，平时只展示简短描述。",
+        "eg": "Progressively disclosing context via skills.",
+        "egzh": "用技能渐进式披露上下文。"
+      },
+      "tool_search": {
+        "w": "tool search",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "工具搜索；按需在运行时发现并加载工具，而非全部预置在系统提示里。",
+        "eg": "Progressively disclosing tools via tool search.",
+        "egzh": "用工具搜索渐进式披露工具。"
+      },
+      "eval": {
+        "w": "eval",
+        "ipa": "/ˈiːvæl/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "评测（evaluation 的缩写）；用一组样例与评分标准衡量 Agent 表现。",
+        "eg": "Create an eval set before folding a subagent in.",
+        "egzh": "在折叠子 Agent 前先建一个评测集。"
+      },
+      "guardrail": {
+        "w": "guardrails",
+        "ipa": "/ˈɡɑːdreɪl/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "护栏；约束 Agent 输出与行为、防止越界的机制（如输出护栏、权限护栏）。",
+        "eg": "Firm output guardrails cover most of the use case.",
+        "egzh": "严格的输出护栏就覆盖了大部分用例。"
+      },
+      "latency": {
+        "w": "latency",
+        "ipa": "/ˈleɪtənsi/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "延迟；从请求到返回结果所经历的时间。",
+        "eg": "A single agent loop saw a roughly 2x faster runtime.",
+        "egzh": "单 Agent 循环运行时大约快了 2 倍。"
+      },
+      "skill": {
+        "w": "skills",
+        "ipa": "/skɪl/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "技能；把某团队「怎么做某件事」的步骤、规则与判断封装成的可复用单元。",
+        "eg": "A single agent with skills outperformed the subagent design.",
+        "egzh": "一个带有技能的单一 Agent 胜过了子 Agent 设计。"
+      },
+      "mcp_tool": {
+        "w": "MCP tools",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "MCP 工具；通过 Model Context Protocol 暴露给 Agent、可被调用以执行动作或读数据的工具。",
+        "eg": "Turn API calls into MCP tools.",
+        "egzh": "把 API 调用变成 MCP 工具。"
+      },
+      "knowledge_base": {
+        "w": "knowledge bases",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "知识库；存放 Agent 只是偶尔才需要的参考资料的检索后端。",
+        "eg": "Facts can sit behind a search or lookup tool.",
+        "egzh": "事实可以藏在搜索或查找工具背后。"
+      },
+      "dri": {
+        "w": "DRIs",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "直接责任人（Directly Responsible Individual）；对某一技能/工具拥有与维护负责的人。",
+        "eg": "Have DRIs per team own their skills.",
+        "egzh": "让每个团队有 DRI 来拥有自己的技能。"
+      },
+      "routing": {
+        "w": "routing",
+        "ipa": "/ˈruːtɪŋ/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "路由；把请求分派给正确的子 Agent/技能/工具。",
+        "eg": "Track routing accuracy while you have an orchestrator.",
+        "egzh": "在还有编排器时追踪路由准确率。"
+      },
+      "handoff": {
+        "w": "handoff",
+        "ipa": "/ˈhændɒf/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "交接；把任务或上下文从一个 Agent 转交给另一个。",
+        "eg": "Each call still hands back a lossy summary.",
+        "egzh": "每次调用仍然回交一份有损的摘要。"
+      },
+      "synthesis": {
+        "w": "synthesis",
+        "ipa": "/ˈsɪnθɪsɪs/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "综合；把多路结果整合为最终答复。",
+        "eg": "Trim the input to any final synthesis step.",
+        "egzh": "裁剪最终综合步骤的输入。"
+      },
+      "rubric": {
+        "w": "rubric",
+        "ipa": "/ˈruːbrɪk/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "评分量规；用来对回答质量打分的明确标准。",
+        "eg": "Grade the agent's final message against a rubric.",
+        "egzh": "用评分量规对 Agent 的最终消息打分。"
+      },
+      "golden_examples": {
+        "w": "golden examples",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "黄金样例；经人工确认、作为评测基准的高质量输入-期望输出对。",
+        "eg": "Even a set of 10 golden examples is enough to start.",
+        "egzh": "哪怕只有 10 个黄金样例也足以起步。"
+      },
+      "baseline": {
+        "w": "baseline",
+        "ipa": "/ˈbeɪslaɪn/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "基线；用于对比的基准表现。",
+        "eg": "It gives you a baseline before deciding to fold.",
+        "egzh": "它在你决定是否折叠前给出一条基线。"
+      },
+      "domain_agent": {
+        "w": "domain agent",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "领域 Agent；负责某一业务领域（如物流、账单）的专家 Agent。",
+        "eg": "Merge specialists into one domain agent.",
+        "egzh": "把专家合并成一个领域 Agent。"
+      },
+      "lossy_handoff": {
+        "w": "lossy handoffs",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "有损交接；上下文在 Agent 间传递时丢失细节。",
+        "eg": "Fewer context windows and fewer lossy handoffs.",
+        "egzh": "更少的上下文窗口与更少的有损交接。"
+      },
+      "telephone_game": {
+        "w": "telephone game",
+        "ipa": "",
+        "pos": "术语",
+        "level": "C1",
+        "def": "电话游戏；信息经多轮转述后失真，比喻按问题类型拆分的 Agent 间保真度下降。",
+        "eg": "When split by problem type, they engage in a telephone game.",
+        "egzh": "按问题类型拆分时，它们陷入一场电话游戏。"
+      },
+      "system_prompt": {
+        "w": "system prompt",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "系统提示；设定 Agent 角色、规则与约束的顶层指令。",
+        "eg": "One clear system prompt covers most of the use case.",
+        "egzh": "一个清晰的系统提示就覆盖了大部分用例。"
+      },
+      "budget": {
+        "w": "budgets",
+        "ipa": "/ˈbʌdʒɪt/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "预算；对轮次或成本的硬性上限。",
+        "eg": "Limits like turn and cost budgets set in the harness.",
+        "egzh": "由编排器设定的轮次与成本预算等限制。"
+      },
+      "write_gate": {
+        "w": "write gates",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "写入闸门；在执行有副作用的写操作前必须通过的校验。",
+        "eg": "Turn and cost budgets, write gates.",
+        "egzh": "轮次/成本预算、写入闸门。"
+      },
+      "verifier": {
+        "w": "verifier",
+        "ipa": "/vəˈrɪfaɪə/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "验证器；在答案之后检查是否达标的组件。",
+        "eg": "A verifier check can optionally run after the answer.",
+        "egzh": "验证器检查可在答案之后可选地运行。"
+      },
+      "entity_resolution": {
+        "w": "entity resolution",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "实体解析；把不同表述归并到同一真实对象（如用户、订单）。",
+        "eg": "An entity resolution step that is cheap and almost always relevant.",
+        "egzh": "一个廉价且几乎总是相关的实体解析步骤。"
+      },
+      "prompt_audit": {
+        "w": "prompt-audit",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "prompt-audit；标记为旧模型所写、现使 Agent 变慢变僵的指令并给出修复的技能。",
+        "eg": "prompt-audit flags instructions written for older models.",
+        "egzh": "prompt-audit 标记为旧模型写的指令。"
+      },
+      "hillclimb": {
+        "w": "hillclimb",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "hillclimb；针对已有评测迭代改进应用的技能。",
+        "eg": "hillclimb iteratively improves an app against an eval.",
+        "egzh": "hillclimb 针对评测迭代改进应用。"
+      },
+      "cost_optimize": {
+        "w": "cost-optimize",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "cost-optimize；剖析调用去向并逐项提出节省方案的技能。",
+        "eg": "cost-optimize proposes savings one change at a time.",
+        "egzh": "cost-optimize 一次一项地提出节省。"
+      },
+      "build_eval": {
+        "w": "build-eval",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "build-eval；帮助创建首个端到端评测集或每个技能小评测的技能。",
+        "eg": "build-eval helps create the first end-to-end set.",
+        "egzh": "build-eval 帮助创建首个端到端评测集。"
+      },
+      "migration_kit": {
+        "w": "migration kit",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "migration kit；把评估与迁移技能串成引导式工作流的套件。",
+        "eg": "Our migration kit chains these skills together.",
+        "egzh": "migration kit 把这些技能串在一起。"
+      },
+      "modular_permissioning": {
+        "w": "modular permissioning",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "模块化授权；把权限按模块切分并独立授予。",
+        "eg": "They are effective at verification, parallel work, and modular permissioning.",
+        "egzh": "它们在验证、并行与模块化授权方面有效。"
+      },
+      "frankenprompt": {
+        "w": "Frankenprompt",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "Frankenprompt；多个团队各往系统提示加一句后拼凑出的冲突、无统一语气的提示。",
+        "eg": "Every team adds a sentence, resulting in a Frankenprompt.",
+        "egzh": "每个团队加一句，拼出 Frankenprompt。"
+      },
+      "subagent_sprawl": {
+        "w": "Subagent sprawl",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "子 Agent 蔓延；各团队各建子 Agent 导致成百上千个重叠、无标准、无归属。",
+        "eg": "Every team ships its own subagent, causing subagent sprawl.",
+        "egzh": "每个团队发自己的子 Agent，造成子 Agent 蔓延。"
+      },
+      "single_agent_loop": {
+        "w": "single agent loop",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "单 Agent 循环；一个模型一个窗口跑开放式工具循环的设计。",
+        "eg": "A single agent with skills outperformed the subagent design.",
+        "egzh": "一个带技能的单 Agent 胜过子 Agent 设计。"
+      },
+      "decompose": {
+        "w": "decompose",
+        "ipa": "/ˌdiːkəmˈpəʊz/",
+        "pos": "v.",
+        "level": "C1",
+        "def": "分解；把大任务拆成边界清晰的子任务。",
+        "eg": "Decompose boundaries effectively by dividing by context.",
+        "egzh": "按上下文有效地切分边界。"
+      },
+      "fidelity": {
+        "w": "fidelity",
+        "ipa": "/fɪˈdeləti/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "保真度；信息传递后保持原样的程度。",
+        "eg": "Each handoff degrading fidelity.",
+        "egzh": "每次交接保真度下降。"
+      },
+      "trigger": {
+        "w": "trigger",
+        "ipa": "/ˈtrɪɡə/",
+        "pos": "v.",
+        "level": "B2",
+        "def": "触发；在正确时机唤起技能或工具。",
+        "eg": "Skill and tool descriptions that trigger at the right times.",
+        "egzh": "在正确时机触发的技能与工具描述。"
+      },
+      "deferred": {
+        "w": "deferred loading",
+        "ipa": "/dɪˈfɜːd/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "延迟加载；用到时才载入，而非预先全部加载。",
+        "eg": "Use tool search with deferred loading.",
+        "egzh": "使用带延迟加载的工具搜索。"
+      },
+      "redundant": {
+        "w": "redundant",
+        "ipa": "/rɪˈdʌndənt/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "多余的；不再必要、可被省去的。",
+        "eg": "Recent models make some harness elements redundant.",
+        "egzh": "近期模型让编排器里某些环节变得多余。"
+      },
+      "vetting": {
+        "w": "vetting",
+        "ipa": "/ˈvetɪŋ/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "审查；上线前对技能/工具/评测的把关。",
+        "eg": "Vetting every new tool and eval before it ships.",
+        "egzh": "在每个新工具与评测上线前做审查。"
+      },
+      "tightly_coupled": {
+        "w": "tightly coupled",
+        "ipa": "",
+        "pos": "术语",
+        "level": "C1",
+        "def": "紧密耦合；两组件高度依赖、常一起出现，适合合并。",
+        "eg": "That is a tightly coupled pair worth merging.",
+        "egzh": "那是一对值得合并的紧密耦合组合。"
+      },
+      "nested": {
+        "w": "nested",
+        "ipa": "/ˈnestɪd/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "嵌套的；一层之内再套一层（如模型循环里再调模型循环）。",
+        "eg": "Every call is a nested model loop that adds latency.",
+        "egzh": "每次调用都是嵌套的模型循环，会增加延迟。"
+      },
+      "replay": {
+        "w": "replay",
+        "ipa": "/rɪˈpleɪ/",
+        "pos": "v.",
+        "level": "B1",
+        "def": "重放；把记录的事件重新跑一遍作为评测。",
+        "eg": "Record timestamps so they can be replayed as evals.",
+        "egzh": "记录时间戳以便作为评测重放。"
+      },
+      "prune": {
+        "w": "prune",
+        "ipa": "/pruːn/",
+        "pos": "v.",
+        "level": "B2",
+        "def": "剪枝；删去无用或重复的技能/内容。",
+        "eg": "Skills that can build, test, and prune other skills.",
+        "egzh": "能构建、测试并剪枝其他技能的技能。"
+      },
+      "on_brand": {
+        "w": "on-brand",
+        "ipa": "",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "符合品牌调性的；与既定风格/语气一致的。",
+        "eg": "Made a consistent on-brand experience hard to maintain.",
+        "egzh": "让一致的品牌体验难以维持。"
+      },
+      "harness": {
+        "w": "harness",
+        "ipa": "/ˈhɑːnɪs/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "harness；运行 Agent 循环的宿主/执行框架（负责并行、预算、闸门）。",
+        "eg": "Limits set in the harness.",
+        "egzh": "由 harness 设定的限制。"
+      },
+      "conway": {
+        "w": "Conway's law",
+        "ipa": "",
+        "pos": "术语",
+        "level": "术语",
+        "def": "康威定律；系统架构会复刻组织的沟通结构。",
+        "eg": "The architecture became a copy of their org chart (Conway's law).",
+        "egzh": "架构变成组织图的复刻（康威定律）。"
+      }
+    },
+    "autowrap": [
+      [
+        "\\bsubagents?\\b",
+        "i",
+        "subagent"
+      ],
+      [
+        "\\borchestrator\\b",
+        "i",
+        "orchestrator"
+      ],
+      [
+        "\\bcoordinator\\b",
+        "i",
+        "coordinator"
+      ],
+      [
+        "\\bcontext windows?\\b",
+        "i",
+        "context_window"
+      ],
+      [
+        "\\bprogressive disclosure\\b",
+        "i",
+        "progressive_disclosure"
+      ],
+      [
+        "\\btool search\\b",
+        "i",
+        "tool_search"
+      ],
+      [
+        "\\bevals?\\b",
+        "i",
+        "eval"
+      ],
+      [
+        "\\bguardrails?\\b",
+        "i",
+        "guardrail"
+      ],
+      [
+        "\\blatency\\b",
+        "i",
+        "latency"
+      ],
+      [
+        "\\bskills?\\b",
+        "i",
+        "skill"
+      ],
+      [
+        "\\bMCP tools?\\b",
+        "i",
+        "mcp_tool"
+      ],
+      [
+        "\\bknowledge bases?\\b",
+        "i",
+        "knowledge_base"
+      ],
+      [
+        "\\bDRIs?\\b",
+        "i",
+        "dri"
+      ],
+      [
+        "\\brouting\\b",
+        "i",
+        "routing"
+      ],
+      [
+        "\\bhandoffs?\\b",
+        "i",
+        "handoff"
+      ],
+      [
+        "\\bsynthesis\\b",
+        "i",
+        "synthesis"
+      ],
+      [
+        "\\brubric\\b",
+        "i",
+        "rubric"
+      ],
+      [
+        "\\bgolden examples\\b",
+        "i",
+        "golden_examples"
+      ],
+      [
+        "\\bbaseline\\b",
+        "i",
+        "baseline"
+      ],
+      [
+        "\\bdomain agents?\\b",
+        "i",
+        "domain_agent"
+      ],
+      [
+        "\\blossy handoffs?\\b",
+        "i",
+        "lossy_handoff"
+      ],
+      [
+        "\\btelephone game\\b",
+        "i",
+        "telephone_game"
+      ],
+      [
+        "\\bsystem prompt\\b",
+        "i",
+        "system_prompt"
+      ],
+      [
+        "\\bbudgets?\\b",
+        "i",
+        "budget"
+      ],
+      [
+        "\\bwrite gates?\\b",
+        "i",
+        "write_gate"
+      ],
+      [
+        "\\bverifier\\b",
+        "i",
+        "verifier"
+      ],
+      [
+        "\\bentity resolution\\b",
+        "i",
+        "entity_resolution"
+      ],
+      [
+        "\\bprompt-audit\\b",
+        "i",
+        "prompt_audit"
+      ],
+      [
+        "\\bhillclimb\\b",
+        "i",
+        "hillclimb"
+      ],
+      [
+        "\\bcost-optimize\\b",
+        "i",
+        "cost_optimize"
+      ],
+      [
+        "\\bbuild-eval\\b",
+        "i",
+        "build_eval"
+      ],
+      [
+        "\\bmigration kit\\b",
+        "i",
+        "migration_kit"
+      ],
+      [
+        "\\bmodular permissioning\\b",
+        "i",
+        "modular_permissioning"
+      ],
+      [
+        "\\bFrankenprompt\\b",
+        "i",
+        "frankenprompt"
+      ],
+      [
+        "\\bSubagent sprawl\\b",
+        "i",
+        "subagent_sprawl"
+      ],
+      [
+        "\\bsingle agent loop\\b",
+        "i",
+        "single_agent_loop"
+      ],
+      [
+        "\\bdecompose\\b",
+        "i",
+        "decompose"
+      ],
+      [
+        "\\bfidelity\\b",
+        "i",
+        "fidelity"
+      ],
+      [
+        "\\btriggers?\\b",
+        "i",
+        "trigger"
+      ],
+      [
+        "\\bdeferred loading\\b",
+        "i",
+        "deferred"
+      ],
+      [
+        "\\bredundant\\b",
+        "i",
+        "redundant"
+      ],
+      [
+        "\\bvetting\\b",
+        "i",
+        "vetting"
+      ],
+      [
+        "\\btightly coupled\\b",
+        "i",
+        "tightly_coupled"
+      ],
+      [
+        "\\bnested\\b",
+        "i",
+        "nested"
+      ],
+      [
+        "\\breplayed?\\b",
+        "i",
+        "replay"
+      ],
+      [
+        "\\bprune\\b",
+        "i",
+        "prune"
+      ],
+      [
+        "\\bharness\\b",
+        "i",
+        "harness"
+      ],
+      [
+        "\\bConway'?s law\\b",
+        "i",
+        "conway"
+      ]
+    ]
+  }
+}

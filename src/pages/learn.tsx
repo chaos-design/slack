@@ -1,4 +1,4 @@
-import { ArrowLeft, PanelLeftOpen, Presentation, Search, X } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Presentation, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
 
@@ -215,158 +215,159 @@ export function LearnPage() {
       {/* ===== 左侧菜单 ===== */}
       <aside
         className={cn(
-          "sticky top-0 flex h-screen shrink-0 flex-col border-r-2 border-ink bg-paper/90 backdrop-blur transition-[width] duration-300 ease-out",
-          sidebarOpen ? "w-72" : "w-16",
+          "sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden border-ink bg-paper/90 backdrop-blur transition-[width,border-right-width] duration-300 ease-out",
+          sidebarOpen ? "w-72 border-r-2" : "w-0 border-r-0",
         )}
         aria-label="学习资料菜单"
+        aria-hidden={!sidebarOpen}
       >
-        {/* 顶部栏：返回首页 + 搜索按钮（与内容头部同高对齐） */}
-        <div
-          className={cn(
-            "flex h-[65px] shrink-0 items-center border-b-2 border-ink",
-            sidebarOpen ? "justify-between px-3" : "justify-center px-2",
-          )}
-        >
-          {sidebarOpen ? (
-            <>
-              <Link
-                to="/"
-                className="group inline-flex min-w-0 items-center gap-2 text-muted-foreground hover:text-ink"
-              >
-                <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                <span className="truncate font-mono-tech text-xs uppercase tracking-[0.2em]">
-                  返回首页
-                </span>
-              </Link>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(true)}
-                  aria-label="搜索学习资料"
-                  className="grid h-9 w-9 cursor-pointer place-items-center rounded-sm border-2 border-border text-muted-foreground transition-colors hover:border-ink hover:text-ink"
+        {/* 顶部栏：展开/收起 + 返回首页 + 搜索按钮（与内容头部同高对齐） */}
+        <div className="flex h-[65px] shrink-0 items-center justify-between border-b-2 border-ink px-3">
+          <Link
+            to="/"
+            className="group inline-flex min-w-0 items-center gap-2 text-muted-foreground hover:text-ink"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+            <span className="truncate font-mono-tech text-xs uppercase tracking-[0.2em]">
+              返回首页
+            </span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="搜索学习资料"
+              className="grid h-9 w-9 cursor-pointer place-items-center rounded-sm border-2 border-border text-muted-foreground transition-colors hover:border-ink hover:text-ink"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="收起左侧菜单"
+              aria-expanded={sidebarOpen}
+              className="grid h-9 w-9 cursor-pointer place-items-center rounded-sm border-2 border-border text-muted-foreground transition-colors hover:border-ink hover:text-ink"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* 「学习资料」标题固定不动 */}
+        <div className="shrink-0 px-3 pb-2">
+          <span className="eyebrow block w-full">学习资料</span>
+        </div>
+
+        {/* 列表独立滚动 */}
+        <nav ref={sidebarScrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+          <ul className="flex flex-col gap-2 pt-2">
+            {resourceGroups.map((group) => (
+              <li key={group.folderId} className="overflow-visible pb-4">
+                <div
+                  className={cn(
+                    "relative overflow-visible rounded-sm border-2 bg-card/20 p-1.5 pt-5 transition-colors",
+                    active?.folderId === group.folderId ? "border-ink" : "border-border/60",
+                  )}
                 >
-                  <Search className="h-4 w-4" />
-                </button>
-                {/* <button
-                  type="button"
-                  onClick={() => setSidebarOpen(false)}
-                  aria-label="收起左侧菜单"
-                  aria-expanded={sidebarOpen}
-                  className="grid h-9 w-9 cursor-pointer place-items-center rounded-sm border-2 border-border text-muted-foreground transition-colors hover:border-ink hover:text-ink"
-                >
-                  <PanelLeftClose className="h-4 w-4" />
-                </button> */}
-              </div>
-            </>
-          ) : (
+                  <span className="-translate-y-1/2 pointer-events-none absolute left-2 top-0 z-10 shrink-0 whitespace-nowrap bg-paper px-1 font-display text-base font-black text-vermillion">
+                    {getGroupLabel(group)}
+                  </span>
+                  <div className="flex flex-col gap-3">
+                    {group.resources.map((item, index) => {
+                      const showResourceIndex = group.resources.length > 1;
+
+                      if (!item.studyUrl) {
+                        return (
+                          <div
+                            key={item.id}
+                            aria-disabled="true"
+                            className="block cursor-not-allowed rounded-sm border-2 border-border/70 bg-card/50 px-3 py-2.5 opacity-75 shadow-[2px_2px_0_0_hsl(var(--border))]"
+                          >
+                            <ResourceSummary
+                              item={item}
+                              index={index}
+                              showIndex={showResourceIndex}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <NavLink
+                          key={item.id}
+                          ref={active?.id === item.id ? activeResourceRef : undefined}
+                          to={`/learn/${item.id}`}
+                          aria-label={item.meta.name}
+                          className={({ isActive }) =>
+                            cn(
+                              "block cursor-pointer rounded-sm border-2 px-3 py-2.5 transition-all",
+                              isActive
+                                ? "border-ink bg-card shadow-[3px_3px_0_0_hsl(var(--ink))]"
+                                : "border-border/70 bg-card/60 shadow-[2px_2px_0_0_hsl(var(--border))] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:border-ink hover:bg-card hover:shadow-[3px_3px_0_0_hsl(var(--ink))]",
+                            )
+                          }
+                        >
+                          <ResourceSummary
+                            item={item}
+                            index={index}
+                            showIndex={showResourceIndex}
+                          />
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                  {group.slides.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5 border-border px-1.5 py-2">
+                      {group.slides.map((slide) => (
+                        <button
+                          key={`${slide.resourceId}-${slide.slug}`}
+                          type="button"
+                          title={slide.name}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            saveLearnScrollState();
+                            navigate(`/slides/${slide.resourceId}/${slide.slug}`);
+                          }}
+                          className="btn-ink inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm bg-vermillion px-2.5 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-wide text-primary-foreground"
+                        >
+                          <Presentation className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {group.slides.length > 1 ? slide.name : "打开 Slide"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+      {!sidebarOpen && (
+        <div className="learn-fab fixed left-4 top-20 z-40">
+          <div className="inline-flex w-10 flex-col items-stretch overflow-hidden rounded-sm border-2 border-ink bg-paper/95 shadow-[3px_3px_0_0_hsl(var(--ink))] backdrop-blur">
+            <Link
+              to="/"
+              aria-label="返回首页"
+              title="返回首页"
+              className="group grid h-10 w-10 place-items-center text-muted-foreground transition-colors hover:bg-card hover:text-ink"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            </Link>
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
               aria-label="展开左侧菜单"
               aria-expanded={sidebarOpen}
-              className="grid h-9 w-9 cursor-pointer place-items-center rounded-sm border-2 border-border text-muted-foreground transition-colors hover:border-ink hover:text-ink"
+              className="grid h-10 w-10 cursor-pointer place-items-center border-ink border-t-2 text-muted-foreground transition-colors hover:bg-card hover:text-ink"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
-          )}
+          </div>
         </div>
-
-        {sidebarOpen && (
-          <>
-            {/* 「学习资料」标题固定不动 */}
-            <div className="shrink-0 px-3 pb-2">
-              <span className="eyebrow block w-full">学习资料</span>
-            </div>
-
-            {/* 列表独立滚动 */}
-            <nav ref={sidebarScrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-              <ul className="flex flex-col gap-2 pt-2">
-                {resourceGroups.map((group) => (
-                  <li key={group.folderId} className="overflow-visible pb-4">
-                    <div
-                      className={cn(
-                        "relative overflow-visible rounded-sm border-2 bg-card/20 p-1.5 pt-5 transition-colors",
-                        active?.folderId === group.folderId ? "border-ink" : "border-border/60",
-                      )}
-                    >
-                      <span className="-translate-y-1/2 pointer-events-none absolute left-2 top-0 z-10 shrink-0 whitespace-nowrap bg-paper px-1 font-display text-base font-black text-vermillion">
-                        {getGroupLabel(group)}
-                      </span>
-                      <div className="flex flex-col gap-3">
-                        {group.resources.map((item, index) => {
-                          const showResourceIndex = group.resources.length > 1;
-
-                          if (!item.studyUrl) {
-                            return (
-                              <div
-                                key={item.id}
-                                aria-disabled="true"
-                                className="block cursor-not-allowed rounded-sm border-2 border-border/70 bg-card/50 px-3 py-2.5 opacity-75 shadow-[2px_2px_0_0_hsl(var(--border))]"
-                              >
-                                <ResourceSummary
-                                  item={item}
-                                  index={index}
-                                  showIndex={showResourceIndex}
-                                />
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <NavLink
-                              key={item.id}
-                              ref={active?.id === item.id ? activeResourceRef : undefined}
-                              to={`/learn/${item.id}`}
-                              aria-label={item.meta.name}
-                              className={({ isActive }) =>
-                                cn(
-                                  "block cursor-pointer rounded-sm border-2 px-3 py-2.5 transition-all",
-                                  isActive
-                                    ? "border-ink bg-card shadow-[3px_3px_0_0_hsl(var(--ink))]"
-                                    : "border-border/70 bg-card/60 shadow-[2px_2px_0_0_hsl(var(--border))] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:border-ink hover:bg-card hover:shadow-[3px_3px_0_0_hsl(var(--ink))]",
-                                )
-                              }
-                            >
-                              <ResourceSummary
-                                item={item}
-                                index={index}
-                                showIndex={showResourceIndex}
-                              />
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                      {group.slides.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5 border-border px-1.5 py-2">
-                          {group.slides.map((slide) => (
-                            <button
-                              key={`${slide.resourceId}-${slide.slug}`}
-                              type="button"
-                              title={slide.name}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                saveLearnScrollState();
-                                navigate(`/slides/${slide.resourceId}/${slide.slug}`);
-                              }}
-                              className="btn-ink inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm bg-vermillion px-2.5 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-wide text-primary-foreground"
-                            >
-                              <Presentation className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">
-                                {group.slides.length > 1 ? slide.name : "打开 Slide"}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </>
-        )}
-      </aside>
+      )}
 
       {/* ===== 内容区 ===== */}
       <div className="flex min-w-0 flex-1 flex-col">

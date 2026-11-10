@@ -277,6 +277,78 @@ const resourceRules = {
     imageIndexes: [0],
     theme: darkTheme("#07111f", "#111827", "#f8fbff", "#b7c5df", "#4361ee", "#ffffff"),
   },
+  "09": {
+    profile: "blueprint-review-pipeline",
+    preset: "Blueprint Studio",
+    className: "theme-blueprint",
+    eyebrow: "Claude Code 工程复盘",
+    title: "让评审跟得上 Agent 的产出速度",
+    subtitle:
+      "当 Claude 写下自家九成代码，评审就不再是“人读一遍”，而是七层检查、按风险分级的人工批准、会自我评测的评审器，以及随时可回滚的发布通道。",
+    thesis: "评审要问的不是“有没人读过代码”，而是“哪种检查能接住这类风险”。",
+    agenda: [
+      "重设问题",
+      "稀缺资源",
+      "一次变更的旅程",
+      "七层检查",
+      "分级批准",
+      "评审器进化",
+      "人的位置",
+      "共享上下文",
+      "责任与落地",
+    ],
+    agendaDescriptions: [
+      "把“有没有人读过”换成“哪种检查能接住这类风险”，评审的时机也随之提前。",
+      "人的时间要两头一起算：评审时间与修复坏代码的时间，回滚率是护栏。",
+      "从自我验证到合并队列，一次变更要穿过七层检查，底下由回滚托底。",
+      "前四层全自动：可验证的工作、AI 查 bug、可阻断的安全评审、常规 CI。",
+      "后三层把人放回风险处：按改动分级批准、合并队列与开关、快速回滚。",
+      "事故转评测集、按作者反应度量噪音、用轮次上限让评审收敛。",
+      "方向、风险代码、架构范式、证据阅读与最终责任仍然由人承担。",
+      "不维护完整心智模型，把想弄懂的一小块交给 Claude 生成讲解。",
+      "小改动、可逆、爆炸半径决定门槛；清单四段即可搬回自己团队。",
+    ],
+    sectionIndexes: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    imageIndexes: [0, 1, 2, 3, 4],
+    visualPlacements: [
+      { asset: 1, after: 3, title: "每层都会拦下一些，也都会漏掉一些" },
+      { asset: 2, after: 5, title: "事故如何变成每日回放的评测集" },
+      { asset: 3, after: 5, title: "收敛改造把平均轮次压到 1.32" },
+      { asset: 4, after: 7, title: "不再维护完整心智模型" },
+    ],
+    leadVisualTitle: "一次变更要穿过七层检查",
+    closingTitle: "评审的终点不是批准，而是可回滚的确定性",
+    closingLead:
+      "这套流程把“谁来读代码”换成了“哪一层该接住什么风险”：前四层自动化，中间按风险分级投入人的注意力，最后用开关与回滚承认错误一定会发生。人的时间因此成为唯一被认真度量的资源。",
+    visualNarratives: [
+      {
+        caption: "一次变更的完整链路",
+        explanation:
+          "这张链路图对应文章的分层设计：先自我验证，再并行查 bug、过安全评审与 CI，随后按风险决定是否需要人，最后进入合并队列与渐进发布；人的注意力只投在高风险节点。",
+      },
+      {
+        caption: "六层检查与底部回滚",
+        explanation:
+          "图中每一层都会拦下一些、漏掉一些，很少有变更能毫发无伤地通过全部检查，因此最后一层不是“更好的人工评审”，而是足够快的回滚。",
+      },
+      {
+        caption: "事故转评测集的闭环",
+        explanation:
+          "这张闭环图说明评审器的改进方式：事故与回滚经工程师确认后进入评测集，每日回放；只有当得分上升时才保留改动，否则丢弃。",
+      },
+      {
+        caption: "收敛改造前后的轮次对比",
+        explanation:
+          "三组数据支撑文章的判断：一轮即通过的比例从 65% 升到 78%，需要五轮以上的从 8.9% 降到 1.5%，平均轮次从 2.08 降到 1.32——限制轮次并没有牺牲发现问题的能力。",
+      },
+      {
+        caption: "按需讲解替代逐行读 diff",
+        explanation:
+          "这张配图解释了“共享上下文”的新做法：没有人需要把整个代码库装进脑子，把想弄懂的一小块交给 Claude，换回几分钟的讲解或一个可视化产物。",
+      },
+    ],
+    theme: darkTheme("#050d18", "#0a1729", "#e6f4ff", "#8fb4cf", "#38bdf8", "#f59e0b"),
+  },
 };
 
 const slideRules = {
@@ -330,6 +402,52 @@ const slideRules = {
     sectionIndexes: [1, 2, 3, 4, 5, 6, 7, 8],
     imageIndexes: [0, 1, 2, 3, 4, 5, 6],
     theme: darkTheme("#050812", "#101827", "#eef4ff", "#b9c8df", "#67e8f9", "#a78bfa"),
+  },
+  "09/fold-subagents-into-main-agent-loop": {
+    profile: "blueprint-review-pipeline",
+    preset: "Blueprint Studio",
+    className: "theme-blueprint",
+    eyebrow: "Claude Platform · Agent 架构",
+    title: "把子 Agent 折叠进主循环",
+    subtitle:
+      "本文的重点不是「要不要子 Agent」，而是判断哪些子 Agent 还在做模型已能处理的工作；用渐进式披露与工具搜索让单一 Agent 胜任多任务，并把决策权逐步交还给模型本身。",
+    thesis: "子 Agent 仍有其位置，但当它只是把模型已能做好的步骤又包一层时，就该折叠进主循环。",
+    agenda: ["大企业的失败模式", "渐进式披露", "单循环设计", "分阶段折叠", "多团队共建"],
+    agendaDescriptions: [
+      "每个能力各建一个子 Agent，架构变成组织图的复刻，并带来上下文、Frankenprompt、局部化评测与延迟等即时复杂度。",
+      "让 Agent 只看到技能与工具的简短描述、用到时才完整加载，共享上下文又避免上下文膨胀。",
+      "一个模型一个窗口跑工具循环，模型自写并改写计划，排序进技能、硬性限制进工具。",
+      "建小评测集，按共享上下文从用得最多的子 Agent 开始，逐个折成技能与 MCP 工具再对比。",
+      "领域推理交给知识库/技能/MCP 工具，各团队把所有权从 Agent 转到技能+工具，中央团队守质量。",
+    ],
+    sectionIndexes: [0, 1, 2, 3, 4],
+    imageIndexes: [0, 1, 2],
+    visualPlacements: [
+      { asset: 1, after: 1, title: "按问题类型拆分导致的电话游戏" },
+      { asset: 2, after: 2, title: "把子 Agent 折叠进主循环" },
+    ],
+    leadVisualTitle: "子 Agent 架构 vs 单 Agent 循环",
+    closingTitle: "架构会过时，原则不会",
+    closingLead:
+      "任何单一架构都不如它背后的原则重要：度量、一次只改一件事、保留经得起检验的部分。随着模型更强、Agent 运行更久，更多子 Agent 都能变成技能与工具——建一个小评测，折进一个子 Agent，只有折叠版更差才保留，然后重复。",
+    visualNarratives: [
+      {
+        caption: "子 Agent 架构的典型形态",
+        explanation:
+          "这张动画展示由协调器统一调度的多子 Agent 结构：每个子 Agent 拥有自己的上下文窗口、工具与指令。它能做好验证、并行与模块化授权，但也正是企业里子 Agent 蔓延、上下文交接失真与延迟的来源。",
+      },
+      {
+        caption: "按问题类型拆分的电话游戏",
+        explanation:
+          "当 Agent 按问题类型拆分时，信息在每次交接中像电话游戏一样失真。图中强调：切分边界应按上下文而非按问题类型——给每个子 Agent 一件几乎不需要系统其余部分配合的工作，让它回交一个紧凑结果。",
+      },
+      {
+        caption: "把子 Agent 折叠进主循环",
+        explanation:
+          "这张动画示意折叠过程：把子 Agent 的提示变成技能、把 API 调用变成 MCP 工具，让同一个模型在同一个上下文里既规划又执行，从而消除嵌套循环与有损交接。",
+      },
+    ],
+    theme: darkTheme("#050d18", "#0a1729", "#e6f4ff", "#8fb4cf", "#38bdf8", "#f59e0b"),
   },
 };
 
@@ -709,7 +827,11 @@ async function fetchAsDataUrl(url, imageCache, resourceDir) {
 function inferMime(url) {
   if (/\.svg(?:\?|$)/i.test(url)) return "image/svg+xml";
   if (/\.webp(?:\?|$)/i.test(url)) return "image/webp";
+  if (/\.gif(?:\?|$)/i.test(url)) return "image/gif";
   if (/\.png(?:\?|$)/i.test(url)) return "image/png";
+  if (/\.avif(?:\?|$)/i.test(url)) return "image/avif";
+  if (/\.bmp(?:\?|$)/i.test(url)) return "image/bmp";
+  if (/\.jpe?g(?:\?|$)/i.test(url)) return "image/jpeg";
   return "image/jpeg";
 }
 
@@ -739,13 +861,19 @@ function renderDeck({ data, meta, resourceId, rule, sourceAssets, studyMeta }) {
       : []),
     ...sections.flatMap((section, index) => {
       const output = sectionSlides({ index, resourceId, rule, section });
-      const asset = sourceAssets[index + 1];
-      if (asset && index < 5) {
+      const placements = rule.visualPlacements
+        ? rule.visualPlacements.filter((placement) => placement.after === index)
+        : sourceAssets[index + 1] && index < 5
+          ? [{ asset: index + 1 }]
+          : [];
+      for (const placement of placements) {
+        const asset = sourceAssets[placement.asset];
+        if (!asset) continue;
         output.push(
           visualSlide({
             asset,
-            index: index + 2,
-            title: visualNarrativeTitle(section, asset),
+            index: placement.asset + 1,
+            title: placement.title ?? visualNarrativeTitle(section, asset),
           }),
         );
       }
@@ -887,6 +1015,8 @@ function keyPointsSlide({ keyPoints, rule }) {
 }
 
 function formatAgendaDescription(rule, index) {
+  const perItem = rule.agendaDescriptions?.[index - 1];
+  if (perItem) return perItem;
   return (
     rule.agendaDescription ?? "第 {index} 个主题会沿着来源结构展开，并说明它在整体论证中的作用。"
   ).replace("{index}", String(index));
@@ -1828,7 +1958,7 @@ function visualSlide({ asset, index, title }) {
       <p class="eyebrow reveal">结构图解 · ${String(index).padStart(2, "0")}</p>
       <h2 class="reveal">${escapeHtml(title)}</h2>
       <p class="lead reveal">${escapeHtml(explanation)}</p>
-        <p class="source-note reveal">${escapeHtml(asset.heading || caption)}</p>
+        ${/[\u3400-\u9fff]/.test(asset.heading || "") ? `<p class="source-note reveal">${escapeHtml(asset.heading)}</p>` : ""}
     </div>
   </div>
 </section>`;
@@ -1863,7 +1993,11 @@ function visualNarrativeTitle(section, asset) {
     return sectionTitle;
   }
 
-  return `${sectionTitle}：${trimText(caption, 72)}`;
+  const combined = `${sectionTitle}：${trimText(caption, 72)}`;
+  if (combined.length > 32 || sectionTitle.includes(caption)) {
+    return sectionTitle;
+  }
+  return combined;
 }
 
 function selectSections(sections, indexes) {
@@ -1905,7 +2039,7 @@ body { font-family: var(--font-body); }
 .bounded-copy { max-width: 1160px; overflow-wrap: anywhere; }
 .visual-panel figure { display: grid; gap: 18px; max-height: 100%; }
 .visual-panel img,
-.visual-panel svg { width: 100%; max-height: 640px; object-fit: contain; }
+.visual-panel svg { width: 100%; height: auto; max-height: 640px; object-fit: contain; }
 .visual-panel figcaption { font-size: calc(var(--body-size) * .72); line-height: 1.38; color: var(--text-secondary); }
 .title-slide { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: var(--slide-padding); text-align: center; }
 .title-block { width: min(1320px, 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; margin-inline: auto; }

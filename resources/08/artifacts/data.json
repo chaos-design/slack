@@ -1,0 +1,1976 @@
+{
+  "pageTitle": "You're Doing RAG Wrong：用问答知识单元重塑 RAG",
+  "headerTitle": "用问答知识单元重塑 <span>RAG</span>",
+  "metadata": {
+    "title": "You're doing RAG wrong",
+    "sourceUrl": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+    "fetchedAt": "2026-06-23 10:36:14",
+    "publishedAt": "2026-05-08 21:33:17"
+  },
+  "article": {
+    "title": "You're doing RAG wrong",
+    "sourceUrl": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+    "fetchedAt": "2026-06-23 10:36:14",
+    "publishedAt": "2026-05-08 21:33:17",
+    "tags": [
+      "RAG",
+      "Vector Search",
+      "IdeaBlock",
+      "Knowledge Distillation",
+      "Governance"
+    ],
+    "anchors": [
+      {
+        "id": "og-1",
+        "label": "从 chunk 假设开始的问题"
+      },
+      {
+        "id": "og-2",
+        "label": "为什么 chunk 不是好的知识单元"
+      },
+      {
+        "id": "og-3",
+        "label": "更好的单位：Question-Answer Packet"
+      },
+      {
+        "id": "og-4",
+        "label": "反直觉结果：更少数据带来更高准确性"
+      },
+      {
+        "id": "og-5",
+        "label": "从文档到 IdeaBlocks 的七阶段管线"
+      },
+      {
+        "id": "og-6",
+        "label": "应用层会发生什么变化"
+      },
+      {
+        "id": "og-7",
+        "label": "底层原则：修正单位，而不是继续补丁检索层"
+      },
+      {
+        "id": "og-8",
+        "label": "作者的收束与行动号召"
+      }
+    ]
+  },
+  "hero": {
+    "title": "You're doing RAG wrong",
+    "meta": "Akshay Pachaar · X Article · 2026-05-08",
+    "en": "There's a new approach that: cuts corpus size by 40x. reduces tokens per query by 3x. improves vector search relevance by 2.3x. And it doesn't touch your retrieval algorithm, your reranker, or your embedding model. It fixes something upstream that almost no one examines. Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed. That assumption is almost never examined. And it's the source of most of the retrieval failures people try to fix downstream.",
+    "zh": "文章指出，RAG 的许多失败并不一定来自检索算法、reranker 或 embedding model，而是来自更上游的默认假设：把一段文本 chunk 当作知识嵌入的基本单位。作者声称，新的预处理方式可以让语料规模减少 40x、每次查询 token 减少 3x，并将向量检索相关性提升 2.3x。"
+  },
+  "summary": {
+    "overviewTitle": "全文速览",
+    "thesis": "这篇文章的核心观点是：RAG 的关键改造点不一定在检索算法，而在进入向量库之前的知识单位设计。",
+    "lead": "作者批评 chunk 作为默认嵌入单位缺少观点边界、版本上下文和访问状态，并提出以 Question-Answer Packet / IdeaBlock 作为更明确的知识单元。",
+    "keyPoints": [
+      {
+        "label": "核心判断",
+        "text": "chunk-as-unit 是检索失败的重要上游假设。"
+      },
+      {
+        "label": "替代方案",
+        "text": "把问题、验证答案和治理字段组成一个可检索、可治理的原子声明。"
+      },
+      {
+        "label": "工程收益",
+        "text": "语义去重与结构化治理让检索表面更清晰，更新也能从单条记录传播。"
+      }
+    ],
+    "cards": [
+      {
+        "icon": "01",
+        "title": "问题不在检索器末端",
+        "body": "作者把 RAG 失败的根源定位到 chunk 作为知识单位的默认假设，而不是 reranker、embedding 或阈值调参。"
+      },
+      {
+        "icon": "02",
+        "title": "QA Packet 改变匹配形状",
+        "body": "一个问题、一个验证答案和治理字段组成的 IdeaBlock，让查询和索引都以问题-答案结构对齐。"
+      },
+      {
+        "icon": "03",
+        "title": "去重让检索表面更干净",
+        "body": "近重复内容会在向量空间中彼此竞争；语义蒸馏把冗余压缩为 canonical blocks，从而增强信号。"
+      },
+      {
+        "icon": "04",
+        "title": "治理进入数据层",
+        "body": "权限、版本、清理状态和来源不再只是编排器逻辑，而是每个 block 的类型化字段。"
+      }
+    ],
+    "readingPath": [
+      "先理解 chunk 为什么会破坏语义边界",
+      "再看 QA Packet 如何重塑向量匹配",
+      "最后落到预处理管线和应用层治理"
+    ]
+  },
+  "framework": {
+    "title": "文章逻辑框架",
+    "nodes": [
+      {
+        "id": "fw-1",
+        "label": "从 chunk 假设开始的问题",
+        "summary": "文章指出，RAG 的许多失败并不一定来自检索算法、reranker 或 embedding model，而是来自更上游的默认假设：把一段文本 chunk 当作知识嵌入的基本单位。作"
+      },
+      {
+        "id": "fw-2",
+        "label": "为什么 chunk 不是好的知识单元",
+        "summary": "chunk 只是结构中性的容器，不知道观点边界、文档版本，也不知道访问权限。按 token 数切分会造成半张表、缺少论证的结论、脱离上下文的声明被检索出来；企业语料中的重复版本还会"
+      },
+      {
+        "id": "fw-3",
+        "label": "更好的单位：Question-Answer Packet",
+        "summary": "作者提出的替代单位是 Question-Answer Packet：一个问题、一个经过验证的答案，以及以类型化 schema 表示的治理字段。Blockify 将这种结构称为 Id"
+      },
+      {
+        "id": "fw-4",
+        "label": "反直觉结果：更少数据带来更高准确性",
+        "summary": "语义蒸馏的反直觉之处在于，缩小语料并不必然损害检索。作者给出的 Blockify 内部基准显示，2,042 个原始 IdeaBlocks 经 3 到 5 轮、80-85% 相似度阈"
+      },
+      {
+        "id": "fw-5",
+        "label": "从文档到 IdeaBlocks 的七阶段管线",
+        "summary": "作者把改造点放在进入向量库之前的预处理层。Blockify 的流程包含七步：先定义 Organization、Business Unit、Product、Persona 等索引层级"
+      },
+      {
+        "id": "fw-6",
+        "label": "应用层会发生什么变化",
+        "summary": "嵌入的知识单位决定应用层能做什么。查询构造会更简单，因为查询本来就是问题，而索引中存的是问题的答案；治理也会下沉到数据层，因为角色访问、版本状态和权限等级成为每个 block 的类"
+      }
+    ],
+    "edges": [
+      {
+        "from": "fw-1",
+        "to": "fw-2"
+      },
+      {
+        "from": "fw-2",
+        "to": "fw-3"
+      },
+      {
+        "from": "fw-3",
+        "to": "fw-4"
+      },
+      {
+        "from": "fw-4",
+        "to": "fw-5"
+      },
+      {
+        "from": "fw-5",
+        "to": "fw-6"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "num": "1",
+      "toc": "从 chunk 假设开始的问题",
+      "title": "从 chunk 假设开始的问题",
+      "rows": [
+        {
+          "en": "There's a new approach that: cuts corpus size by 40x. reduces tokens per query by 3x. improves vector search relevance by 2.3x. And it doesn't touch your retrieval algorithm, your reranker, or your embedding model. It fixes something upstream that almost no one examines. Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed. That assumption is almost never examined. And it's the source of most of the retrieval failures people try to fix downstream.",
+          "zh": "文章指出，RAG 的许多失败并不一定来自检索算法、reranker 或 embedding model，而是来自更上游的默认假设：把一段文本 chunk 当作知识嵌入的基本单位。作者声称，新的预处理方式可以让语料规模减少 40x、每次查询 token 减少 3x，并将向量检索相关性提升 2.3x。"
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "toc": "为什么 chunk 不是好的知识单元",
+      "title": "为什么 chunk 不是好的知识单元",
+      "rows": [
+        {
+          "en": "A chunk of text is a structurally neutral container. It knows nothing about: where its ideas begin or end which version of a document it came from who is allowed to see it Since a chunk has no idea boundary, the splitter cuts wherever the token count runs out. You end up retrieving half a table, or a conclusion with no argument, or a claim stripped of the context that makes it true. The model has no way to know what’s missing. The version problem is just as bad. Most enterprise corpora have the same document in a dozen near-identical versions across SharePoint, Confluence, and Git. Top-K retrieval returns five copies of the same paragraph, current and deprecated mixed together. The LLM blends them into an answer that’s confidently wrong. Because the chunk carries no metadata either, there’s nowhere to attach access control in the data itself. Role filters, version state, clearance level: all of that ends up as logic bolted onto the orchestrator, disconnected from the content it’s supposed to govern. LangChain, LlamaIndex, and Haystack sit above all of this. They orchestrate retrieval from whatever you put in the vector store. Most stacks have nothing between the document parser and the vector store. That gap is where all three problems compound.",
+          "zh": "chunk 只是结构中性的容器，不知道观点边界、文档版本，也不知道访问权限。按 token 数切分会造成半张表、缺少论证的结论、脱离上下文的声明被检索出来；企业语料中的重复版本还会让 Top-K 返回多个近似段落，混合当前版和废弃版。访问控制、版本状态和权限等级如果只挂在编排器上，就会与内容本身脱节。"
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "toc": "更好的单位：Question-Answer Packet",
+      "title": "更好的单位：Question-Answer Packet",
+      "rows": [
+        {
+          "en": "The chunk fails because it’s structurally agnostic. The fix is to make the unit of knowledge structurally explicit. Instead of embedding a window of prose, you embed a claim: one question, its validated answer, and governance fields as typed schema. One fact per unit, nothing more. Your queries are already questions. When your index stores answers to questions, the match becomes structural, not just semantic. You’re not hoping the right paragraph floats to the top. You’re matching a question to its answer directly. Blockify, a preprocessing layer from Iternal Technologies, implements this as a structure it calls an IdeaBlock: a question, its validated answer, and typed governance fields like clearance level, version state, and source, all on the same object. It mirrors the shape of how users actually query a RAG system, as questions. The key insight: when you embed a question-answer packet instead of a text window, your embedding represents a single atomic claim, not a chunk of narrative that happens to contain it. This has a measurable consequence on vector geometry. In Blockify’s internal benchmark across 17 documents and 298 pages, the average cosine distance from query to best-matching block was 0.1585 for IdeaBlocks versus 0.3624 for naive chunks. That’s a 2.29x reduction in retrieval distance.",
+          "zh": "作者提出的替代单位是 Question-Answer Packet：一个问题、一个经过验证的答案，以及以类型化 schema 表示的治理字段。Blockify 将这种结构称为 IdeaBlock，把 clearance level、version state、source 等字段与答案放在同一个对象上。由于用户查询天然是问题，索引中也存储问题对应的答案，匹配就从单纯语义相似变成结构匹配。作者引用 Blockify 内部基准：在 17 份文档、298 页数据上，IdeaBlocks 的平均余弦距离为 0.1585，naive chunks 为 0.3624，检索距离降低 2.29x。"
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "toc": "反直觉结果：更少数据带来更高准确性",
+      "title": "反直觉结果：更少数据带来更高准确性",
+      "rows": [
+        {
+          "en": "Most people expect that shrinking the corpus hurts retrieval. That’s not what happens with semantic distillation. In Blockify’s internal benchmark, the pipeline produced 2,042 raw IdeaBlocks from the source documents. After iterative deduplication at 80-85% similarity across 3-5 rounds: 2,042 blocks collapsed to 1,200 canonical IdeaBlocks Word count dropped from 88,877 to 44,537 Distilled dataset outperformed undistilled by 13.55% on vector accuracy The reason redundant copies hurt rather than help: fifteen near-duplicates of the same paragraph create fifteen competing vectors in the same region of embedding space. Retrieval distributes probability mass across all of them, pulling the match score down for the canonical version. Collapse them into one canonical block and the signal sharpens. Your vector index isn’t a hard drive you want to fill. It’s a retrieval surface, and redundancy degrades it.",
+          "zh": "语义蒸馏的反直觉之处在于，缩小语料并不必然损害检索。作者给出的 Blockify 内部基准显示，2,042 个原始 IdeaBlocks 经 3 到 5 轮、80-85% 相似度阈值的迭代去重后，压缩为 1,200 个 canonical IdeaBlocks；词数从 88,877 降至 44,537；蒸馏后的数据集在向量准确性上高出 13.55%。原因是大量近重复段落会在 embedding 空间中互相竞争，分散检索概率质量。"
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "toc": "从文档到 IdeaBlocks 的七阶段管线",
+      "title": "从文档到 IdeaBlocks 的七阶段管线",
+      "rows": [
+        {
+          "en": "The fix is a preprocessing pipeline that runs before anything touches the vector store. Blockify’s processing runs in seven stages. Each stage has a defined input and output, so failures are localizable and reproducible. Stage 1: Scoping Before any document is parsed, you define the index hierarchy: Organization > Business Unit > Product > Persona. This determines which blocks get tagged to which access tier and shapes how deduplication runs later. Stage 2: Ingestion Documents enter as DOCX, PDF, PPT, PNG/JPG, Markdown, or HTML. The parser hands off to the LLM layer, running fine-tuned LLaMA 3/QWEN 3.5/Gemma4 (and other custom foundation model variants), which converts raw chunks into draft IdeaBlocks: one critical question, one validated answer of two to three sentences, and typed governance fields. Input size is bounded at 1,000 to 4,000 characters, with 2,000 as the practical midpoint. Stage 3: Chunking and extraction Context-aware splitting means the LLM converts chunks to draft IdeaBlocks rather than cutting on token count alone. The output of each chunk is a question-answer pair, not a window of prose. Stage 4: Semantic deduplication This is where the retrieval surface gets cleaned. Blocks are clustered by cosine similarity at an 80-85% threshold across three to five iterative rounds. Near-duplicates merge into a single canonical block via a second specially tuned LLM. The pipeline is optimized for GPU, but you can also run it on extra CPU capacity via the Intel Xeon optimized version. The result is a dataset where every vector in the index represents a distinct claim, not one of fifteen near-identical copies competing for the same retrieval slot. Stage 5: Auto-tagging Each block receives typed metadata: clearance level (PUBLIC, INTERNAL, CONFIDENTIAL, SECRET), version state (Current, Deprecated, Draft, Approved), product line, export control flags, and data privacy labels. Applied by the pipeline, not the document author. Stage 6: Human validation A product corpus of 2,000 to 3,000 IdeaBlocks splits across five to ten SMEs, each spending one to two hours per quarter on their slice. Structured claims with source citations attached, not raw documents. Stage 7: Export Validated blocks push to the vector database via API or export as JSON-L. Supported vector stores: Azure AI Search, Pinecone, Milvus, Vertex Matching Engine. Supported embedding models: OpenAI, Bedrock, Mistral, Jina, open-source. The pipeline sits between document parser and vector store regardless of which combination is in use.",
+          "zh": "作者把改造点放在进入向量库之前的预处理层。Blockify 的流程包含七步：先定义 Organization、Business Unit、Product、Persona 等索引层级；再接收 DOCX、PDF、PPT、图片、Markdown、HTML 等文档；由 LLM 层把原始 chunk 转为草稿 IdeaBlocks；然后做语义去重、自动打治理标签、交给领域专家验证，最后通过 API 或 JSON-L 导出到向量数据库。重点是让每个向量代表一个不同声明，而不是许多近重复段落之一。"
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "toc": "应用层会发生什么变化",
+      "title": "应用层会发生什么变化",
+      "rows": [
+        {
+          "en": "The unit you embed determines what the application layer can do. Query construction gets simpler: your queries are already questions. When the index stores answers to questions, the match is structural rather than probabilistic. You stop tuning similarity thresholds to compensate for semantic mismatch between query shape and document shape. Governance moves into the data layer: role-based access, version state, clearance level are typed fields on each block, not logic bolted onto the orchestrator. A sales engineer querying the same index as a legal reviewer gets a different dataset not because the retrieval layer filters it, but because the blocks themselves carry the access boundary. Updates propagate from a single record: when a spec changes, you update one IdeaBlock. Every application querying that block gets the corrected answer on the next request. With naive chunking, the same fact lives in dozens of near-duplicate passages across multiple documents. Updating it means finding all of them, which at enterprise scale is not a tractable problem. The architecture doesn’t change how you query. It changes what you can trust about the answer.",
+          "zh": "嵌入的知识单位决定应用层能做什么。查询构造会更简单，因为查询本来就是问题，而索引中存的是问题的答案；治理也会下沉到数据层，因为角色访问、版本状态和权限等级成为每个 block 的类型化字段；更新则可以从单条记录传播，规格变化时更新一个 IdeaBlock，所有查询该 block 的应用下次即可得到修正答案。架构并不改变查询方式，而是改变你能否信任答案。"
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "toc": "底层原则：修正单位，而不是继续补丁检索层",
+      "title": "底层原则：修正单位，而不是继续补丁检索层",
+      "rows": [
+        {
+          "en": "The chunk is a parsing convenience that became a retrieval assumption. It has no idea boundary, version context or access state. Retrieval stacks have spent years patching that mismatch: rerankers, hybrid search, threshold tuning, prompt engineering. All of it downstream of the real problem. The fix is not a better retrieval algorithm. It’s a better unit. RAG stacks are beginning to grow a distillation layer between parsing and vectorization, the way web stacks grew a CDN layer between origin and browser. You can build it yourself with clustering, LLM-based summarization, and schema enforcement. Or you can use something purpose-built for it like Blockify. Either way, the chunk-as-unit assumption is the bug, and fixing it at the data layer pays off more than tuning retrieval ever will.",
+          "zh": "作者的底层判断是：chunk 原本只是解析便利，却被误当成检索假设。它没有观点边界、版本上下文和访问状态，导致检索栈长期用 reranker、hybrid search、阈值调参和 prompt engineering 在下游修补。真正的修复不是更好的检索算法，而是更好的知识单位。RAG 栈正在 parsing 和 vectorization 之间长出蒸馏层，就像 Web 栈在 origin 和 browser 之间长出 CDN 层。"
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "toc": "作者的收束与行动号召",
+      "title": "作者的收束与行动号召",
+      "rows": [
+        {
+          "en": "It's open-source! Try it yourself here→ Thanks for reading! If you found it insightful, reshare with your network. Find me →@akshay_pachaar ✔️ For more insights and tutorials on LLMs, AI Agents, and Machine Learning!",
+          "zh": "文章最后强调该项目是开源的，并邀请读者自行尝试、转发内容，以及关注作者 @akshay_pachaar 获取更多关于 LLM、AI Agents 和 Machine Learning 的见解与教程。"
+        }
+      ]
+    }
+  ],
+  "quiz": [
+    {
+      "question": "作者认为 RAG 失败的上游问题是什么？",
+      "options": [
+        "chunk 被默认当作知识嵌入单位，但它没有观点边界、版本上下文和访问状态。",
+        "embedding model 参数太少，必须先扩大模型。",
+        "所有 RAG 都应取消向量数据库。",
+        "问题只来自应用层 prompt 写得不够长。"
+      ],
+      "answer": 0,
+      "explain": "依据原文：Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed.",
+      "wrongReason": "其他选项不是原文主张，或把问题转移到模型规模、向量库或 prompt 上。",
+      "sourceAnchor": "从 chunk 假设开始的问题"
+    },
+    {
+      "question": "IdeaBlock 包含哪些关键元素？",
+      "options": [
+        "一个问题、一个验证答案，以及 clearance level、version state、source 等类型化治理字段。",
+        "只包含原文段落和 embedding 向量。",
+        "只包含文档标题和作者。",
+        "只包含用户输入问题，不包含答案。"
+      ],
+      "answer": 0,
+      "explain": "原文描述 IdeaBlock as a question, its validated answer, and typed governance fields.",
+      "wrongReason": "其他选项遗漏了答案或治理字段，不符合原文结构。",
+      "sourceAnchor": "更好的单位：Question-Answer Packet"
+    },
+    {
+      "question": "为什么冗余内容会降低检索质量？",
+      "options": [
+        "近重复段落会在 embedding 空间同一区域形成竞争向量，分散检索概率质量。",
+        "因为向量数据库不能存储超过 1,200 条记录。",
+        "因为 token 数越少，模型一定越聪明。",
+        "因为所有重复段落都会被 LLM 自动删除。"
+      ],
+      "answer": 0,
+      "explain": "原文解释 fifteen near-duplicates create competing vectors and pull the match score down.",
+      "wrongReason": "其他选项夸大或歪曲了原文，没有对应依据。",
+      "sourceAnchor": "反直觉结果：更少数据带来更高准确性"
+    },
+    {
+      "question": "应用层最重要的变化是什么？",
+      "options": [
+        "查询、治理和更新都能依托更明确的数据结构，而不是只靠编排器补丁。",
+        "所有查询都必须改成关键词搜索。",
+        "法律和销售用户必须使用完全相同的数据集。",
+        "更新规格时仍要遍历所有近重复段落。"
+      ],
+      "answer": 0,
+      "explain": "原文强调 governance moves into the data layer，并且 updates propagate from a single record.",
+      "wrongReason": "其他选项与原文的结构化治理和单记录更新传播相反。",
+      "sourceAnchor": "应用层会发生什么变化"
+    }
+  ],
+  "original": {
+    "title": "You're doing RAG wrong · 2026-05-08",
+    "meta": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+    "groups": [
+      {
+        "id": "og-1",
+        "group": "从 chunk 假设开始的问题",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "There's a new approach that: cuts corpus size by 40x. reduces tokens per query by 3x. improves vector search relevance by 2.3x. And it doesn't touch your retrieval algorithm, your reranker, or your embedding model. It fixes something upstream that almost no one examines. Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed. That assumption is almost never examined. And it's the source of most of the retrieval failures people try to fix downstream.",
+            "zh": "有一种新方法可以：将语料规模减少 40 倍；将每次查询的 token 减少 3 倍；将向量搜索相关性提升 2.3 倍。 而且它不需要改动你的检索算法、reranker 或 embedding model。它修复的是一个几乎没人检查的上游问题。 每条 RAG pipeline 都从同一个假设开始：一段文本 chunk 是适合嵌入的知识单位。 这个假设几乎从未被检查。 而它正是许多人试图在下游修复的大多数检索失败的来源。",
+            "html": "<p>There's a new approach that:</p><ul><li>cuts corpus size by 40x.</li><li>reduces tokens per query by 3x.</li><li>improves vector search relevance by 2.3x.</li></ul><p>And it doesn't touch your retrieval algorithm, your reranker, or your embedding model. It fixes something upstream that almost no one examines.</p><p>Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed.</p><p>That assumption is almost never examined.</p><p>And it's the source of most of the retrieval failures people try to fix downstream.</p>",
+            "zhHtml": "<p>有一种新方法可以：</p><ul><li>将语料规模减少 40 倍。</li><li>将每次查询的 token 减少 3 倍。</li><li>将向量搜索相关性提升 2.3 倍。</li></ul><p>而且它不需要改动你的检索算法、reranker 或 embedding model。它修复的是一个几乎没人检查的上游问题。</p><p>每条 RAG pipeline 都从同一个假设开始：一段文本 chunk 是适合嵌入的知识单位。</p><p>这个假设几乎从未被检查。</p><p>而它正是许多人试图在下游修复的大多数检索失败的来源。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-2",
+        "group": "为什么 chunk 不是好的知识单元",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "A chunk of text is a structurally neutral container. It knows nothing about: where its ideas begin or end which version of a document it came from who is allowed to see it Since a chunk has no idea boundary, the splitter cuts wherever the token count runs out.",
+            "zh": "一段文本 chunk 是一个结构中性的容器。它不知道：它的观点从哪里开始或结束；它来自文档的哪个版本；谁被允许查看它。由于 chunk 没有观点边界，splitter 会在 token 数用完的任何地方切开。",
+            "html": "<p>A chunk of text is a structurally neutral container. It knows nothing about:</p><ul><li>where its ideas begin or end</li><li>which version of a document it came from</li><li>who is allowed to see it</li></ul><p>Since a chunk has no idea boundary, the splitter cuts wherever the token count runs out.</p>",
+            "zhHtml": "<p>一段文本 chunk 是一个结构中性的容器。它不知道：</p><ul><li>它的观点从哪里开始或结束</li><li>它来自文档的哪个版本</li><li>谁被允许查看它</li></ul><p>由于 chunk 没有观点边界，splitter 会在 token 数用完的任何地方切开。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HHy_-Y-aQAAALNV.jpg",
+            "alt": "chunking problem illustration",
+            "caption": "按长度切分会打断语义单元。"
+          },
+          {
+            "type": "bilingual",
+            "en": "You end up retrieving half a table, or a conclusion with no argument, or a claim stripped of the context that makes it true. The model has no way to know what’s missing. The version problem is just as bad. Most enterprise corpora have the same document in a dozen near-identical versions across SharePoint, Confluence, and Git. Top-K retrieval returns five copies of the same paragraph, current and deprecated mixed together. The LLM blends them into an answer that’s confidently wrong. Because the chunk carries no metadata either, there’s nowhere to attach access control in the data itself. Role filters, version state, clearance level: all of that ends up as logic bolted onto the orchestrator, disconnected from the content it’s supposed to govern. LangChain, LlamaIndex, and Haystack sit above all of this. They orchestrate retrieval from whatever you put in the vector store. Most stacks have nothing between the document parser and the vector store. That gap is where all three problems compound.",
+            "zh": "你最终会检索到半张表，或是没有论证的结论，或是被剥离了使其成立的上下文的声明。模型无法知道缺少了什么。 版本问题同样糟糕。 大多数企业语料库里，同一份文档会以十几个近乎相同的版本散落在 SharePoint、Confluence 和 Git 中。 Top-K 检索会返回同一段落的五个副本，当前版本和已废弃版本混在一起。LLM 会把它们融合成一个自信但错误的答案。 由于 chunk 本身也不携带元数据，数据内部没有地方附加访问控制。 角色过滤器、版本状态、权限等级：所有这些最终都变成了拼接在 orchestrator 上的逻辑，和它本应治理的内容相互脱节。 LangChain、LlamaIndex 和 Haystack 位于这一切之上。它们只是编排你放进 vector store 的任何内容的检索。 大多数技术栈在文档解析器和 vector store 之间什么都没有。 这个空白正是三个问题叠加放大的地方。",
+            "html": "<p>You end up retrieving half a table, or a conclusion with no argument, or a claim stripped of the context that makes it true. The model has no way to know what’s missing.</p><p>The version problem is just as bad.</p><p>Most enterprise corpora have the same document in a dozen near-identical versions across SharePoint, Confluence, and Git.</p><p>Top-K retrieval returns five copies of the same paragraph, current and deprecated mixed together. The LLM blends them into an answer that’s confidently wrong.</p><p>Because the chunk carries no metadata either, there’s nowhere to attach access control in the data itself.</p><p>Role filters, version state, clearance level: all of that ends up as logic bolted onto the orchestrator, disconnected from the content it’s supposed to govern.</p><p>LangChain, LlamaIndex, and Haystack sit above all of this. They orchestrate retrieval from whatever you put in the vector store.</p><p>Most stacks have nothing between the document parser and the vector store.</p><p>That gap is where all three problems compound.</p>",
+            "zhHtml": "<p>你最终会检索到半张表，或是没有论证的结论，或是被剥离了使其成立的上下文的声明。模型无法知道缺少了什么。</p><p>版本问题同样糟糕。</p><p>大多数企业语料库里，同一份文档会以十几个近乎相同的版本散落在 SharePoint、Confluence 和 Git 中。</p><p>Top-K 检索会返回同一段落的五个副本，当前版本和已废弃版本混在一起。LLM 会把它们融合成一个自信但错误的答案。</p><p>由于 chunk 本身也不携带元数据，数据内部没有地方附加访问控制。</p><p>角色过滤器、版本状态、权限等级：所有这些最终都变成了拼接在 orchestrator 上的逻辑，和它本应治理的内容相互脱节。</p><p>LangChain、LlamaIndex 和 Haystack 位于这一切之上。它们只是编排你放进 vector store 的任何内容的检索。</p><p>大多数技术栈在文档解析器和 vector store 之间什么都没有。</p><p>这个空白正是三个问题叠加放大的地方。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-3",
+        "group": "更好的单位：Question-Answer Packet",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The chunk fails because it’s structurally agnostic. The fix is to make the unit of knowledge structurally explicit. Instead of embedding a window of prose, you embed a claim: one question, its validated answer, and governance fields as typed schema. One fact per unit, nothing more.",
+            "zh": "chunk 失败，是因为它对结构无感。修复办法是让知识单位在结构上显式。 你嵌入的不是一段散文窗口，而是一个声明：一个问题、它经过验证的答案，以及作为类型化 schema 的治理字段。 每个单位只包含一个事实，仅此而已。",
+            "html": "<p>The chunk fails because it’s structurally agnostic. The fix is to make the unit of knowledge structurally explicit.</p><p>Instead of embedding a window of prose, you embed a claim: one question, its validated answer, and governance fields as typed schema.</p><p>One fact per unit, nothing more.</p>",
+            "zhHtml": "<p>chunk 失败，是因为它对结构无感。修复办法是让知识单位在结构上显式。</p><p>你嵌入的不是一段散文窗口，而是一个声明：一个问题、它经过验证的答案，以及作为类型化 schema 的治理字段。</p><p>每个单位只包含一个事实，仅此而已。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HHzAEyfbsAANN-G.jpg",
+            "alt": "IdeaBlock schema illustration",
+            "caption": "IdeaBlock 将问题、验证答案和治理字段放在同一个结构中。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Your queries are already questions. When your index stores answers to questions, the match becomes structural, not just semantic. You’re not hoping the right paragraph floats to the top. You’re matching a question to its answer directly. Blockify, a preprocessing layer from Iternal Technologies, implements this as a structure it calls an IdeaBlock: a question, its validated answer, and typed governance fields like clearance level, version state, and source, all on the same object. It mirrors the shape of how users actually query a RAG system, as questions. The key insight: when you embed a question-answer packet instead of a text window, your embedding represents a single atomic claim, not a chunk of narrative that happens to contain it. This has a measurable consequence on vector geometry. In Blockify’s internal benchmark across 17 documents and 298 pages, the average cosine distance from query to best-matching block was 0.1585 for IdeaBlocks versus 0.3624 for naive chunks. That’s a 2.29x reduction in retrieval distance.",
+            "zh": "你的查询本来就是问题。当你的索引存储的是问题的答案时，匹配就变成了结构性的，而不只是语义性的。 你不再只是希望正确段落浮到顶部。你是在直接把一个问题匹配到它的答案。 Iternal Technologies 的预处理层 Blockify 将这种结构实现为它所称的 IdeaBlock：一个问题、它经过验证的答案，以及 clearance level、version state、source 等类型化治理字段，全部放在同一个对象上。 它镜像了用户实际查询 RAG 系统的形式，也就是问题。 关键洞察是：当你嵌入的是 question-answer packet，而不是文本窗口时，你的 embedding 表示的是单一原子声明，而不是一段恰好包含它的叙事 chunk。 这会在向量几何上产生可度量的结果。 在 Blockify 针对 17 份文档、298 页内容的内部基准中，query 到最佳匹配 block 的平均余弦距离，IdeaBlocks 为 0.1585，naive chunks 为 0.3624。 这意味着检索距离降低了 2.29 倍。",
+            "html": "<p>Your queries are already questions. When your index stores answers to questions, the match becomes structural, not just semantic.</p><p>You’re not hoping the right paragraph floats to the top. You’re matching a question to its answer directly.</p><p>Blockify, a preprocessing layer from Iternal Technologies, implements this as a structure it calls an IdeaBlock: a question, its validated answer, and typed governance fields like clearance level, version state, and source, all on the same object.</p><p>It mirrors the shape of how users actually query a RAG system, as questions.</p><p>The key insight: when you embed a question-answer packet instead of a text window, your embedding represents a single atomic claim, not a chunk of narrative that happens to contain it.</p><p>This has a measurable consequence on vector geometry.</p><p>In Blockify’s internal benchmark across 17 documents and 298 pages, the average cosine distance from query to best-matching block was 0.1585 for IdeaBlocks versus 0.3624 for naive chunks.</p><p>That’s a 2.29x reduction in retrieval distance.</p>",
+            "zhHtml": "<p>你的查询本来就是问题。当你的索引存储的是问题的答案时，匹配就变成了结构性的，而不只是语义性的。</p><p>你不再只是希望正确段落浮到顶部。你是在直接把一个问题匹配到它的答案。</p><p>Iternal Technologies 的预处理层 Blockify 将这种结构实现为它所称的 IdeaBlock：一个问题、它经过验证的答案，以及 clearance level、version state、source 等类型化治理字段，全部放在同一个对象上。</p><p>它镜像了用户实际查询 RAG 系统的形式，也就是问题。</p><p>关键洞察是：当你嵌入的是 question-answer packet，而不是文本窗口时，你的 embedding 表示的是单一原子声明，而不是一段恰好包含它的叙事 chunk。</p><p>这会在向量几何上产生可度量的结果。</p><p>在 Blockify 针对 17 份文档、298 页内容的内部基准中，query 到最佳匹配 block 的平均余弦距离，IdeaBlocks 为 0.1585，naive chunks 为 0.3624。</p><p>这意味着检索距离降低了 2.29 倍。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-4",
+        "group": "反直觉结果：更少数据带来更高准确性",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "Most people expect that shrinking the corpus hurts retrieval. That’s not what happens with semantic distillation. In Blockify’s internal benchmark, the pipeline produced 2,042 raw IdeaBlocks from the source documents.",
+            "zh": "大多数人会认为，缩小语料库会损害检索。 但 semantic distillation 并不会这样。 在 Blockify 的内部基准中，pipeline 从源文档中生成了 2,042 个原始 IdeaBlocks。",
+            "html": "<p>Most people expect that shrinking the corpus hurts retrieval.</p><p>That’s not what happens with semantic distillation.</p><p>In Blockify’s internal benchmark, the pipeline produced 2,042 raw IdeaBlocks from the source documents.</p>",
+            "zhHtml": "<p>大多数人会认为，缩小语料库会损害检索。</p><p>但 semantic distillation 并不会这样。</p><p>在 Blockify 的内部基准中，pipeline 从源文档中生成了 2,042 个原始 IdeaBlocks。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HHzBLQ4acAAoTWY.jpg",
+            "alt": "deduplication and distillation chart",
+            "caption": "去重和蒸馏会减少冗余向量，让检索信号更集中。"
+          },
+          {
+            "type": "bilingual",
+            "en": "After iterative deduplication at 80-85% similarity across 3-5 rounds: 2,042 blocks collapsed to 1,200 canonical IdeaBlocks Word count dropped from 88,877 to 44,537 Distilled dataset outperformed undistilled by 13.55% on vector accuracy The reason redundant copies hurt rather than help: fifteen near-duplicates of the same paragraph create fifteen competing vectors in the same region of embedding space. Retrieval distributes probability mass across all of them, pulling the match score down for the canonical version. Collapse them into one canonical block and the signal sharpens. Your vector index isn’t a hard drive you want to fill. It’s a retrieval surface, and redundancy degrades it.",
+            "zh": "经过 3 到 5 轮、80-85% 相似度阈值的迭代去重之后： 2,042 个 blocks 合并为 1,200 个 canonical IdeaBlocks 词数从 88,877 降至 44,537 蒸馏后的数据集在向量准确性上比未蒸馏数据集高出 13.55% 冗余副本之所以有害而不是有益，原因在于：同一段落的十五个近重复版本会在 embedding 空间的同一区域里生成十五个相互竞争的向量。 检索会把概率质量分散到所有这些向量上，从而拉低 canonical version 的匹配分数。把它们折叠成一个 canonical block，信号就会变得更清晰。 你的 vector index 不是一块需要填满的硬盘。它是一个检索表面，而冗余会削弱它。",
+            "html": "<p>After iterative deduplication at 80-85% similarity across 3-5 rounds:</p><ul><li>2,042 blocks collapsed to 1,200 canonical IdeaBlocks</li><li>Word count dropped from 88,877 to 44,537</li><li>Distilled dataset outperformed undistilled by 13.55% on vector accuracy</li></ul><p>The reason redundant copies hurt rather than help: fifteen near-duplicates of the same paragraph create fifteen competing vectors in the same region of embedding space.</p><p>Retrieval distributes probability mass across all of them, pulling the match score down for the canonical version. Collapse them into one canonical block and the signal sharpens.</p><p>Your vector index isn’t a hard drive you want to fill. It’s a retrieval surface, and redundancy degrades it.</p>",
+            "zhHtml": "<p>经过 3 到 5 轮、80-85% 相似度阈值的迭代去重之后：</p><ul><li>2,042 个 blocks 合并为 1,200 个 canonical IdeaBlocks</li><li>词数从 88,877 降至 44,537</li><li>蒸馏后的数据集在向量准确性上比未蒸馏数据集高出 13.55%</li></ul><p>冗余副本之所以有害而不是有益，原因在于：同一段落的十五个近重复版本会在 embedding 空间的同一区域里生成十五个相互竞争的向量。</p><p>检索会把概率质量分散到所有这些向量上，从而拉低 canonical version 的匹配分数。把它们折叠成一个 canonical block，信号就会变得更清晰。</p><p>你的 vector index 不是一块需要填满的硬盘。它是一个检索表面，而冗余会削弱它。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-5",
+        "group": "从文档到 IdeaBlocks 的七阶段管线",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The fix is a preprocessing pipeline that runs before anything touches the vector store. Blockify’s processing runs in seven stages. Each stage has a defined input and output, so failures are localizable and reproducible.",
+            "zh": "修复办法是在任何内容触碰 vector store 之前运行一条预处理 pipeline。 Blockify 的处理流程分为七个阶段。每个阶段都有定义明确的输入和输出，因此失败可以被定位，也可以被复现。",
+            "html": "<p>The fix is a preprocessing pipeline that runs before anything touches the vector store.</p><p>Blockify’s processing runs in seven stages. Each stage has a defined input and output, so failures are localizable and reproducible.</p>",
+            "zhHtml": "<p>修复办法是在任何内容触碰 vector store 之前运行一条预处理 pipeline。</p><p>Blockify 的处理流程分为七个阶段。每个阶段都有定义明确的输入和输出，因此失败可以被定位，也可以被复现。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HHzBQsHaQAAEZb7.jpg",
+            "alt": "documents to IdeaBlocks pipeline",
+            "caption": "从文档到 IdeaBlocks 的预处理管线位于解析器和向量库之间。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Stage 1: Scoping Before any document is parsed, you define the index hierarchy: Organization > Business Unit > Product > Persona. This determines which blocks get tagged to which access tier and shapes how deduplication runs later. Stage 2: Ingestion Documents enter as DOCX, PDF, PPT, PNG/JPG, Markdown, or HTML. The parser hands off to the LLM layer, running fine-tuned LLaMA 3/QWEN 3.5/Gemma4 (and other custom foundation model variants), which converts raw chunks into draft IdeaBlocks: one critical question, one validated answer of two to three sentences, and typed governance fields. Input size is bounded at 1,000 to 4,000 characters, with 2,000 as the practical midpoint. Stage 3: Chunking and extraction Context-aware splitting means the LLM converts chunks to draft IdeaBlocks rather than cutting on token count alone. The output of each chunk is a question-answer pair, not a window of prose. Stage 4: Semantic deduplication This is where the retrieval surface gets cleaned. Blocks are clustered by cosine similarity at an 80-85% threshold across three to five iterative rounds. Near-duplicates merge into a single canonical block via a second specially tuned LLM. The pipeline is optimized for GPU, but you can also run it on extra CPU capacity via the Intel Xeon optimized version. The result is a dataset where every vector in the index represents a distinct claim, not one of fifteen near-identical copies competing for the same retrieval slot. Stage 5: Auto-tagging Each block receives typed metadata: clearance level (PUBLIC, INTERNAL, CONFIDENTIAL, SECRET), version state (Current, Deprecated, Draft, Approved), product line, export control flags, and data privacy labels. Applied by the pipeline, not the document author. Stage 6: Human validation A product corpus of 2,000 to 3,000 IdeaBlocks splits across five to ten SMEs, each spending one to two hours per quarter on their slice. Structured claims with source citations attached, not raw documents. Stage 7: Export Validated blocks push to the vector database via API or export as JSON-L. Supported vector stores: Azure AI Search, Pinecone, Milvus, Vertex Matching Engine. Supported embedding models: OpenAI, Bedrock, Mistral, Jina, open-source. The pipeline sits between document parser and vector store regardless of which combination is in use.",
+            "zh": "Stage 1: Scoping 在解析任何文档之前，你需要定义索引层级：Organization > Business Unit > Product > Persona。 这会决定哪些 blocks 被标记到哪个访问层级，并影响后续去重的运行方式。 Stage 2: Ingestion 文档以 DOCX、PDF、PPT、PNG/JPG、Markdown 或 HTML 的形式进入。 解析器会交给 LLM 层处理，运行经过微调的 LLaMA 3/QWEN 3.5/Gemma4（以及其他自定义 foundation model 变体），把原始 chunks 转换为草稿 IdeaBlocks：一个关键问题、一个两到三句话的验证答案，以及类型化治理字段。 输入大小被限制在 1,000 到 4,000 个字符之间，2,000 个字符是实际中点。 Stage 3: Chunking and extraction 上下文感知切分意味着 LLM 会把 chunks 转换成草稿 IdeaBlocks，而不是只按 token 数切断。每个 chunk 的输出是一个 question-answer pair，而不是一段散文窗口。 Stage 4: Semantic deduplication 这一步会清理检索表面。 Blocks 会按 80-85% 阈值的余弦相似度进行聚类，迭代三到五轮。 近重复项会通过第二个专门调优的 LLM 合并为一个 canonical block。该 pipeline 针对 GPU 优化，但你也可以通过 Intel Xeon 优化版本在额外 CPU 容量上运行。 结果是，索引中的每个向量都表示一个不同的声明，而不是十五个近乎相同、争夺同一检索位置的副本之一。 Stage 5: Auto-tagging 每个 block 都会获得类型化元数据：clearance level（PUBLIC、INTERNAL、CONFIDENTIAL、SECRET）、version state（Current、Deprecated、Draft、Approved）、product line、export control flags 和 data privacy labels。这些由 pipeline 应用，而不是由文档作者应用。 Stage 6: Human validation 一个包含 2,000 到 3,000 个 IdeaBlocks 的产品语料，会分给 5 到 10 名 SME，每人每季度在自己的部分上花 1 到 2 小时。验证对象是附有来源引用的结构化声明，而不是原始文档。 Stage 7: Export 经过验证的 blocks 会通过 API 推送到 vector database，或导出为 JSON-L。支持的 vector stores 包括 Azure AI Search、Pinecone、Milvus、Vertex Matching Engine。支持的 embedding models 包括 OpenAI、Bedrock、Mistral、Jina 和开源模型。 无论使用哪种组合，这条 pipeline 都位于 document parser 和 vector store 之间。",
+            "html": "<h3>Stage 1: Scoping</h3><p>Before any document is parsed, you define the index hierarchy: Organization &gt; Business Unit &gt; Product &gt; Persona.</p><p>This determines which blocks get tagged to which access tier and shapes how deduplication runs later.</p><h3>Stage 2: Ingestion</h3><p>Documents enter as DOCX, PDF, PPT, PNG/JPG, Markdown, or HTML.</p><p>The parser hands off to the LLM layer, running fine-tuned LLaMA 3/QWEN 3.5/Gemma4 (and other custom foundation model variants), which converts raw chunks into draft IdeaBlocks: one critical question, one validated answer of two to three sentences, and typed governance fields.</p><p>Input size is bounded at 1,000 to 4,000 characters, with 2,000 as the practical midpoint.</p><h3>Stage 3: Chunking and extraction</h3><p>Context-aware splitting means the LLM converts chunks to draft IdeaBlocks rather than cutting on token count alone. The output of each chunk is a question-answer pair, not a window of prose.</p><h3>Stage 4: Semantic deduplication</h3><p>This is where the retrieval surface gets cleaned.</p><p>Blocks are clustered by cosine similarity at an 80-85% threshold across three to five iterative rounds.</p><p>Near-duplicates merge into a single canonical block via a second specially tuned LLM. The pipeline is optimized for GPU, but you can also run it on extra CPU capacity via the Intel Xeon optimized version.</p><p>The result is a dataset where every vector in the index represents a distinct claim, not one of fifteen near-identical copies competing for the same retrieval slot.</p><h3>Stage 5: Auto-tagging</h3><p>Each block receives typed metadata: clearance level (PUBLIC, INTERNAL, CONFIDENTIAL, SECRET), version state (Current, Deprecated, Draft, Approved), product line, export control flags, and data privacy labels. Applied by the pipeline, not the document author.</p><h3>Stage 6: Human validation</h3><p>A product corpus of 2,000 to 3,000 IdeaBlocks splits across five to ten SMEs, each spending one to two hours per quarter on their slice. Structured claims with source citations attached, not raw documents.</p><h3>Stage 7: Export</h3><p>Validated blocks push to the vector database via API or export as JSON-L. Supported vector stores: Azure AI Search, Pinecone, Milvus, Vertex Matching Engine. Supported embedding models: OpenAI, Bedrock, Mistral, Jina, open-source.</p><p>The pipeline sits between document parser and vector store regardless of which combination is in use.</p>",
+            "zhHtml": "<h3>Stage 1: Scoping</h3><p>在解析任何文档之前，你需要定义索引层级：Organization &gt; Business Unit &gt; Product &gt; Persona。</p><p>这会决定哪些 blocks 被标记到哪个访问层级，并影响后续去重的运行方式。</p><h3>Stage 2: Ingestion</h3><p>文档以 DOCX、PDF、PPT、PNG/JPG、Markdown 或 HTML 的形式进入。</p><p>解析器会交给 LLM 层处理，运行经过微调的 LLaMA 3/QWEN 3.5/Gemma4（以及其他自定义 foundation model 变体），把原始 chunks 转换为草稿 IdeaBlocks：一个关键问题、一个两到三句话的验证答案，以及类型化治理字段。</p><p>输入大小被限制在 1,000 到 4,000 个字符之间，2,000 个字符是实际中点。</p><h3>Stage 3: Chunking and extraction</h3><p>上下文感知切分意味着 LLM 会把 chunks 转换成草稿 IdeaBlocks，而不是只按 token 数切断。每个 chunk 的输出是一个 question-answer pair，而不是一段散文窗口。</p><h3>Stage 4: Semantic deduplication</h3><p>这一步会清理检索表面。</p><p>Blocks 会按 80-85% 阈值的余弦相似度进行聚类，迭代三到五轮。</p><p>近重复项会通过第二个专门调优的 LLM 合并为一个 canonical block。该 pipeline 针对 GPU 优化，但你也可以通过 Intel Xeon 优化版本在额外 CPU 容量上运行。</p><p>结果是，索引中的每个向量都表示一个不同的声明，而不是十五个近乎相同、争夺同一检索位置的副本之一。</p><h3>Stage 5: Auto-tagging</h3><p>每个 block 都会获得类型化元数据：clearance level（PUBLIC、INTERNAL、CONFIDENTIAL、SECRET）、version state（Current、Deprecated、Draft、Approved）、product line、export control flags 和 data privacy labels。这些由 pipeline 应用，而不是由文档作者应用。</p><h3>Stage 6: Human validation</h3><p>一个包含 2,000 到 3,000 个 IdeaBlocks 的产品语料，会分给 5 到 10 名 SME，每人每季度在自己的部分上花 1 到 2 小时。验证对象是附有来源引用的结构化声明，而不是原始文档。</p><h3>Stage 7: Export</h3><p>经过验证的 blocks 会通过 API 推送到 vector database，或导出为 JSON-L。支持的 vector stores 包括 Azure AI Search、Pinecone、Milvus、Vertex Matching Engine。支持的 embedding models 包括 OpenAI、Bedrock、Mistral、Jina 和开源模型。</p><p>无论使用哪种组合，这条 pipeline 都位于 document parser 和 vector store 之间。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-6",
+        "group": "应用层会发生什么变化",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The unit you embed determines what the application layer can do.",
+            "zh": "你嵌入的单位决定了应用层能够做什么。",
+            "html": "<p>The unit you embed determines what the application layer can do.</p>",
+            "zhHtml": "<p>你嵌入的单位决定了应用层能够做什么。</p>"
+          },
+          {
+            "type": "image",
+            "src": "https://pbs.twimg.com/media/HHzBd8QbYAA3E49.jpg",
+            "alt": "application layer changes diagram",
+            "caption": "知识单位变化后，查询、治理和更新传播都进入更明确的数据结构。"
+          },
+          {
+            "type": "bilingual",
+            "en": "Query construction gets simpler: your queries are already questions. When the index stores answers to questions, the match is structural rather than probabilistic. You stop tuning similarity thresholds to compensate for semantic mismatch between query shape and document shape. Governance moves into the data layer: role-based access, version state, clearance level are typed fields on each block, not logic bolted onto the orchestrator. A sales engineer querying the same index as a legal reviewer gets a different dataset not because the retrieval layer filters it, but because the blocks themselves carry the access boundary. Updates propagate from a single record: when a spec changes, you update one IdeaBlock. Every application querying that block gets the corrected answer on the next request. With naive chunking, the same fact lives in dozens of near-duplicate passages across multiple documents. Updating it means finding all of them, which at enterprise scale is not a tractable problem. The architecture doesn’t change how you query. It changes what you can trust about the answer.",
+            "zh": "查询构造会变得更简单：你的查询本来就是问题。当索引存储的是问题的答案时，匹配就是结构性的，而不是概率性的。你不再需要调整相似度阈值，去补偿查询形状和文档形状之间的语义错配。 治理会进入数据层：role-based access、version state、clearance level 都是每个 block 上的类型化字段，而不是拼接在 orchestrator 上的逻辑。销售工程师和法律审核者查询同一个索引时会得到不同的数据集，不是因为检索层过滤了它，而是因为 blocks 自身携带了访问边界。 更新会从单条记录传播：当规格变化时，你更新一个 IdeaBlock。每个查询该 block 的应用都会在下一次请求中得到修正后的答案。使用 naive chunking 时，同一个事实会存在于多个文档中的几十个近重复段落里。更新它意味着找出所有这些段落，而这在企业规模下并不可行。 架构并不会改变你的查询方式。它改变的是你能信任答案到什么程度。",
+            "html": "<ul><li>Query construction gets simpler: your queries are already questions. When the index stores answers to questions, the match is structural rather than probabilistic. You stop tuning similarity thresholds to compensate for semantic mismatch between query shape and document shape.</li><li>Governance moves into the data layer: role-based access, version state, clearance level are typed fields on each block, not logic bolted onto the orchestrator. A sales engineer querying the same index as a legal reviewer gets a different dataset not because the retrieval layer filters it, but because the blocks themselves carry the access boundary.</li><li>Updates propagate from a single record: when a spec changes, you update one IdeaBlock. Every application querying that block gets the corrected answer on the next request. With naive chunking, the same fact lives in dozens of near-duplicate passages across multiple documents. Updating it means finding all of them, which at enterprise scale is not a tractable problem.</li></ul><p>The architecture doesn’t change how you query. It changes what you can trust about the answer.</p>",
+            "zhHtml": "<ul><li>查询构造会变得更简单：你的查询本来就是问题。当索引存储的是问题的答案时，匹配就是结构性的，而不是概率性的。你不再需要调整相似度阈值，去补偿查询形状和文档形状之间的语义错配。</li><li>治理会进入数据层：role-based access、version state、clearance level 都是每个 block 上的类型化字段，而不是拼接在 orchestrator 上的逻辑。销售工程师和法律审核者查询同一个索引时会得到不同的数据集，不是因为检索层过滤了它，而是因为 blocks 自身携带了访问边界。</li><li>更新会从单条记录传播：当规格变化时，你更新一个 IdeaBlock。每个查询该 block 的应用都会在下一次请求中得到修正后的答案。使用 naive chunking 时，同一个事实会存在于多个文档中的几十个近重复段落里。更新它意味着找出所有这些段落，而这在企业规模下并不可行。</li></ul><p>架构并不会改变你的查询方式。它改变的是你能信任答案到什么程度。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-7",
+        "group": "底层原则：修正单位，而不是继续补丁检索层",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "The chunk is a parsing convenience that became a retrieval assumption. It has no idea boundary, version context or access state. Retrieval stacks have spent years patching that mismatch: rerankers, hybrid search, threshold tuning, prompt engineering. All of it downstream of the real problem. The fix is not a better retrieval algorithm. It’s a better unit. RAG stacks are beginning to grow a distillation layer between parsing and vectorization, the way web stacks grew a CDN layer between origin and browser. You can build it yourself with clustering, LLM-based summarization, and schema enforcement. Or you can use something purpose-built for it like Blockify. Either way, the chunk-as-unit assumption is the bug, and fixing it at the data layer pays off more than tuning retrieval ever will.",
+            "zh": "chunk 是一种解析便利，却变成了检索假设。 它没有观点边界、版本上下文或访问状态。检索技术栈多年来一直在修补这种错配：rerankers、hybrid search、threshold tuning、prompt engineering。 所有这些都位于真正问题的下游。 修复办法不是更好的检索算法，而是更好的单位。 RAG 技术栈开始在 parsing 和 vectorization 之间长出一个 distillation layer，就像 Web 技术栈在 origin 和 browser 之间长出了 CDN layer。 你可以用 clustering、LLM-based summarization 和 schema enforcement 自己构建它。也可以使用像 Blockify 这样专门为此设计的工具。 无论哪种方式，把 chunk 当作单位的假设才是 bug；在数据层修复它，比调优检索本身更有回报。",
+            "html": "<p>The chunk is a parsing convenience that became a retrieval assumption.</p><p>It has no idea boundary, version context or access state. Retrieval stacks have spent years patching that mismatch: rerankers, hybrid search, threshold tuning, prompt engineering.</p><p>All of it downstream of the real problem.</p><p>The fix is not a better retrieval algorithm. It’s a better unit.</p><p>RAG stacks are beginning to grow a distillation layer between parsing and vectorization, the way web stacks grew a CDN layer between origin and browser.</p><p>You can build it yourself with clustering, LLM-based summarization, and schema enforcement. Or you can use something purpose-built for it like Blockify.</p><p>Either way, the chunk-as-unit assumption is the bug, and fixing it at the data layer pays off more than tuning retrieval ever will.</p>",
+            "zhHtml": "<p>chunk 是一种解析便利，却变成了检索假设。</p><p>它没有观点边界、版本上下文或访问状态。检索技术栈多年来一直在修补这种错配：rerankers、hybrid search、threshold tuning、prompt engineering。</p><p>所有这些都位于真正问题的下游。</p><p>修复办法不是更好的检索算法，而是更好的单位。</p><p>RAG 技术栈开始在 parsing 和 vectorization 之间长出一个 distillation layer，就像 Web 技术栈在 origin 和 browser 之间长出了 CDN layer。</p><p>你可以用 clustering、LLM-based summarization 和 schema enforcement 自己构建它。也可以使用像 Blockify 这样专门为此设计的工具。</p><p>无论哪种方式，把 chunk 当作单位的假设才是 bug；在数据层修复它，比调优检索本身更有回报。</p>"
+          }
+        ]
+      },
+      {
+        "id": "og-8",
+        "group": "作者的收束与行动号召",
+        "rows": [
+          {
+            "type": "bilingual",
+            "en": "It's open-source! Try it yourself here→ Thanks for reading! If you found it insightful, reshare with your network. Find me →@akshay_pachaar ✔️ For more insights and tutorials on LLMs, AI Agents, and Machine Learning!",
+            "zh": "它是开源的！ 你可以在这里自己试用 → 感谢阅读！ 如果你觉得有启发，请转发给你的网络。 找到我 → @akshay_pachaar ✔️ 获取更多关于 LLM、AI Agents 和 Machine Learning 的见解与教程！",
+            "html": "<p>It's open-source!</p><p>Try it yourself here→</p><p>Thanks for reading!</p><p>If you found it insightful, reshare with your network.</p><p>Find me →@akshay_pachaar ✔️</p><p>For more insights and tutorials on LLMs, AI Agents, and Machine Learning!</p>",
+            "zhHtml": "<p>它是开源的！</p><p>你可以在这里自己试用 →</p><p>感谢阅读！</p><p>如果你觉得有启发，请转发给你的网络。</p><p>找到我 → @akshay_pachaar ✔️</p><p>获取更多关于 LLM、AI Agents 和 Machine Learning 的见解与教程！</p>"
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "sourceUrl": "https://x.com/akshay_pachaar/status/2052743644411765230?s=20",
+    "sourceText": "You're doing RAG wrong"
+  },
+  "glossary": {
+    "groupDesc": {
+      "B1": "基础词 · 原文高频",
+      "B2": "进阶词 · 技术语境常用",
+      "C1": "高级词 · 论文与工程写作",
+      "C2": "精通词 · 深度表达",
+      "术语": "RAG / 向量检索 / 数据治理术语"
+    },
+    "entries": [
+      {
+        "word": "chunk",
+        "level": "术语",
+        "ipa": "/tʃʌŋk/",
+        "pos": "术语",
+        "definitionZh": "文本切块；RAG 中按长度或规则切出的文本片段。",
+        "collocationExample": "Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed.",
+        "exampleZh": "每个 RAG 管线都从同一个假设开始：一段文本 chunk 是适合嵌入的知识单位。"
+      },
+      {
+        "word": "corpus",
+        "level": "术语",
+        "ipa": "/ˈkɔːrpəs/",
+        "pos": "n.",
+        "definitionZh": "语料库；用于检索、训练或分析的一组文档集合。",
+        "collocationExample": "Most people expect that shrinking the corpus hurts retrieval.",
+        "exampleZh": "大多数人会预期缩小语料库会损害检索。"
+      },
+      {
+        "word": "reranker",
+        "level": "术语",
+        "ipa": "/riːˈræŋkər/",
+        "pos": "n.",
+        "definitionZh": "重排序器；对初步检索结果再次排序的模型或组件。",
+        "collocationExample": "It does not touch your retrieval algorithm, your reranker, or your embedding model.",
+        "exampleZh": "它不改动检索算法、reranker 或 embedding model。"
+      },
+      {
+        "word": "embedding",
+        "level": "术语",
+        "ipa": "/ɪmˈbedɪŋ/",
+        "pos": "n.",
+        "definitionZh": "嵌入表示；把文本等对象转换为向量以便相似度检索。",
+        "collocationExample": "Your embedding represents a single atomic claim.",
+        "exampleZh": "你的 embedding 表示的是单个原子声明。"
+      },
+      {
+        "word": "vector",
+        "level": "B2",
+        "ipa": "/ˈvektər/",
+        "pos": "n.",
+        "definitionZh": "向量；在检索语境中通常指语义表示。",
+        "collocationExample": "Your vector index is not a hard drive you want to fill.",
+        "exampleZh": "你的向量索引不是一个要被塞满的硬盘。"
+      },
+      {
+        "word": "search",
+        "level": "B1",
+        "ipa": "/sɜːrtʃ/",
+        "pos": "n.",
+        "definitionZh": "搜索；在本文中指向量检索过程。",
+        "collocationExample": "It improves vector search relevance by 2.3x.",
+        "exampleZh": "它将向量检索相关性提升 2.3x。"
+      },
+      {
+        "word": "IdeaBlock",
+        "level": "术语",
+        "ipa": "/aɪˈdiːə blɑːk/",
+        "pos": "术语",
+        "definitionZh": "Blockify 中的问题-答案知识单元，包含问题、验证答案和治理字段。",
+        "collocationExample": "Blockify implements this as a structure it calls an IdeaBlock.",
+        "exampleZh": "Blockify 将这种结构实现为它称作 IdeaBlock 的对象。"
+      },
+      {
+        "word": "schema",
+        "level": "术语",
+        "ipa": "/ˈskiːmə/",
+        "pos": "n.",
+        "definitionZh": "模式；定义数据字段、类型和结构的约束。",
+        "collocationExample": "You embed a claim with governance fields as typed schema.",
+        "exampleZh": "你嵌入的是一个带有类型化 schema 治理字段的声明。"
+      },
+      {
+        "word": "governance",
+        "level": "术语",
+        "ipa": "/ˈɡʌvərnəns/",
+        "pos": "n.",
+        "definitionZh": "治理；对权限、版本、来源、隐私等规则的结构化管理。",
+        "collocationExample": "Governance moves into the data layer.",
+        "exampleZh": "治理移动到数据层。"
+      },
+      {
+        "word": "deduplication",
+        "level": "C1",
+        "ipa": "/ˌdiːduːplɪˈkeɪʃn/",
+        "pos": "n.",
+        "definitionZh": "去重；合并或删除重复、近重复内容的过程。",
+        "collocationExample": "After iterative deduplication at 80-85% similarity across 3-5 rounds.",
+        "exampleZh": "经过 3 到 5 轮、80-85% 相似度阈值的迭代去重之后。"
+      },
+      {
+        "word": "canonical",
+        "level": "C1",
+        "ipa": "/kəˈnɑːnɪkl/",
+        "pos": "adj.",
+        "definitionZh": "规范的、标准的；在多个近似版本中保留为权威版本的。",
+        "collocationExample": "Collapse them into one canonical block and the signal sharpens.",
+        "exampleZh": "把它们合并成一个 canonical block 后，信号会变得更清晰。"
+      },
+      {
+        "word": "retrieval",
+        "level": "术语",
+        "ipa": "/rɪˈtriːvəl/",
+        "pos": "n.",
+        "definitionZh": "检索；从语料或索引中取回相关信息。",
+        "collocationExample": "Fixing it at the data layer pays off more than tuning retrieval ever will.",
+        "exampleZh": "在数据层修复它比调优 retrieval 更有收益。"
+      },
+      {
+        "word": "orchestrator",
+        "level": "术语",
+        "ipa": "/ˈɔːrkɪstreɪtər/",
+        "pos": "n.",
+        "definitionZh": "编排器；负责组织流程、工具调用和执行逻辑的系统层。",
+        "collocationExample": "All of that ends up as logic bolted onto the orchestrator.",
+        "exampleZh": "这些最终都变成附着在 orchestrator 上的逻辑。"
+      },
+      {
+        "word": "clearance",
+        "level": "C1",
+        "ipa": "/ˈklɪrəns/",
+        "pos": "n.",
+        "definitionZh": "许可、权限；本文中指访问权限等级。",
+        "collocationExample": "Each block receives typed metadata: clearance level.",
+        "exampleZh": "每个 block 都获得类型化元数据：clearance level。"
+      },
+      {
+        "word": "version",
+        "level": "B1",
+        "ipa": "/ˈvɜːrʒn/",
+        "pos": "n.",
+        "definitionZh": "版本；文档或记录的状态变体。",
+        "collocationExample": "The version problem is just as bad.",
+        "exampleZh": "版本问题同样严重。"
+      },
+      {
+        "word": "semantic",
+        "level": "C1",
+        "ipa": "/sɪˈmæntɪk/",
+        "pos": "adj.",
+        "definitionZh": "语义的；与意义表示相关。",
+        "collocationExample": "That is not what happens with semantic distillation.",
+        "exampleZh": "semantic distillation 中并不会发生这种情况。"
+      },
+      {
+        "word": "distillation",
+        "level": "C1",
+        "ipa": "/ˌdɪstɪˈleɪʃn/",
+        "pos": "n.",
+        "definitionZh": "蒸馏；将复杂或冗余内容压缩成更精炼表示的过程。",
+        "collocationExample": "That is not what happens with semantic distillation.",
+        "exampleZh": "semantic distillation 中并不会发生这种情况。"
+      },
+      {
+        "word": "algorithm",
+        "level": "B2",
+        "ipa": "/ˈælɡərɪðəm/",
+        "pos": "n.",
+        "definitionZh": "算法；解决问题的一组步骤或规则。",
+        "collocationExample": "The fix is not a better retrieval algorithm.",
+        "exampleZh": "修复点不是更好的检索算法。"
+      },
+      {
+        "word": "model",
+        "level": "B1",
+        "ipa": "/ˈmɑːdl/",
+        "pos": "n.",
+        "definitionZh": "模型；本文中指 LLM 或 embedding model。",
+        "collocationExample": "It does not touch your embedding model.",
+        "exampleZh": "它不改动你的 embedding model。"
+      },
+      {
+        "word": "upstream",
+        "level": "C1",
+        "ipa": "/ˌʌpˈstriːm/",
+        "pos": "adj.",
+        "definitionZh": "上游的；发生在流程早期的位置。",
+        "collocationExample": "It fixes something upstream that almost no one examines.",
+        "exampleZh": "它修复的是几乎没人检查的上游问题。"
+      },
+      {
+        "word": "assumption",
+        "level": "B2",
+        "ipa": "/əˈsʌmpʃn/",
+        "pos": "n.",
+        "definitionZh": "假设；未经充分检验的默认前提。",
+        "collocationExample": "That assumption is almost never examined.",
+        "exampleZh": "这个假设几乎从未被审视。"
+      },
+      {
+        "word": "pipeline",
+        "level": "术语",
+        "ipa": "/ˈpaɪplaɪn/",
+        "pos": "n.",
+        "definitionZh": "管线；由多个处理阶段组成的数据流程。",
+        "collocationExample": "The fix is a preprocessing pipeline.",
+        "exampleZh": "修复方式是一条预处理管线。"
+      },
+      {
+        "word": "failure",
+        "level": "B2",
+        "ipa": "/ˈfeɪljər/",
+        "pos": "n.",
+        "definitionZh": "失败；未达到预期的结果。",
+        "collocationExample": "It is the source of most retrieval failures.",
+        "exampleZh": "它是许多检索失败的来源。"
+      },
+      {
+        "word": "downstream",
+        "level": "C1",
+        "ipa": "/ˌdaʊnˈstriːm/",
+        "pos": "adj.",
+        "definitionZh": "下游的；发生在流程较晚位置的。",
+        "collocationExample": "All of it downstream of the real problem.",
+        "exampleZh": "这些都位于真正问题的下游。"
+      },
+      {
+        "word": "structurally",
+        "level": "C1",
+        "ipa": "/ˈstrʌktʃərəli/",
+        "pos": "adv.",
+        "definitionZh": "结构上；从结构角度看。",
+        "collocationExample": "The chunk fails because it is structurally agnostic.",
+        "exampleZh": "chunk 失败是因为它在结构上无感知。"
+      },
+      {
+        "word": "neutral",
+        "level": "B2",
+        "ipa": "/ˈnuːtrəl/",
+        "pos": "adj.",
+        "definitionZh": "中性的；不携带特定结构或立场的。",
+        "collocationExample": "A chunk of text is a structurally neutral container.",
+        "exampleZh": "文本 chunk 是结构中性的容器。"
+      },
+      {
+        "word": "container",
+        "level": "B2",
+        "ipa": "/kənˈteɪnər/",
+        "pos": "n.",
+        "definitionZh": "容器；承载内容的对象。",
+        "collocationExample": "A chunk of text is a structurally neutral container.",
+        "exampleZh": "文本 chunk 是结构中性的容器。"
+      },
+      {
+        "word": "document",
+        "level": "B1",
+        "ipa": "/ˈdɑːkjumənt/",
+        "pos": "n.",
+        "definitionZh": "文档；企业知识库中的内容来源。",
+        "collocationExample": "Most enterprise corpora have the same document in many versions.",
+        "exampleZh": "多数企业语料中同一文档有多个版本。"
+      },
+      {
+        "word": "token",
+        "level": "术语",
+        "ipa": "/ˈtoʊkən/",
+        "pos": "n.",
+        "definitionZh": "令牌；模型处理文本时的基本计量单位。",
+        "collocationExample": "It reduces tokens per query by 3x.",
+        "exampleZh": "它让每次查询 token 减少 3x。"
+      },
+      {
+        "word": "table",
+        "level": "B1",
+        "ipa": "/ˈteɪbl/",
+        "pos": "n.",
+        "definitionZh": "表格；结构化信息的一种形式。",
+        "collocationExample": "You end up retrieving half a table.",
+        "exampleZh": "你最终可能检索到半张表。"
+      },
+      {
+        "word": "conclusion",
+        "level": "B2",
+        "ipa": "/kənˈkluːʒn/",
+        "pos": "n.",
+        "definitionZh": "结论；论证的最终判断。",
+        "collocationExample": "You retrieve a conclusion with no argument.",
+        "exampleZh": "你会检索到没有论证支撑的结论。"
+      },
+      {
+        "word": "argument",
+        "level": "B2",
+        "ipa": "/ˈɑːrɡjumənt/",
+        "pos": "n.",
+        "definitionZh": "论证；支撑结论的理由链。",
+        "collocationExample": "You retrieve a conclusion with no argument.",
+        "exampleZh": "你会检索到没有论证支撑的结论。"
+      },
+      {
+        "word": "claim",
+        "level": "B2",
+        "ipa": "/kleɪm/",
+        "pos": "n.",
+        "definitionZh": "声明、主张；本文中指可验证的原子事实。",
+        "collocationExample": "You embed a claim.",
+        "exampleZh": "你嵌入的是一个声明。"
+      },
+      {
+        "word": "context",
+        "level": "B2",
+        "ipa": "/ˈkɑːntekst/",
+        "pos": "n.",
+        "definitionZh": "上下文；使声明成立的周边信息。",
+        "collocationExample": "The model has no way to know what context is missing.",
+        "exampleZh": "模型无法知道缺少了哪些上下文。"
+      },
+      {
+        "word": "enterprise",
+        "level": "B2",
+        "ipa": "/ˈentərpraɪz/",
+        "pos": "n.",
+        "definitionZh": "企业；本文中特指企业级语料环境。",
+        "collocationExample": "Most enterprise corpora have the same document in many versions.",
+        "exampleZh": "多数企业语料中同一文档有多个版本。"
+      },
+      {
+        "word": "paragraph",
+        "level": "B1",
+        "ipa": "/ˈpærəɡræf/",
+        "pos": "n.",
+        "definitionZh": "段落；文档中的文本段。",
+        "collocationExample": "Top-K retrieval returns five copies of the same paragraph.",
+        "exampleZh": "Top-K 检索返回同一段落的多个副本。"
+      },
+      {
+        "word": "deprecated",
+        "level": "C1",
+        "ipa": "/ˈdeprəkeɪtɪd/",
+        "pos": "adj.",
+        "definitionZh": "已废弃的；不应再作为当前答案依据的。",
+        "collocationExample": "Current and deprecated are mixed together.",
+        "exampleZh": "当前版和废弃版混在一起。"
+      },
+      {
+        "word": "metadata",
+        "level": "术语",
+        "ipa": "/ˈmetədeɪtə/",
+        "pos": "n.",
+        "definitionZh": "元数据；描述内容属性的数据。",
+        "collocationExample": "The chunk carries no metadata.",
+        "exampleZh": "chunk 不携带元数据。"
+      },
+      {
+        "word": "filter",
+        "level": "B2",
+        "ipa": "/ˈfɪltər/",
+        "pos": "n.",
+        "definitionZh": "过滤器；用于筛选内容的规则。",
+        "collocationExample": "Role filters end up as logic bolted onto the orchestrator.",
+        "exampleZh": "角色过滤器最终变成附着在编排器上的逻辑。"
+      },
+      {
+        "word": "store",
+        "level": "B1",
+        "ipa": "/stɔːr/",
+        "pos": "n.",
+        "definitionZh": "存储；本文中指 vector store。",
+        "collocationExample": "Most stacks have nothing between parser and vector store.",
+        "exampleZh": "多数技术栈在 parser 和 vector store 之间没有任何层。"
+      },
+      {
+        "word": "packet",
+        "level": "B2",
+        "ipa": "/ˈpækɪt/",
+        "pos": "n.",
+        "definitionZh": "包；本文中指问题-答案数据单元。",
+        "collocationExample": "A Better Unit: The Question-Answer Packet.",
+        "exampleZh": "更好的单位是 Question-Answer Packet。"
+      },
+      {
+        "word": "validated",
+        "level": "C1",
+        "ipa": "/ˈvælɪdeɪtɪd/",
+        "pos": "adj.",
+        "definitionZh": "经过验证的；已确认正确或可靠的。",
+        "collocationExample": "One question, its validated answer, and governance fields.",
+        "exampleZh": "一个问题、经过验证的答案和治理字段。"
+      },
+      {
+        "word": "answer",
+        "level": "B1",
+        "ipa": "/ˈænsər/",
+        "pos": "n.",
+        "definitionZh": "答案；与问题对应的知识内容。",
+        "collocationExample": "You are matching a question to its answer directly.",
+        "exampleZh": "你是在直接匹配问题和答案。"
+      },
+      {
+        "word": "atomic",
+        "level": "C1",
+        "ipa": "/əˈtɑːmɪk/",
+        "pos": "adj.",
+        "definitionZh": "原子的；不可再分的最小语义单元。",
+        "collocationExample": "A single atomic claim.",
+        "exampleZh": "一个单一原子声明。"
+      },
+      {
+        "word": "geometry",
+        "level": "C1",
+        "ipa": "/dʒiˈɑːmətri/",
+        "pos": "n.",
+        "definitionZh": "几何；本文中指向量空间中的距离关系。",
+        "collocationExample": "This has a measurable consequence on vector geometry.",
+        "exampleZh": "这会对向量几何产生可度量的影响。"
+      },
+      {
+        "word": "benchmark",
+        "level": "C1",
+        "ipa": "/ˈbentʃmɑːrk/",
+        "pos": "n.",
+        "definitionZh": "基准测试；用于比较性能的数据实验。",
+        "collocationExample": "In Blockify’s internal benchmark.",
+        "exampleZh": "在 Blockify 的内部基准中。"
+      },
+      {
+        "word": "cosine",
+        "level": "术语",
+        "ipa": "/ˈkoʊsaɪn/",
+        "pos": "n.",
+        "definitionZh": "余弦；用于衡量向量相似度的数学概念。",
+        "collocationExample": "The average cosine distance was 0.1585.",
+        "exampleZh": "平均余弦距离为 文中给出的数值。"
+      },
+      {
+        "word": "distance",
+        "level": "B1",
+        "ipa": "/ˈdɪstəns/",
+        "pos": "n.",
+        "definitionZh": "距离；本文中指向量间距离。",
+        "collocationExample": "That is a 2.29x reduction in retrieval distance.",
+        "exampleZh": "检索距离降低了 2.29x。"
+      },
+      {
+        "word": "naive",
+        "level": "C1",
+        "ipa": "/naɪˈiːv/",
+        "pos": "adj.",
+        "definitionZh": "朴素的；未做结构化改造的。",
+        "collocationExample": "IdeaBlocks versus naive chunks.",
+        "exampleZh": "IdeaBlocks 与 naive chunks 的对比。"
+      },
+      {
+        "word": "accuracy",
+        "level": "B2",
+        "ipa": "/ˈækjərəsi/",
+        "pos": "n.",
+        "definitionZh": "准确性；结果正确或相关的程度。",
+        "collocationExample": "The distilled dataset outperformed by 13.55% on vector accuracy.",
+        "exampleZh": "蒸馏后的数据集在向量准确性上高出 文中给出的百分比。"
+      },
+      {
+        "word": "redundant",
+        "level": "C1",
+        "ipa": "/rɪˈdʌndənt/",
+        "pos": "adj.",
+        "definitionZh": "冗余的；重复且降低信号质量的。",
+        "collocationExample": "Redundant copies hurt rather than help.",
+        "exampleZh": "冗余副本有害而不是有益。"
+      },
+      {
+        "word": "duplicate",
+        "level": "B2",
+        "ipa": "/ˈduːplɪkət/",
+        "pos": "n.",
+        "definitionZh": "重复项；与其他内容高度相似的副本。",
+        "collocationExample": "Fifteen near-duplicates create competing vectors.",
+        "exampleZh": "十五个近重复项会形成竞争向量。"
+      },
+      {
+        "word": "surface",
+        "level": "B2",
+        "ipa": "/ˈsɜːrfɪs/",
+        "pos": "n.",
+        "definitionZh": "表面；本文中指检索空间的有效形状。",
+        "collocationExample": "It is a retrieval surface.",
+        "exampleZh": "它是一个检索表面。"
+      },
+      {
+        "word": "stage",
+        "level": "B1",
+        "ipa": "/steɪdʒ/",
+        "pos": "n.",
+        "definitionZh": "阶段；处理管线中的步骤。",
+        "collocationExample": "Each stage has a defined input and output.",
+        "exampleZh": "每个阶段都有明确输入和输出。"
+      },
+      {
+        "word": "scoping",
+        "level": "术语",
+        "ipa": "/ˈskoʊpɪŋ/",
+        "pos": "n.",
+        "definitionZh": "定界；定义索引层级和处理范围的阶段。",
+        "collocationExample": "Stage 1: Scoping.",
+        "exampleZh": "第一阶段：Scoping。"
+      },
+      {
+        "word": "ingestion",
+        "level": "术语",
+        "ipa": "/ɪnˈdʒestʃən/",
+        "pos": "n.",
+        "definitionZh": "摄取；将文档输入处理系统的过程。",
+        "collocationExample": "Stage 2: Ingestion.",
+        "exampleZh": "第二阶段：Ingestion。"
+      },
+      {
+        "word": "parser",
+        "level": "术语",
+        "ipa": "/ˈpɑːrsər/",
+        "pos": "n.",
+        "definitionZh": "解析器；把文档转换成可处理内容的组件。",
+        "collocationExample": "The parser hands off to the LLM layer.",
+        "exampleZh": "parser 将内容交给 LLM 层。"
+      },
+      {
+        "word": "LLM",
+        "level": "术语",
+        "ipa": "/ˌel el ˈem/",
+        "pos": "n.",
+        "definitionZh": "大语言模型；用于生成、理解或转换文本的模型。",
+        "collocationExample": "The parser hands off to the LLM layer.",
+        "exampleZh": "parser 将内容交给 LLM 层。"
+      },
+      {
+        "word": "threshold",
+        "level": "C1",
+        "ipa": "/ˈθreʃhoʊld/",
+        "pos": "n.",
+        "definitionZh": "阈值；触发某个操作的界限。",
+        "collocationExample": "Blocks are clustered by cosine similarity at an 80-85% threshold.",
+        "exampleZh": "blocks 按 80-85% 相似度阈值聚类。"
+      },
+      {
+        "word": "GPU",
+        "level": "术语",
+        "ipa": "/ˌdʒiː piː ˈjuː/",
+        "pos": "n.",
+        "definitionZh": "图形处理器；用于加速并行计算的硬件。",
+        "collocationExample": "The pipeline is optimized for GPU.",
+        "exampleZh": "该管线针对 GPU 优化。"
+      },
+      {
+        "word": "validation",
+        "level": "C1",
+        "ipa": "/ˌvælɪˈdeɪʃn/",
+        "pos": "n.",
+        "definitionZh": "验证；由人或系统确认内容可靠性的过程。",
+        "collocationExample": "Stage 6: Human validation.",
+        "exampleZh": "第六阶段：Human validation。"
+      },
+      {
+        "word": "export",
+        "level": "B2",
+        "ipa": "/ˈekspɔːrt/",
+        "pos": "n.",
+        "definitionZh": "导出；将验证结果输出到外部系统。",
+        "collocationExample": "Validated blocks push to the vector database via API or export as JSON-L.",
+        "exampleZh": "验证后的 blocks 通过 API 推送到向量数据库或导出为 JSON-L。"
+      },
+      {
+        "word": "database",
+        "level": "B1",
+        "ipa": "/ˈdeɪtəbeɪs/",
+        "pos": "n.",
+        "definitionZh": "数据库；存储和查询数据的系统。",
+        "collocationExample": "Validated blocks push to the vector database.",
+        "exampleZh": "验证后的 blocks 推送到向量数据库。"
+      },
+      {
+        "word": "privacy",
+        "level": "B2",
+        "ipa": "/ˈpraɪvəsi/",
+        "pos": "n.",
+        "definitionZh": "隐私；对敏感信息的保护。",
+        "collocationExample": "Each block receives data privacy labels.",
+        "exampleZh": "每个 block 都会获得数据隐私标签。"
+      }
+    ],
+    "dict": {
+      "chunk": {
+        "w": "chunk",
+        "ipa": "/tʃʌŋk/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "文本切块；RAG 中按长度或规则切出的文本片段。",
+        "eg": "Every RAG pipeline starts with the same assumption: a chunk of text is the right unit of knowledge to embed.",
+        "egzh": "每个 RAG 管线都从同一个假设开始：一段文本 chunk 是适合嵌入的知识单位。"
+      },
+      "corpus": {
+        "w": "corpus",
+        "ipa": "/ˈkɔːrpəs/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "语料库；用于检索、训练或分析的一组文档集合。",
+        "eg": "Most people expect that shrinking the corpus hurts retrieval.",
+        "egzh": "大多数人会预期缩小语料库会损害检索。"
+      },
+      "reranker": {
+        "w": "reranker",
+        "ipa": "/riːˈræŋkər/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "重排序器；对初步检索结果再次排序的模型或组件。",
+        "eg": "It does not touch your retrieval algorithm, your reranker, or your embedding model.",
+        "egzh": "它不改动检索算法、reranker 或 embedding model。"
+      },
+      "embedding": {
+        "w": "embedding",
+        "ipa": "/ɪmˈbedɪŋ/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "嵌入表示；把文本等对象转换为向量以便相似度检索。",
+        "eg": "Your embedding represents a single atomic claim.",
+        "egzh": "你的 embedding 表示的是单个原子声明。"
+      },
+      "vector": {
+        "w": "vector",
+        "ipa": "/ˈvektər/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "向量；在检索语境中通常指语义表示。",
+        "eg": "Your vector index is not a hard drive you want to fill.",
+        "egzh": "你的向量索引不是一个要被塞满的硬盘。"
+      },
+      "search": {
+        "w": "search",
+        "ipa": "/sɜːrtʃ/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "搜索；在本文中指向量检索过程。",
+        "eg": "It improves vector search relevance by 2.3x.",
+        "egzh": "它将向量检索相关性提升 2.3x。"
+      },
+      "ideablock": {
+        "w": "IdeaBlock",
+        "ipa": "/aɪˈdiːə blɑːk/",
+        "pos": "术语",
+        "level": "术语",
+        "def": "Blockify 中的问题-答案知识单元，包含问题、验证答案和治理字段。",
+        "eg": "Blockify implements this as a structure it calls an IdeaBlock.",
+        "egzh": "Blockify 将这种结构实现为它称作 IdeaBlock 的对象。"
+      },
+      "schema": {
+        "w": "schema",
+        "ipa": "/ˈskiːmə/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "模式；定义数据字段、类型和结构的约束。",
+        "eg": "You embed a claim with governance fields as typed schema.",
+        "egzh": "你嵌入的是一个带有类型化 schema 治理字段的声明。"
+      },
+      "governance": {
+        "w": "governance",
+        "ipa": "/ˈɡʌvərnəns/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "治理；对权限、版本、来源、隐私等规则的结构化管理。",
+        "eg": "Governance moves into the data layer.",
+        "egzh": "治理移动到数据层。"
+      },
+      "deduplication": {
+        "w": "deduplication",
+        "ipa": "/ˌdiːduːplɪˈkeɪʃn/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "去重；合并或删除重复、近重复内容的过程。",
+        "eg": "After iterative deduplication at 80-85% similarity across 3-5 rounds.",
+        "egzh": "经过 3 到 5 轮、80-85% 相似度阈值的迭代去重之后。"
+      },
+      "canonical": {
+        "w": "canonical",
+        "ipa": "/kəˈnɑːnɪkl/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "规范的、标准的；在多个近似版本中保留为权威版本的。",
+        "eg": "Collapse them into one canonical block and the signal sharpens.",
+        "egzh": "把它们合并成一个 canonical block 后，信号会变得更清晰。"
+      },
+      "retrieval": {
+        "w": "retrieval",
+        "ipa": "/rɪˈtriːvəl/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "检索；从语料或索引中取回相关信息。",
+        "eg": "Fixing it at the data layer pays off more than tuning retrieval ever will.",
+        "egzh": "在数据层修复它比调优 retrieval 更有收益。"
+      },
+      "orchestrator": {
+        "w": "orchestrator",
+        "ipa": "/ˈɔːrkɪstreɪtər/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "编排器；负责组织流程、工具调用和执行逻辑的系统层。",
+        "eg": "All of that ends up as logic bolted onto the orchestrator.",
+        "egzh": "这些最终都变成附着在 orchestrator 上的逻辑。"
+      },
+      "clearance": {
+        "w": "clearance",
+        "ipa": "/ˈklɪrəns/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "许可、权限；本文中指访问权限等级。",
+        "eg": "Each block receives typed metadata: clearance level.",
+        "egzh": "每个 block 都获得类型化元数据：clearance level。"
+      },
+      "version": {
+        "w": "version",
+        "ipa": "/ˈvɜːrʒn/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "版本；文档或记录的状态变体。",
+        "eg": "The version problem is just as bad.",
+        "egzh": "版本问题同样严重。"
+      },
+      "semantic": {
+        "w": "semantic",
+        "ipa": "/sɪˈmæntɪk/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "语义的；与意义表示相关。",
+        "eg": "That is not what happens with semantic distillation.",
+        "egzh": "semantic distillation 中并不会发生这种情况。"
+      },
+      "distillation": {
+        "w": "distillation",
+        "ipa": "/ˌdɪstɪˈleɪʃn/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "蒸馏；将复杂或冗余内容压缩成更精炼表示的过程。",
+        "eg": "That is not what happens with semantic distillation.",
+        "egzh": "semantic distillation 中并不会发生这种情况。"
+      },
+      "algorithm": {
+        "w": "algorithm",
+        "ipa": "/ˈælɡərɪðəm/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "算法；解决问题的一组步骤或规则。",
+        "eg": "The fix is not a better retrieval algorithm.",
+        "egzh": "修复点不是更好的检索算法。"
+      },
+      "model": {
+        "w": "model",
+        "ipa": "/ˈmɑːdl/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "模型；本文中指 LLM 或 embedding model。",
+        "eg": "It does not touch your embedding model.",
+        "egzh": "它不改动你的 embedding model。"
+      },
+      "upstream": {
+        "w": "upstream",
+        "ipa": "/ˌʌpˈstriːm/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "上游的；发生在流程早期的位置。",
+        "eg": "It fixes something upstream that almost no one examines.",
+        "egzh": "它修复的是几乎没人检查的上游问题。"
+      },
+      "assumption": {
+        "w": "assumption",
+        "ipa": "/əˈsʌmpʃn/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "假设；未经充分检验的默认前提。",
+        "eg": "That assumption is almost never examined.",
+        "egzh": "这个假设几乎从未被审视。"
+      },
+      "pipeline": {
+        "w": "pipeline",
+        "ipa": "/ˈpaɪplaɪn/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "管线；由多个处理阶段组成的数据流程。",
+        "eg": "The fix is a preprocessing pipeline.",
+        "egzh": "修复方式是一条预处理管线。"
+      },
+      "failure": {
+        "w": "failure",
+        "ipa": "/ˈfeɪljər/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "失败；未达到预期的结果。",
+        "eg": "It is the source of most retrieval failures.",
+        "egzh": "它是许多检索失败的来源。"
+      },
+      "downstream": {
+        "w": "downstream",
+        "ipa": "/ˌdaʊnˈstriːm/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "下游的；发生在流程较晚位置的。",
+        "eg": "All of it downstream of the real problem.",
+        "egzh": "这些都位于真正问题的下游。"
+      },
+      "structurally": {
+        "w": "structurally",
+        "ipa": "/ˈstrʌktʃərəli/",
+        "pos": "adv.",
+        "level": "C1",
+        "def": "结构上；从结构角度看。",
+        "eg": "The chunk fails because it is structurally agnostic.",
+        "egzh": "chunk 失败是因为它在结构上无感知。"
+      },
+      "neutral": {
+        "w": "neutral",
+        "ipa": "/ˈnuːtrəl/",
+        "pos": "adj.",
+        "level": "B2",
+        "def": "中性的；不携带特定结构或立场的。",
+        "eg": "A chunk of text is a structurally neutral container.",
+        "egzh": "文本 chunk 是结构中性的容器。"
+      },
+      "container": {
+        "w": "container",
+        "ipa": "/kənˈteɪnər/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "容器；承载内容的对象。",
+        "eg": "A chunk of text is a structurally neutral container.",
+        "egzh": "文本 chunk 是结构中性的容器。"
+      },
+      "document": {
+        "w": "document",
+        "ipa": "/ˈdɑːkjumənt/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "文档；企业知识库中的内容来源。",
+        "eg": "Most enterprise corpora have the same document in many versions.",
+        "egzh": "多数企业语料中同一文档有多个版本。"
+      },
+      "token": {
+        "w": "token",
+        "ipa": "/ˈtoʊkən/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "令牌；模型处理文本时的基本计量单位。",
+        "eg": "It reduces tokens per query by 3x.",
+        "egzh": "它让每次查询 token 减少 3x。"
+      },
+      "table": {
+        "w": "table",
+        "ipa": "/ˈteɪbl/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "表格；结构化信息的一种形式。",
+        "eg": "You end up retrieving half a table.",
+        "egzh": "你最终可能检索到半张表。"
+      },
+      "conclusion": {
+        "w": "conclusion",
+        "ipa": "/kənˈkluːʒn/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "结论；论证的最终判断。",
+        "eg": "You retrieve a conclusion with no argument.",
+        "egzh": "你会检索到没有论证支撑的结论。"
+      },
+      "argument": {
+        "w": "argument",
+        "ipa": "/ˈɑːrɡjumənt/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "论证；支撑结论的理由链。",
+        "eg": "You retrieve a conclusion with no argument.",
+        "egzh": "你会检索到没有论证支撑的结论。"
+      },
+      "claim": {
+        "w": "claim",
+        "ipa": "/kleɪm/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "声明、主张；本文中指可验证的原子事实。",
+        "eg": "You embed a claim.",
+        "egzh": "你嵌入的是一个声明。"
+      },
+      "context": {
+        "w": "context",
+        "ipa": "/ˈkɑːntekst/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "上下文；使声明成立的周边信息。",
+        "eg": "The model has no way to know what context is missing.",
+        "egzh": "模型无法知道缺少了哪些上下文。"
+      },
+      "enterprise": {
+        "w": "enterprise",
+        "ipa": "/ˈentərpraɪz/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "企业；本文中特指企业级语料环境。",
+        "eg": "Most enterprise corpora have the same document in many versions.",
+        "egzh": "多数企业语料中同一文档有多个版本。"
+      },
+      "paragraph": {
+        "w": "paragraph",
+        "ipa": "/ˈpærəɡræf/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "段落；文档中的文本段。",
+        "eg": "Top-K retrieval returns five copies of the same paragraph.",
+        "egzh": "Top-K 检索返回同一段落的多个副本。"
+      },
+      "deprecated": {
+        "w": "deprecated",
+        "ipa": "/ˈdeprəkeɪtɪd/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "已废弃的；不应再作为当前答案依据的。",
+        "eg": "Current and deprecated are mixed together.",
+        "egzh": "当前版和废弃版混在一起。"
+      },
+      "metadata": {
+        "w": "metadata",
+        "ipa": "/ˈmetədeɪtə/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "元数据；描述内容属性的数据。",
+        "eg": "The chunk carries no metadata.",
+        "egzh": "chunk 不携带元数据。"
+      },
+      "filter": {
+        "w": "filter",
+        "ipa": "/ˈfɪltər/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "过滤器；用于筛选内容的规则。",
+        "eg": "Role filters end up as logic bolted onto the orchestrator.",
+        "egzh": "角色过滤器最终变成附着在编排器上的逻辑。"
+      },
+      "store": {
+        "w": "store",
+        "ipa": "/stɔːr/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "存储；本文中指 vector store。",
+        "eg": "Most stacks have nothing between parser and vector store.",
+        "egzh": "多数技术栈在 parser 和 vector store 之间没有任何层。"
+      },
+      "packet": {
+        "w": "packet",
+        "ipa": "/ˈpækɪt/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "包；本文中指问题-答案数据单元。",
+        "eg": "A Better Unit: The Question-Answer Packet.",
+        "egzh": "更好的单位是 Question-Answer Packet。"
+      },
+      "validated": {
+        "w": "validated",
+        "ipa": "/ˈvælɪdeɪtɪd/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "经过验证的；已确认正确或可靠的。",
+        "eg": "One question, its validated answer, and governance fields.",
+        "egzh": "一个问题、经过验证的答案和治理字段。"
+      },
+      "answer": {
+        "w": "answer",
+        "ipa": "/ˈænsər/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "答案；与问题对应的知识内容。",
+        "eg": "You are matching a question to its answer directly.",
+        "egzh": "你是在直接匹配问题和答案。"
+      },
+      "atomic": {
+        "w": "atomic",
+        "ipa": "/əˈtɑːmɪk/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "原子的；不可再分的最小语义单元。",
+        "eg": "A single atomic claim.",
+        "egzh": "一个单一原子声明。"
+      },
+      "geometry": {
+        "w": "geometry",
+        "ipa": "/dʒiˈɑːmətri/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "几何；本文中指向量空间中的距离关系。",
+        "eg": "This has a measurable consequence on vector geometry.",
+        "egzh": "这会对向量几何产生可度量的影响。"
+      },
+      "benchmark": {
+        "w": "benchmark",
+        "ipa": "/ˈbentʃmɑːrk/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "基准测试；用于比较性能的数据实验。",
+        "eg": "In Blockify’s internal benchmark.",
+        "egzh": "在 Blockify 的内部基准中。"
+      },
+      "cosine": {
+        "w": "cosine",
+        "ipa": "/ˈkoʊsaɪn/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "余弦；用于衡量向量相似度的数学概念。",
+        "eg": "The average cosine distance was 0.1585.",
+        "egzh": "平均余弦距离为 文中给出的数值。"
+      },
+      "distance": {
+        "w": "distance",
+        "ipa": "/ˈdɪstəns/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "距离；本文中指向量间距离。",
+        "eg": "That is a 2.29x reduction in retrieval distance.",
+        "egzh": "检索距离降低了 2.29x。"
+      },
+      "naive": {
+        "w": "naive",
+        "ipa": "/naɪˈiːv/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "朴素的；未做结构化改造的。",
+        "eg": "IdeaBlocks versus naive chunks.",
+        "egzh": "IdeaBlocks 与 naive chunks 的对比。"
+      },
+      "accuracy": {
+        "w": "accuracy",
+        "ipa": "/ˈækjərəsi/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "准确性；结果正确或相关的程度。",
+        "eg": "The distilled dataset outperformed by 13.55% on vector accuracy.",
+        "egzh": "蒸馏后的数据集在向量准确性上高出 文中给出的百分比。"
+      },
+      "redundant": {
+        "w": "redundant",
+        "ipa": "/rɪˈdʌndənt/",
+        "pos": "adj.",
+        "level": "C1",
+        "def": "冗余的；重复且降低信号质量的。",
+        "eg": "Redundant copies hurt rather than help.",
+        "egzh": "冗余副本有害而不是有益。"
+      },
+      "duplicate": {
+        "w": "duplicate",
+        "ipa": "/ˈduːplɪkət/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "重复项；与其他内容高度相似的副本。",
+        "eg": "Fifteen near-duplicates create competing vectors.",
+        "egzh": "十五个近重复项会形成竞争向量。"
+      },
+      "surface": {
+        "w": "surface",
+        "ipa": "/ˈsɜːrfɪs/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "表面；本文中指检索空间的有效形状。",
+        "eg": "It is a retrieval surface.",
+        "egzh": "它是一个检索表面。"
+      },
+      "stage": {
+        "w": "stage",
+        "ipa": "/steɪdʒ/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "阶段；处理管线中的步骤。",
+        "eg": "Each stage has a defined input and output.",
+        "egzh": "每个阶段都有明确输入和输出。"
+      },
+      "scoping": {
+        "w": "scoping",
+        "ipa": "/ˈskoʊpɪŋ/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "定界；定义索引层级和处理范围的阶段。",
+        "eg": "Stage 1: Scoping.",
+        "egzh": "第一阶段：Scoping。"
+      },
+      "ingestion": {
+        "w": "ingestion",
+        "ipa": "/ɪnˈdʒestʃən/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "摄取；将文档输入处理系统的过程。",
+        "eg": "Stage 2: Ingestion.",
+        "egzh": "第二阶段：Ingestion。"
+      },
+      "parser": {
+        "w": "parser",
+        "ipa": "/ˈpɑːrsər/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "解析器；把文档转换成可处理内容的组件。",
+        "eg": "The parser hands off to the LLM layer.",
+        "egzh": "parser 将内容交给 LLM 层。"
+      },
+      "llm": {
+        "w": "LLM",
+        "ipa": "/ˌel el ˈem/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "大语言模型；用于生成、理解或转换文本的模型。",
+        "eg": "The parser hands off to the LLM layer.",
+        "egzh": "parser 将内容交给 LLM 层。"
+      },
+      "threshold": {
+        "w": "threshold",
+        "ipa": "/ˈθreʃhoʊld/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "阈值；触发某个操作的界限。",
+        "eg": "Blocks are clustered by cosine similarity at an 80-85% threshold.",
+        "egzh": "blocks 按 80-85% 相似度阈值聚类。"
+      },
+      "gpu": {
+        "w": "GPU",
+        "ipa": "/ˌdʒiː piː ˈjuː/",
+        "pos": "n.",
+        "level": "术语",
+        "def": "图形处理器；用于加速并行计算的硬件。",
+        "eg": "The pipeline is optimized for GPU.",
+        "egzh": "该管线针对 GPU 优化。"
+      },
+      "validation": {
+        "w": "validation",
+        "ipa": "/ˌvælɪˈdeɪʃn/",
+        "pos": "n.",
+        "level": "C1",
+        "def": "验证；由人或系统确认内容可靠性的过程。",
+        "eg": "Stage 6: Human validation.",
+        "egzh": "第六阶段：Human validation。"
+      },
+      "export": {
+        "w": "export",
+        "ipa": "/ˈekspɔːrt/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "导出；将验证结果输出到外部系统。",
+        "eg": "Validated blocks push to the vector database via API or export as JSON-L.",
+        "egzh": "验证后的 blocks 通过 API 推送到向量数据库或导出为 JSON-L。"
+      },
+      "database": {
+        "w": "database",
+        "ipa": "/ˈdeɪtəbeɪs/",
+        "pos": "n.",
+        "level": "B1",
+        "def": "数据库；存储和查询数据的系统。",
+        "eg": "Validated blocks push to the vector database.",
+        "egzh": "验证后的 blocks 推送到向量数据库。"
+      },
+      "privacy": {
+        "w": "privacy",
+        "ipa": "/ˈpraɪvəsi/",
+        "pos": "n.",
+        "level": "B2",
+        "def": "隐私；对敏感信息的保护。",
+        "eg": "Each block receives data privacy labels.",
+        "egzh": "每个 block 都会获得数据隐私标签。"
+      }
+    },
+    "autowrap": [
+      [
+        "\\bchunk\\b",
+        "i",
+        "chunk"
+      ],
+      [
+        "\\bcorpus\\b",
+        "i",
+        "corpus"
+      ],
+      [
+        "\\breranker\\b",
+        "i",
+        "reranker"
+      ],
+      [
+        "\\bembedding\\b",
+        "i",
+        "embedding"
+      ],
+      [
+        "\\bvector\\b",
+        "i",
+        "vector"
+      ],
+      [
+        "\\bsearch\\b",
+        "i",
+        "search"
+      ],
+      [
+        "\\bIdeaBlock\\b",
+        "i",
+        "ideablock"
+      ],
+      [
+        "\\bschema\\b",
+        "i",
+        "schema"
+      ],
+      [
+        "\\bgovernance\\b",
+        "i",
+        "governance"
+      ],
+      [
+        "\\bdeduplication\\b",
+        "i",
+        "deduplication"
+      ],
+      [
+        "\\bcanonical\\b",
+        "i",
+        "canonical"
+      ],
+      [
+        "\\bretrieval\\b",
+        "i",
+        "retrieval"
+      ],
+      [
+        "\\borchestrator\\b",
+        "i",
+        "orchestrator"
+      ],
+      [
+        "\\bclearance\\b",
+        "i",
+        "clearance"
+      ],
+      [
+        "\\bversion\\b",
+        "i",
+        "version"
+      ],
+      [
+        "\\bsemantic\\b",
+        "i",
+        "semantic"
+      ],
+      [
+        "\\bdistillation\\b",
+        "i",
+        "distillation"
+      ],
+      [
+        "\\balgorithm\\b",
+        "i",
+        "algorithm"
+      ],
+      [
+        "\\bmodel\\b",
+        "i",
+        "model"
+      ],
+      [
+        "\\bupstream\\b",
+        "i",
+        "upstream"
+      ],
+      [
+        "\\bassumption\\b",
+        "i",
+        "assumption"
+      ],
+      [
+        "\\bpipeline\\b",
+        "i",
+        "pipeline"
+      ],
+      [
+        "\\bfailure\\b",
+        "i",
+        "failure"
+      ],
+      [
+        "\\bdownstream\\b",
+        "i",
+        "downstream"
+      ],
+      [
+        "\\bstructurally\\b",
+        "i",
+        "structurally"
+      ],
+      [
+        "\\bneutral\\b",
+        "i",
+        "neutral"
+      ],
+      [
+        "\\bcontainer\\b",
+        "i",
+        "container"
+      ],
+      [
+        "\\bdocument\\b",
+        "i",
+        "document"
+      ],
+      [
+        "\\btoken\\b",
+        "i",
+        "token"
+      ],
+      [
+        "\\btable\\b",
+        "i",
+        "table"
+      ],
+      [
+        "\\bconclusion\\b",
+        "i",
+        "conclusion"
+      ],
+      [
+        "\\bargument\\b",
+        "i",
+        "argument"
+      ],
+      [
+        "\\bclaim\\b",
+        "i",
+        "claim"
+      ],
+      [
+        "\\bcontext\\b",
+        "i",
+        "context"
+      ],
+      [
+        "\\benterprise\\b",
+        "i",
+        "enterprise"
+      ],
+      [
+        "\\bparagraph\\b",
+        "i",
+        "paragraph"
+      ],
+      [
+        "\\bdeprecated\\b",
+        "i",
+        "deprecated"
+      ],
+      [
+        "\\bmetadata\\b",
+        "i",
+        "metadata"
+      ],
+      [
+        "\\bfilter\\b",
+        "i",
+        "filter"
+      ],
+      [
+        "\\bstore\\b",
+        "i",
+        "store"
+      ],
+      [
+        "\\bpacket\\b",
+        "i",
+        "packet"
+      ],
+      [
+        "\\bvalidated\\b",
+        "i",
+        "validated"
+      ],
+      [
+        "\\banswer\\b",
+        "i",
+        "answer"
+      ],
+      [
+        "\\batomic\\b",
+        "i",
+        "atomic"
+      ],
+      [
+        "\\bgeometry\\b",
+        "i",
+        "geometry"
+      ],
+      [
+        "\\bbenchmark\\b",
+        "i",
+        "benchmark"
+      ],
+      [
+        "\\bcosine\\b",
+        "i",
+        "cosine"
+      ],
+      [
+        "\\bdistance\\b",
+        "i",
+        "distance"
+      ],
+      [
+        "\\bnaive\\b",
+        "i",
+        "naive"
+      ],
+      [
+        "\\baccuracy\\b",
+        "i",
+        "accuracy"
+      ],
+      [
+        "\\bredundant\\b",
+        "i",
+        "redundant"
+      ],
+      [
+        "\\bduplicate\\b",
+        "i",
+        "duplicate"
+      ],
+      [
+        "\\bsurface\\b",
+        "i",
+        "surface"
+      ],
+      [
+        "\\bstage\\b",
+        "i",
+        "stage"
+      ],
+      [
+        "\\bscoping\\b",
+        "i",
+        "scoping"
+      ],
+      [
+        "\\bingestion\\b",
+        "i",
+        "ingestion"
+      ],
+      [
+        "\\bparser\\b",
+        "i",
+        "parser"
+      ],
+      [
+        "\\bLLM\\b",
+        "i",
+        "llm"
+      ],
+      [
+        "\\bthreshold\\b",
+        "i",
+        "threshold"
+      ],
+      [
+        "\\bGPU\\b",
+        "i",
+        "gpu"
+      ],
+      [
+        "\\bvalidation\\b",
+        "i",
+        "validation"
+      ],
+      [
+        "\\bexport\\b",
+        "i",
+        "export"
+      ],
+      [
+        "\\bdatabase\\b",
+        "i",
+        "database"
+      ],
+      [
+        "\\bprivacy\\b",
+        "i",
+        "privacy"
+      ]
+    ]
+  }
+}

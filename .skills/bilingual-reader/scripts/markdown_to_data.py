@@ -398,8 +398,21 @@ def validate_image_src(src: str) -> None:
         if ";base64," not in src or len(src) > 3_000_000:
             raise ConversionError("Markdown image data URI is invalid or too large.")
         return
-    if not src.startswith(("http://", "https://")):
-        raise ConversionError("Markdown image source must be http(s) or data:image.")
+    if src.startswith(("http://", "https://")):
+        return
+    # Resource-local assets (for example resources/09/assets/figure-a.svg) are
+    # referenced with a path relative to the resource directory. They stay
+    # editable on disk and are inlined into the rendered HTML.
+    if src.startswith("/"):
+        if src.startswith("//") or ".." in src.split("/"):
+            raise ConversionError("Local image source must not escape the project root.")
+        return
+    if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", src):
+        raise ConversionError("Image source must be http(s), a local asset path, or a data:image URI.")
+    if ".." in src.split("/"):
+        raise ConversionError("Local image source must not escape the resource directory.")
+    if not re.search(r"\.(?:svg|png|jpe?g|webp|gif|avif)$", src, re.IGNORECASE):
+        raise ConversionError("Local image source must point at an image file.")
 
 
 def parse_paragraph(lines: list[str], index: int, blocks: list[Block]) -> int:

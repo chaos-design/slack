@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Art of Loop Engineering：把 Agent 能力做成多层反馈循环</title>
+<style>
+:root {
+  --stage-bg: #05070d;
+  --slide-bg: radial-gradient(circle at 12% 8%, rgba(0, 255, 204, 0.18), transparent 28%), radial-gradient(circle at 88% 12%, rgba(255, 0, 170, 0.13), transparent 24%), linear-gradient(135deg, #07111f 0%, #0a0f1c 46%, #02040a 100%);
+  --text-primary: #f6fbff;
+  --text-secondary: #a9bed0;
+  --text-tertiary: #6f8496;
+  --accent: #00ffcc;
+  --accent-2: #ff5cb8;
+  --panel: rgba(255, 255, 255, 0.075);
+  --panel-strong: rgba(0, 255, 204, 0.11);
+  --line: rgba(255, 255, 255, 0.16);
+  --control-accent: var(--accent);
+  --chrome-border: rgba(255,255,255,0.18);
+  --kbd-bar-bg: rgba(12,16,24,0.78);
+  --kbd-text: rgba(255,255,255,0.88);
+  --kbd-bg: rgba(255,255,255,0.16);
+  --kbd-border: rgba(255,255,255,0.28);
+  --kbd-separator: rgba(255,255,255,0.18);
+  --kbd-key-text: #ffffff;
+  --font-display: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --title-size: 104px;
+  --heading-size: 72px;
+  --subtitle-size: 34px;
+  --body-size: 28px;
+  --slide-padding: 96px;
+  --content-gap: 32px;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-normal: 0.6s;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--stage-bg); }
+body { font-family: var(--font-body); color: var(--text-primary); }
+.deck-viewport { position: fixed; inset: 0; overflow: hidden; background: var(--stage-bg); }
+.deck-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; transform-origin: 0 0; background: var(--slide-bg); }
+.slide { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; display: block; visibility: hidden; opacity: 0; pointer-events: none; background: var(--slide-bg); color: var(--text-primary); }
+.slide.active, .slide.visible { visibility: visible; opacity: 1; pointer-events: auto; z-index: 1; }
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.slide::before { content: ""; position: absolute; inset: 42px; border: 1px solid var(--line); border-radius: 34px; pointer-events: none; }
+.slide::after { content: ""; position: absolute; right: 88px; top: 88px; width: 420px; height: 420px; border-radius: 999px; border: 1px solid rgba(0,255,204,.2); opacity: .58; pointer-events: none; }
+.slide-content { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: var(--slide-padding); gap: var(--content-gap); }
+.slide-content.is-thin { justify-content: center; align-items: stretch; }
+.slide-content[data-layout-density="dense"] { --content-gap: 24px; }
+.slide-content[data-layout-density="dense"] h2 { font-size: calc(var(--heading-size) * 0.86); line-height: 1.1; }
+.slide-content[data-layout-density="dense"] p, .slide-content[data-layout-density="dense"] li { font-size: calc(var(--body-size) * 0.9); line-height: 1.32; }
+.slide-layout { width: 100%; min-height: 0; display: grid; gap: var(--content-gap); align-items: center; }
+.slide-layout.split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+h1, h2, h3 { line-height: 1.08; padding-block: 0.08em 0.12em; margin-block: -0.08em 0; text-wrap: balance; color: var(--text-primary); }
+h1 { font-size: var(--title-size); letter-spacing: -0.055em; max-width: 1320px; padding-block: 0.3em 0.2em; }
+h2 { font-size: var(--heading-size); letter-spacing: -0.045em; max-width: 1280px; }
+h3 { font-size: 32px; line-height: 1.18; letter-spacing: -0.025em; }
+a { color: var(--accent); text-decoration-color: rgba(0,255,204,.38); text-underline-offset: .14em; }
+.title-block { width: min(1320px, 100%); display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { color: var(--accent); font-size: 19px; letter-spacing: .2em; text-transform: uppercase; font-weight: 800; }
+.subtitle { color: var(--text-secondary); font-size: var(--subtitle-size); line-height: 1.34; max-width: 1180px; }
+.source-chip, .source-line { color: var(--text-secondary); font-size: 24px; line-height: 1.45; max-width: 1180px; }
+.statement { font-size: 46px; line-height: 1.28; padding: 38px 44px; border-left: 8px solid var(--accent); background: linear-gradient(90deg, rgba(0,255,204,.14), rgba(255,255,255,.04)); border-radius: 26px; max-width: 1320px; }
+.bullets { list-style: none; display: grid; gap: 18px; }
+.bullets li { font-size: 30px; line-height: 1.34; padding: 24px 28px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); }
+.metric-panel { border: 1px solid rgba(0,255,204,.28); border-radius: 28px; background: var(--panel-strong); padding: 34px; display: grid; grid-template-columns: auto 1fr; gap: 18px 24px; align-content: center; }
+.metric-panel b { font-size: 76px; line-height: .9; color: var(--accent); }
+.metric-panel span { align-self: center; color: var(--text-secondary); font-size: 28px; }
+.module-grid { width: 100%; display: grid; gap: var(--content-gap); align-items: stretch; }
+.module-grid[data-count="2"], .module-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1260px; }
+.module-grid[data-count="3"], .module-grid[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.module-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card, .reading-card, .takeaway-list > article { min-width: 0; min-height: 0; border: 1px solid var(--line); border-radius: 28px; padding: 30px; background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.045)); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.card-index { display: inline-block; color: var(--accent); font-size: 19px; font-weight: 900; letter-spacing: .16em; margin-bottom: 18px; }
+.card p, .reading-card p, .takeaway-list p { color: var(--text-secondary); font-size: 25px; line-height: 1.34; margin-top: 14px; }
+.reading-card small { display: block; color: var(--text-tertiary); font-size: 19px; line-height: 1.35; margin-top: 18px; }
+.flow-card { background: linear-gradient(135deg, rgba(0,255,204,.12), rgba(255,92,184,.07)); }
+.takeaway-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
+.takeaway-list strong { color: var(--accent); font-size: 23px; letter-spacing: .08em; text-transform: uppercase; }
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity var(--duration-normal) var(--ease-out-expo), transform var(--duration-normal) var(--ease-out-expo); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.slide.visible .reveal:nth-child(1) { transition-delay: .10s; }
+.slide.visible .reveal:nth-child(2) { transition-delay: .18s; }
+.slide.visible .reveal:nth-child(3) { transition-delay: .26s; }
+.slide.visible .reveal:nth-child(4) { transition-delay: .34s; }
+.deck-controls-zone { position: fixed; left: 0; right: 0; bottom: 0; height: 70px; z-index: 1000; pointer-events: auto; }
+.deck-controls { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%) translateY(24px); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 40px; padding: 5px 8px; border-radius: 999px; background: var(--kbd-bar-bg); border: 1px solid var(--chrome-border); box-shadow: 0 12px 30px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.08); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); font: 700 13px var(--font-body); color: var(--kbd-text); opacity: 0; filter: blur(5px); transition: opacity .42s var(--ease-out-expo), transform .48s var(--ease-out-expo), filter .42s var(--ease-out-expo); width: max-content; max-width: min(92vw, 720px); }
+.deck-controls-zone:hover .deck-controls, .deck-controls-zone.show-controls .deck-controls, .deck-controls-zone:focus-within .deck-controls, .deck-controls:focus { opacity: .96; transform: translateX(-50%) translateY(0); filter: blur(0); }
+.deck-page-controls, .deck-shortcuts { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.deck-page-btn { width: 28px; height: 28px; padding: 0; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--kbd-key-text); transition: color .18s ease, opacity .18s ease, transform .18s ease; }
+.deck-page-btn svg { width: 20px; height: 20px; display: block; }
+.deck-page-btn:hover { color: var(--control-accent); transform: scale(1.08); }
+.deck-page-btn:disabled { opacity: .38; cursor: default; }
+.deck-page-status { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; color: var(--kbd-text); }
+.deck-control-separator { width: 1px; height: 22px; margin: 0 4px; background: var(--kbd-separator); }
+.shortcut-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border-radius: 999px; color: var(--kbd-text); font-weight: 500; }
+.shortcut-keys { display: inline-flex; align-items: center; gap: 4px; }
+kbd { font: 500 11px var(--font-body); min-width: 24px; padding: 4px 7px; text-align: center; border-radius: 7px; background: var(--kbd-bg); border: 1px solid var(--kbd-border); color: var(--kbd-key-text); line-height: 1; }
+.image-lightbox { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: min(6vw, 96px); background: linear-gradient(135deg, rgba(6,10,18,.72), rgba(18,24,38,.48)); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 220ms ease, visibility 220ms ease; }
+.image-lightbox.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
+.image-lightbox[hidden] { display: none; }
+.image-lightbox__panel { position: relative; display: grid; max-width: min(82vw, 1280px); max-height: 82vh; }
+.image-lightbox__image { display: block; width: auto; height: auto; max-width: min(82vw,1280px); max-height: 78vh; object-fit: contain; border-radius: 18px; box-shadow: 0 30px 100px rgba(0,0,0,.48); }
+.image-lightbox__close { position: absolute; top: -18px; right: -18px; width: 44px; height: 44px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(10,14,24,.72); color: #fff; cursor: pointer; font-size: 26px; line-height: 1; }
+@media print { html, body { width: 1920px; height: auto; overflow: visible; background: #fff; } .deck-viewport { position: static; overflow: visible; background: #fff; } .deck-stage { position: static; width: auto; height: auto; transform: none; background: none; } .slide { position: relative; display: block; visibility: visible; opacity: 1; pointer-events: auto; width: 1920px; height: 1080px; break-after: page; page-break-after: always; } .slide:last-child { break-after: auto; page-break-after: auto; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms; transition-duration: .2s; } }
+</style>
+</head>
+<body>
+<div class="deck-viewport"><main class="deck-stage" id="deckStage"><section class="slide active visible title-slide" data-chrome="dark"><div class="slide-content is-thin">
+      <div class="title-block">
+        <p class="eyebrow reveal">Agent Reading Deck</p>
+        <h1 class="reveal">The Art of Loop Engineering：把 Agent 能力做成多层反馈循环</h1>
+        <p class="subtitle reveal">文章从最小 Agent loop 出发：LLM 获取上下文、调用工具、重复直到任务完成。随后说明生产级 Agent 还需要验证循环保证质量、事件循环接入业务生态、hill climbing 循环利用 trace 改进 harness，并在各层保留合适的人类监督点。</p>
+        <p class="source-chip reveal">原文：The Art of Loop Engineering</p>
+      </div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content">
+      <p class="eyebrow reveal">核心主张</p>
+      <h2 class="reveal">先理解文章真正要解决的问题</h2>
+      <div class="statement reveal">可靠 Agent 不只是一个模型加工具，而是一组围绕任务、验证、触发和自我改进叠加起来的循环系统。</div>
+      <div class="slide-layout split reveal">
+        <ul class="bullets"><li>Loop 1 是基础 Agent：模型在上下文中反复调用工具直到完成任务。</li><li>Loop 2 增加 grader 和重试反馈，用 RubricMiddleware 或 after_agent hook 实现质量闭环。</li><li>Loop 3 把 Agent 接入 Slack、cron、webhook 等事件源，使其成为持续运行的系统组件。</li></ul>
+        <div class="metric-panel"><b>6</b><span>主题段落</span><b>6</b><span>阅读模块</span></div>
+      </div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+      <p class="eyebrow reveal">结构速览</p>
+      <h2 class="reveal">文章如何组织论证</h2>
+      <div class="module-grid" data-count="6"><article class="card reveal"><span class="card-index">01</span><h3>基础 Agent Loop</h3><p>第一层是最小可用 Agent：模型拿到上下文后选择工具、执行、读取结果，再决定下一步。工具让 Agent 可以对真实世界采取行动，例如克隆仓库、读写文档或打开 PR。</p></article><article class="card reveal"><span class="card-index">02</span><h3>Verification Loop</h3><p>第二层在 Agent 外包一层验证：grader 按 rubric 检查结果，失败时把反馈回传给模型重试。它会增加成本和延迟，但在生产质量优先的场景中通常值得。</p></article><article class="card reveal"><span class="card-index">03</span><h3>Event-driven Loop</h3><p>第三层把 Agent 从手工调用变成业务系统组件。事件可以来自 cron、webhook、Slack channel 或其他应用触发器，让 Agent 在后台持续响应真实工作流。</p></article><article class="card reveal"><span class="card-index">04</span><h3>Hill Climbing Loop</h3><p>第四层最关键：每次运行产生 trace，分析 Agent 从 trace 中找出模式，再改进 prompt、tool、grader 或其他 harness 配置。外层循环不只是重新运行任务，而是直接改进内层循环。</p></article><article class="card reveal"><span class="card-index">05</span><h3>人类监督的位置</h3><p>自动化并不等于移除人。文章强调，链接是否有效可由 grader 检查，但受众框架是否正确仍需要人类判断。金融交易、数据库操作等敏感动作也应要求人工确认。</p></article><article class="card reveal"><span class="card-index">06</span><h3>四层循环的组合价值</h3><p>最终表格把四层映射到 LangChain 原语：create_agent 自动化工作，RubricMiddleware 保证质量，LangSmith Deployment / Fleet 处理事件触发，LangSmith Engine 分析 trace 并改进 harness。</p></article></div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">逻辑框架</p>
+          <h2 class="reveal">从问题到方法的推进路径</h2>
+          <div class="module-grid" data-count="6"><article class="card flow-card reveal"><span class="card-index">01</span><h3>基础 Agent Loop</h3><p>第一层是最小可用 Agent：模型拿到上下文后选择工具、执行、读取结果，再决定下一步。工具让 Agent 可以对真实世界采取行动，例如克隆仓库、读写文档或打开 PR。</p></article><article class="card flow-card reveal"><span class="card-index">02</span><h3>Verification Loop</h3><p>第二层在 Agent 外包一层验证：grader 按 rubric 检查结果，失败时把反馈回传给模型重试。它会增加成本和延迟，但在生产质量优先的场景中通常值得。</p></article><article class="card flow-card reveal"><span class="card-index">03</span><h3>Event-driven Loop</h3><p>第三层把 Agent 从手工调用变成业务系统组件。事件可以来自 cron、webhook、Slack channel 或其他应用触发器，让 Agent 在后台持续响应真实工作流。</p></article><article class="card flow-card reveal"><span class="card-index">04</span><h3>Hill Climbing Loop</h3><p>第四层最关键：每次运行产生 trace，分析 Agent 从 trace 中找出模式，再改进 prompt、tool、grader 或其他 harness 配置。外层循环不只是重新运行任务，而是直接改进内层循环。</p></article><article class="card flow-card reveal"><span class="card-index">05</span><h3>人类监督的位置</h3><p>自动化并不等于移除人。文章强调，链接是否有效可由 grader 检查，但受众框架是否正确仍需要人类判断。金融交易、数据库操作等敏感动作也应要求人工确认。</p></article><article class="card flow-card reveal"><span class="card-index">06</span><h3>四层循环的组合价值</h3><p>最终表格把四层映射到 LangChain 原语：create_agent 自动化工作，RubricMiddleware 保证质量，LangSmith Deployment / Fleet 处理事件触发，LangSmith Engine 分析</p></article></div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">精读切片 · 1-3</p>
+          <h2 class="reveal">基础 Agent Loop / Verification Loop</h2>
+          <div class="module-grid" data-count="3">
+            <article class="reading-card reveal"><h3>基础 Agent Loop</h3><p>第一层是最小可用 Agent：模型拿到上下文后选择工具、执行、读取结果，再决定下一步。工具让 Agent 可以对真实世界采取行动，例如克隆仓库、读写文档或打开 PR。</p><small>At its core, an agent is a model calling tools in a loop until a task is complete. LangChain&#x27;s create_agent gives this basic loop.</small></article><article class="reading-card reveal"><h3>Verification Loop</h3><p>第二层在 Agent 外包一层验证：grader 按 rubric 检查结果，失败时把反馈回传给模型重试。它会增加成本和延迟，但在生产质量优先的场景中通常值得。</p><small>A verification loop checks the agent&#x27;s output against a rubric and sends feedback back to the model when it falls short.</small></article><article class="reading-card reveal"><h3>Event-driven Loop</h3><p>第三层把 Agent 从手工调用变成业务系统组件。事件可以来自 cron、webhook、Slack channel 或其他应用触发器，让 Agent 在后台持续响应真实工作流。</p><small>The event-driven loop connects the agent to an ecosystem: a schedule, webhook, or channel event triggers the agent in the backgro。</small></article>
+          </div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">精读切片 · 4-6</p>
+          <h2 class="reveal">Hill Climbing Loop / 人类监督的位置</h2>
+          <div class="module-grid" data-count="3">
+            <article class="reading-card reveal"><h3>Hill Climbing Loop</h3><p>第四层最关键：每次运行产生 trace，分析 Agent 从 trace 中找出模式，再改进 prompt、tool、grader 或其他 harness 配置。外层循环不只是重新运行任务，而是直接改进内层循环。</p><small>Traces from production runs feed an analysis agent that rewrites the harness configuration, improving prompts, tools, or graders.</small></article><article class="reading-card reveal"><h3>人类监督的位置</h3><p>自动化并不等于移除人。文章强调，链接是否有效可由 grader 检查，但受众框架是否正确仍需要人类判断。金融交易、数据库操作等敏感动作也应要求人工确认。</p><small>Human oversight matters at natural decision points: sensitive tool calls, human grading, output approval, and harness changes bef。</small></article><article class="reading-card reveal"><h3>四层循环的组合价值</h3><p>最终表格把四层映射到 LangChain 原语：create_agent 自动化工作，RubricMiddleware 保证质量，LangSmith Deployment / Fleet 处理事件触发，LangSmith Engine 分析 trace 并改进 harness。</p><small>Loop engineering stacks work automation, quality verification, event-triggered scale, and continuous harness improvement.</small></article>
+          </div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content">
+      <p class="eyebrow reveal">落地判断</p>
+      <h2 class="reveal">这篇文章给工程实践的直接启发</h2>
+      <div class="takeaway-list">
+        <article class="reveal"><strong>要点 1</strong><p>Loop 1 是基础 Agent：模型在上下文中反复调用工具直到完成任务。</p></article><article class="reveal"><strong>要点 2</strong><p>Loop 2 增加 grader 和重试反馈，用 RubricMiddleware 或 after_agent hook 实现质量闭环。</p></article><article class="reveal"><strong>要点 3</strong><p>Loop 3 把 Agent 接入 Slack、cron、webhook 等事件源，使其成为持续运行的系统组件。</p></article><article class="reveal"><strong>要点 4</strong><p>Loop 4 用生产 trace 驱动 harness 改进，自动调整 prompt、tool、grader 或更深层配置。</p></article>
+      </div>
+    </div></section><section class="slide closing" data-chrome="dark"><div class="slide-content is-thin">
+      <p class="eyebrow reveal">继续阅读</p>
+      <h2 class="reveal">回到原文与双语精读</h2>
+      <p class="subtitle reveal">本 deck 按 content-slides 固定 16:9 舞台生成，支持按钮、方向键、空格、PageUp/PageDown、Home/End、触摸滑动、滚轮翻页与内联编辑。</p>
+      <p class="source-line reveal">原文：<a href="https://www.langchain.com/blog/the-art-of-loop-engineering" target="_blank" rel="noopener">《The Art of Loop Engineering》</a></p>
+    </div></section></main></div>
+<div class="deck-controls-zone"><div class="deck-controls" tabindex="0" aria-label="幻灯片控制"><div class="deck-page-controls" aria-label="幻灯片分页"><button class="deck-page-btn" id="prevSlide" type="button" aria-label="上一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="deck-page-status"><span id="currentSlide">1</span>/<span id="totalSlides">1</span></span><button class="deck-page-btn" id="nextSlide" type="button" aria-label="下一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><span class="deck-control-separator" aria-hidden="true"></span><div class="deck-shortcuts" aria-label="键盘快捷键"><span class="shortcut-chip"><span class="shortcut-label">下一页</span><span class="shortcut-keys"><kbd>Space</kbd><kbd>↓</kbd><kbd>→</kbd></span></span><span class="shortcut-chip"><span class="shortcut-label">上一页</span><span class="shortcut-keys"><kbd>←</kbd><kbd>↑</kbd></span></span><span class="shortcut-chip"><span class="shortcut-label">重置</span><span class="shortcut-keys"><kbd>R</kbd></span></span></div></div></div>
+<div class="image-lightbox" id="imageLightbox" aria-modal="true" role="dialog" aria-label="图片放大视图" hidden><div class="image-lightbox__panel"><button class="image-lightbox__close" id="imageLightboxClose" type="button" aria-label="关闭图片放大视图">×</button><img class="image-lightbox__image" id="imageLightboxImage" alt=""></div></div>
+<script>
+class SlidePresentation {
+  constructor() {
+    this.stage = document.getElementById('deckStage');
+    this.slides = [...document.querySelectorAll('.slide')];
+    this.controlsZone = document.querySelector('.deck-controls-zone');
+    this.controlsBar = document.querySelector('.deck-controls');
+    this.prevButton = document.getElementById('prevSlide');
+    this.nextButton = document.getElementById('nextSlide');
+    this.currentSlideLabel = document.getElementById('currentSlide');
+    this.totalSlidesLabel = document.getElementById('totalSlides');
+    this.current = 0;
+    this.wheelLocked = false;
+    this.controlsTimer = 0;
+    if (this.totalSlidesLabel) this.totalSlidesLabel.textContent = String(this.slides.length);
+    this.bind();
+    this.show(0, { immediate: true });
+    this.resize();
+  }
+  bind() {
+    this.prevButton?.addEventListener('click', () => this.prev());
+    this.nextButton?.addEventListener('click', () => this.next());
+    window.addEventListener('resize', () => this.resize());
+    window.addEventListener('keydown', (event) => this.onKey(event));
+    let startX = 0;
+    window.addEventListener('touchstart', (event) => { startX = event.changedTouches[0].clientX; }, { passive: true });
+    window.addEventListener('touchend', (event) => {
+      const delta = event.changedTouches[0].clientX - startX;
+      if (Math.abs(delta) > 50) delta < 0 ? this.next() : this.prev();
+    }, { passive: true });
+    window.addEventListener('wheel', (event) => {
+      if (this.wheelLocked || Math.abs(event.deltaY) < 40) return;
+      this.wheelLocked = true;
+      event.deltaY > 0 ? this.next() : this.prev();
+      window.setTimeout(() => { this.wheelLocked = false; }, 420);
+    }, { passive: true });
+    window.addEventListener('mousemove', (event) => {
+      if (window.innerHeight - event.clientY < 96) this.revealControls();
+    });
+    this.controlsBar?.addEventListener('focus', () => this.revealControls());
+  }
+  onKey(event) {
+    const tag = event.target?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || event.target?.isContentEditable) return;
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(event.key)) { event.preventDefault(); this.next(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); this.prev(); }
+    else if (event.key === 'Home') { event.preventDefault(); this.show(0); }
+    else if (event.key === 'End') { event.preventDefault(); this.show(this.slides.length - 1); }
+    else if (event.key.toLowerCase() === 'r') { event.preventDefault(); this.show(0); }
+  }
+  resize() {
+    if (!this.stage) return;
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const x = (window.innerWidth - 1920 * scale) / 2;
+    const y = (window.innerHeight - 1080 * scale) / 2;
+    this.stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+  }
+  show(index, options = {}) {
+    if (!this.slides.length) return;
+    this.current = Math.max(0, Math.min(index, this.slides.length - 1));
+    this.slides.forEach((slide, slideIndex) => {
+      const active = slideIndex === this.current;
+      slide.classList.toggle('active', active);
+      slide.classList.toggle('visible', active);
+    });
+    if (this.currentSlideLabel) this.currentSlideLabel.textContent = String(this.current + 1);
+    if (this.prevButton) this.prevButton.disabled = this.current === 0;
+    if (this.nextButton) this.nextButton.disabled = this.current === this.slides.length - 1;
+    if (!options.immediate) this.revealControls();
+  }
+  next() { this.show(this.current + 1); }
+  prev() { this.show(this.current - 1); }
+  revealControls() {
+    if (!this.controlsZone) return;
+    this.controlsZone.classList.add('show-controls');
+    window.clearTimeout(this.controlsTimer);
+    this.controlsTimer = window.setTimeout(() => this.controlsZone.classList.remove('show-controls'), 1600);
+  }
+}
+function setupImageLightbox() {
+  const box = document.getElementById('imageLightbox');
+  const img = document.getElementById('imageLightboxImage');
+  const closeButton = document.getElementById('imageLightboxClose');
+  if (!box || !img || !closeButton) return;
+  const close = () => { box.classList.remove('is-open'); window.setTimeout(() => { box.hidden = true; img.removeAttribute('src'); }, 180); };
+  document.querySelectorAll('.slide img').forEach((image) => {
+    image.addEventListener('click', () => { img.src = image.currentSrc || image.src; img.alt = image.alt || ''; box.hidden = false; requestAnimationFrame(() => box.classList.add('is-open')); });
+  });
+  closeButton.addEventListener('click', close);
+  box.addEventListener('click', (event) => { if (event.target === box) close(); });
+  window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !box.hidden) close(); });
+}
+function setupInlineEditing() {
+  document.querySelectorAll('.slide h1,.slide h2,.slide h3,.slide p,.slide li,.slide blockquote,.slide small,.slide strong').forEach((element) => {
+    element.setAttribute('contenteditable', 'true');
+  });
+}
+const deck = new SlidePresentation();
+setupImageLightbox();
+setupInlineEditing();
+window.__deck = deck;
+</script>
+</body>
+</html>

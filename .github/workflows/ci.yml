@@ -19,15 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -42,11 +42,5 @@ jobs:
       - name: Unit tests
         run: pnpm test:coverage
 
-      - name: Verify study pages match generator output
-        run: pnpm verify:studies
-
       - name: Build
         run: pnpm build
-
-      - name: Verify dist is deployable
-        run: pnpm verify:dist

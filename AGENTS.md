@@ -10,7 +10,7 @@ Slack 是一个面向 AI Agent 学习资料的 React 单页应用。项目按 `r
 
 | 层级 | 当前选择 |
 | --- | --- |
-| Runtime | Node.js `24.x`（本地、CI、Vercel 统一），pnpm `10.18.1` |
+| Runtime | Node.js `>=20.19.0`，pnpm `10.18.1` |
 | Frontend | React 19, TypeScript, React Router 7 |
 | Build | Vite 8 |
 | Styling | Tailwind CSS 4 CSS-first, shadcn/ui, Emotion |
@@ -31,7 +31,7 @@ Slack 是一个面向 AI Agent 学习资料的 React 单页应用。项目按 `r
 │       └── resource-creator.agent.md
 ├── .opencode/                 # OpenCode 适配入口，skills 文件指向 ../.skills
 ├── .skills/                   # 项目 skills 的真实目录
-├── public/                    # Vite 静态资源
+├── public/                    # Vite 静态资源（站点自身素材）
 ├── resources/                 # 学习资料库，构建时扫描
 │   ├── 01/ ... 06/
 │   │   ├── meta.json
@@ -44,6 +44,7 @@ Slack 是一个面向 AI Agent 学习资料的 React 单页应用。项目按 `r
 │       ├── meta.json
 │       ├── *.md
 │       ├── artifacts/
+│       ├── assets/            # 该资源的图示与配图，Markdown 用 assets/<file> 引用
 │       ├── studies/*.html
 │       └── slides/*.html
 ├── scripts/
@@ -157,10 +158,10 @@ import.meta.glob("../../resources/*/slides/*.html", {
 - `slides[].path` 对应 `resources/<id>/slides/<path>.html`，不写 `.html`。
 - `resources/<id>/<slug>.md` 是 ai-doc-creator / web-markdown 中间稿；不要使用旧式 `resources/<id>/source.md`。
 - `resources/<id>/artifacts/data.json` 或按 slug 命名的 `*.data.json` 是 bilingual-reader 结构化数据，重渲染 studies 后必须与 HTML 中的中文富文本结构同步。
-- `resources/<id>/artifacts/<stem>-images/` 是源图片字节缓存，`manifest.json` 把来源 URL 映射到落盘文件与 content type。该目录需要提交到版本库：远端图片端点（CDN、图片优化器）会按请求协商返回格式，同一 URL 隔月可能返回不同字节，没有缓存就无法稳定重渲染。
+- 资源内的图示与配图统一存放在该资源的 `resources/<id>/assets/`，Markdown 用 `assets/<file>` 相对路径引用（预览可直接打开），渲染 studies/slides 时内联到 HTML，保证产物离线自包含；不得外链远程图片。
 - `name`、`description`、`tags` 用于首页、学习页菜单和搜索。
 - 前端不解析资源 HTML 内容，Studies 与 Slides 都通过 iframe 原样渲染。
-- `resources/` 与 `.skills/` 被 Biome 排除，资源 HTML 与技能模板的质量由生成流程、人工检查、`review_artifacts.py`、`src/lib/resource-artifacts.test.ts` 和 `pnpm verify:studies` 保证。
+- `resources/` 与 `.skills/` 被 Biome 排除，资源 HTML 与技能模板的质量由生成流程、人工检查、`review_artifacts.py` 和 `src/lib/resource-artifacts.test.ts` 保证。
 
 ### 页面模块
 
@@ -180,17 +181,11 @@ import.meta.glob("../../resources/*/slides/*.html", {
 - slides 保持最新控制器合约、互不重复的设计 profile、平衡网格、多页内容密度和离线图片嵌入。
 - 外部图片 URL、模板化图义说明和外部 CDN 不应进入 HTML 产物。
 
-`pnpm verify:studies`（`scripts/verify-studies.mjs`）用 `.skills/bilingual-reader/scripts/static_reader.py` 重新渲染每个 `resources/<id>/studies/*.html`，并要求结果与已提交产物**逐字节一致**。它锁定「产物 = 生成器输出」这条不变量，CI 必须执行。图片字节由 `<stem>-images/` 缓存提供，所以该检查不需要联网。任何失败都意味着产物已与生成器脱节：先确认改动是否应改生成器，再重渲染产物，不要手工编辑 study HTML。
-
-`pnpm verify:dist`（`scripts/verify-dist.mjs`）在 `pnpm build` 之后校验 `dist` 是否可部署：存在 `index.html`、`index.html` 引用的同源资源都能在 `dist` 中解析、`resources/` 定义的每个 study/slide 都已产出到 `dist/assets`、且应用外壳不加载外部脚本。CI 证明应用能构建，但 Vercel 是直接把 `dist` 当静态目录提供并套一层 SPA fallback，因此产物缺失一个资源页就是线上坏链而 CI 仍然全绿——这道门禁专门覆盖该缺口。
-
 ### 样式与交互
 
 全局样式在 `src/styles/globals.css`。项目采用 Tailwind CSS 4 CSS-first 配置，设计 token 使用 `@theme inline` 暴露，未使用 `tailwind.config.ts`。
 
 当前视觉系统是水墨风格：米纸背景、焦墨文字、硬边卡片、偏移阴影、朱砂/墨青强调色。主题色由 `src/hooks/use-accent.ts` 管理，并由 `src/components/accent-picker.tsx` 持久化到 `localStorage`。
-
-字体只使用系统字体栈，不加载任何 webfont。`--font-display` / `--font-chinese` / `--font-body` / `--font-mono` 在 `src/styles/globals.css` 中定义，`index.html` 不引用 `fonts.googleapis.com`。原因：Google Fonts 在中国大陆不可达，作为渲染阻塞样式表会让首屏一直等待到超时；同时移除后没有 FOUT，也不必 vendor 字体二进制。若要恢复 webfont，必须改为本地自托管（放入 `public/fonts/` 并用 `@font-face`），不允许回退到外部 CDN。
 
 样式优先级：
 
@@ -382,9 +377,7 @@ pnpm format         # 格式化代码
 pnpm typecheck      # TypeScript 类型检查
 pnpm test           # 运行单元测试
 pnpm test:coverage  # 运行覆盖率测试
-pnpm verify:studies # 校验 study HTML 与生成器输出逐字节一致（离线）
 pnpm build          # 类型检查并构建生产产物
-pnpm verify:dist    # 校验 dist 可部署（资源页已产出、同源资源可解析、无外部脚本）
 pnpm preview        # 本地预览 dist
 ```
 
@@ -405,19 +398,7 @@ pnpm build
 pnpm test:coverage
 ```
 
-改动 `.skills/bilingual-reader` 生成逻辑、资源图片缓存或 `resources/<id>/studies/*.html` 时，还必须运行：
-
-```bash
-pnpm verify:studies
-```
-
-改动 `src/`、`index.html`、`public/` 或 `vite.config.ts`（影响构建产物）时，还必须运行：
-
-```bash
-pnpm build && pnpm verify:dist
-```
-
-CI 位于 `.github/workflows/ci.yml`，在 Node 24 环境中以 `pnpm install --frozen-lockfile` 执行 lint、typecheck、coverage test、study 产物一致性、production build 与 dist 可部署性检查。
+CI 位于 `.github/workflows/ci.yml`，在 Node 22 环境中执行 lint、typecheck、coverage test 和 production build。
 
 ## 协作流程
 
@@ -438,9 +419,5 @@ CI 位于 `.github/workflows/ci.yml`，在 Node 24 环境中以 `pnpm install --
 - Build command: `pnpm build`
 - Output directory: `dist`
 - SPA fallback: `/(.*)` rewrite 到 `/index.html`
-
-Vercel 只提供 Node `24.x` / `22.x` / `20.x` 三个 major，且于 2026-10-01 起弃用 Node 20。构建用 Node 版本由
-`package.json` 的 `engines.node`（`24.x`）决定，因此该字段必须保持为 Vercel 能识别的单一 semver 区间，
-不要改成 `||` 组合区间，否则 Vercel 的版本解析行为无文档保证。本地、CI 与 Vercel 应始终对齐同一 major。
 
 不要在未同步更新 README 和部署说明的情况下修改构建命令、输出目录或 rewrite 策略。

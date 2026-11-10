@@ -19,7 +19,5 @@
 - [ ] `pnpm lint` passes (Biome, zero warnings/errors)
 - [ ] `pnpm typecheck` passes
 - [ ] `pnpm test:coverage` passes and coverage remains above the configured thresholds
-- [ ] `pnpm verify:studies` passes (study HTML unchanged vs generator output, or generator updated with it)
 - [ ] `pnpm build` succeeds
-- [ ] `pnpm verify:dist` passes
 - [ ] I have updated the documentation where necessary

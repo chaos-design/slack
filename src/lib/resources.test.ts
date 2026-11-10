@@ -83,6 +83,18 @@ describe("resources", () => {
     ]);
   });
 
+  it("loads the Anthropic long-running Claude study from resource 08", () => {
+    const resource = getResourceById("08-5");
+
+    expect(resource?.folderId).toBe("08");
+    expect(resource?.meta.name).toBe("Long-running Claude：面向科学计算的长任务 Agent 工作流");
+    expect(resource?.meta.source).toBe("https://www.anthropic.com/research/long-running-Claude");
+    expect(resource?.studyUrl).toContain("long-running-claude-for-scientific-computing.html");
+    expect(resource?.slides.map((slide) => slide.slug)).toEqual([
+      "long-running-claude-for-scientific-computing",
+    ]);
+  });
+
   it("resolves slides by default and explicit slug", () => {
     const resource = getResourceById("01");
 
@@ -94,23 +106,43 @@ describe("resources", () => {
   });
 
   it("searches resources by trimmed keyword, tag, and no-match input", () => {
-    expect(searchResources("  openai  ").map((resource) => resource.id)).toEqual(["02", "03"]);
+    expect(searchResources("  openai  ").map((resource) => resource.id)).toEqual([
+      "08-2",
+      "08-3",
+      "03",
+      "02",
+    ]);
     expect(searchResources("LLM").map((resource) => resource.id)).toEqual(["01"]);
+    expect(searchResources("Anthropic").map((resource) => resource.id)).toEqual([
+      "09",
+      "09-2",
+      "08-5",
+      "07-2",
+      "04",
+      "01",
+    ]);
     expect(searchResources("")).toEqual(getResources());
     expect(searchResources("not-a-resource")).toEqual([]);
   });
 
-  it("sorts resources by route id", () => {
+  it("sorts resources by route id (newest folder first)", () => {
     expect(getResources().map((resource) => resource.id)).toEqual([
-      "01",
-      "02",
-      "03",
-      "04",
-      "05",
-      "06",
+      "09",
+      "09-2",
+      "08",
+      "08-2",
+      "08-3",
+      "08-4",
+      "08-5",
       "07",
       "07-2",
       "07-3",
+      "06",
+      "05",
+      "04",
+      "03",
+      "02",
+      "01",
     ]);
   });
 });

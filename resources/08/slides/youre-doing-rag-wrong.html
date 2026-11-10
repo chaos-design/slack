@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You&#x27;re Doing RAG Wrong：用问答知识单元重塑 RAG</title>
+<style>
+:root {
+  --stage-bg: #05070d;
+  --slide-bg: radial-gradient(circle at 12% 8%, rgba(0, 255, 204, 0.18), transparent 28%), radial-gradient(circle at 88% 12%, rgba(255, 0, 170, 0.13), transparent 24%), linear-gradient(135deg, #07111f 0%, #0a0f1c 46%, #02040a 100%);
+  --text-primary: #f6fbff;
+  --text-secondary: #a9bed0;
+  --text-tertiary: #6f8496;
+  --accent: #00ffcc;
+  --accent-2: #ff5cb8;
+  --panel: rgba(255, 255, 255, 0.075);
+  --panel-strong: rgba(0, 255, 204, 0.11);
+  --line: rgba(255, 255, 255, 0.16);
+  --control-accent: var(--accent);
+  --chrome-border: rgba(255,255,255,0.18);
+  --kbd-bar-bg: rgba(12,16,24,0.78);
+  --kbd-text: rgba(255,255,255,0.88);
+  --kbd-bg: rgba(255,255,255,0.16);
+  --kbd-border: rgba(255,255,255,0.28);
+  --kbd-separator: rgba(255,255,255,0.18);
+  --kbd-key-text: #ffffff;
+  --font-display: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --title-size: 104px;
+  --heading-size: 72px;
+  --subtitle-size: 34px;
+  --body-size: 28px;
+  --slide-padding: 96px;
+  --content-gap: 32px;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-normal: 0.6s;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--stage-bg); }
+body { font-family: var(--font-body); color: var(--text-primary); }
+.deck-viewport { position: fixed; inset: 0; overflow: hidden; background: var(--stage-bg); }
+.deck-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; transform-origin: 0 0; background: var(--slide-bg); }
+.slide { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; display: block; visibility: hidden; opacity: 0; pointer-events: none; background: var(--slide-bg); color: var(--text-primary); }
+.slide.active, .slide.visible { visibility: visible; opacity: 1; pointer-events: auto; z-index: 1; }
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.slide::before { content: ""; position: absolute; inset: 42px; border: 1px solid var(--line); border-radius: 34px; pointer-events: none; }
+.slide::after { content: ""; position: absolute; right: 88px; top: 88px; width: 420px; height: 420px; border-radius: 999px; border: 1px solid rgba(0,255,204,.2); opacity: .58; pointer-events: none; }
+.slide-content { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: var(--slide-padding); gap: var(--content-gap); }
+.slide-content.is-thin { justify-content: center; align-items: stretch; }
+.slide-content[data-layout-density="dense"] { --content-gap: 24px; }
+.slide-content[data-layout-density="dense"] h2 { font-size: calc(var(--heading-size) * 0.86); line-height: 1.1; }
+.slide-content[data-layout-density="dense"] p, .slide-content[data-layout-density="dense"] li { font-size: calc(var(--body-size) * 0.9); line-height: 1.32; }
+.slide-layout { width: 100%; min-height: 0; display: grid; gap: var(--content-gap); align-items: center; }
+.slide-layout.split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+h1, h2, h3 { line-height: 1.08; padding-block: 0.08em 0.12em; margin-block: -0.08em 0; text-wrap: balance; color: var(--text-primary); }
+h1 { font-size: var(--title-size); letter-spacing: -0.055em; max-width: 1320px; padding-block: 0.3em 0.2em; }
+h2 { font-size: var(--heading-size); letter-spacing: -0.045em; max-width: 1280px; }
+h3 { font-size: 32px; line-height: 1.18; letter-spacing: -0.025em; }
+a { color: var(--accent); text-decoration-color: rgba(0,255,204,.38); text-underline-offset: .14em; }
+.title-block { width: min(1320px, 100%); display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { color: var(--accent); font-size: 19px; letter-spacing: .2em; text-transform: uppercase; font-weight: 800; }
+.subtitle { color: var(--text-secondary); font-size: var(--subtitle-size); line-height: 1.34; max-width: 1180px; }
+.source-chip, .source-line { color: var(--text-secondary); font-size: 24px; line-height: 1.45; max-width: 1180px; }
+.statement { font-size: 46px; line-height: 1.28; padding: 38px 44px; border-left: 8px solid var(--accent); background: linear-gradient(90deg, rgba(0,255,204,.14), rgba(255,255,255,.04)); border-radius: 26px; max-width: 1320px; }
+.bullets { list-style: none; display: grid; gap: 18px; }
+.bullets li { font-size: 30px; line-height: 1.34; padding: 24px 28px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); }
+.metric-panel { border: 1px solid rgba(0,255,204,.28); border-radius: 28px; background: var(--panel-strong); padding: 34px; display: grid; grid-template-columns: auto 1fr; gap: 18px 24px; align-content: center; }
+.metric-panel b { font-size: 76px; line-height: .9; color: var(--accent); }
+.metric-panel span { align-self: center; color: var(--text-secondary); font-size: 28px; }
+.module-grid { width: 100%; display: grid; gap: var(--content-gap); align-items: stretch; }
+.module-grid[data-count="2"], .module-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1260px; }
+.module-grid[data-count="3"], .module-grid[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.module-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card, .reading-card, .takeaway-list > article { min-width: 0; min-height: 0; border: 1px solid var(--line); border-radius: 28px; padding: 30px; background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.045)); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.card-index { display: inline-block; color: var(--accent); font-size: 19px; font-weight: 900; letter-spacing: .16em; margin-bottom: 18px; }
+.card p, .reading-card p, .takeaway-list p { color: var(--text-secondary); font-size: 25px; line-height: 1.34; margin-top: 14px; }
+.reading-card small { display: block; color: var(--text-tertiary); font-size: 19px; line-height: 1.35; margin-top: 18px; }
+.flow-card { background: linear-gradient(135deg, rgba(0,255,204,.12), rgba(255,92,184,.07)); }
+.takeaway-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
+.takeaway-list strong { color: var(--accent); font-size: 23px; letter-spacing: .08em; text-transform: uppercase; }
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity var(--duration-normal) var(--ease-out-expo), transform var(--duration-normal) var(--ease-out-expo); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.slide.visible .reveal:nth-child(1) { transition-delay: .10s; }
+.slide.visible .reveal:nth-child(2) { transition-delay: .18s; }
+.slide.visible .reveal:nth-child(3) { transition-delay: .26s; }
+.slide.visible .reveal:nth-child(4) { transition-delay: .34s; }
+.deck-controls-zone { position: fixed; left: 0; right: 0; bottom: 0; height: 70px; z-index: 1000; pointer-events: auto; }
+.deck-controls { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%) translateY(24px); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 40px; padding: 5px 8px; border-radius: 999px; background: var(--kbd-bar-bg); border: 1px solid var(--chrome-border); box-shadow: 0 12px 30px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.08); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); font: 700 13px var(--font-body); color: var(--kbd-text); opacity: 0; filter: blur(5px); transition: opacity .42s var(--ease-out-expo), transform .48s var(--ease-out-expo), filter .42s var(--ease-out-expo); width: max-content; max-width: min(92vw, 720px); }
+.deck-controls-zone:hover .deck-controls, .deck-controls-zone.show-controls .deck-controls, .deck-controls-zone:focus-within .deck-controls, .deck-controls:focus { opacity: .96; transform: translateX(-50%) translateY(0); filter: blur(0); }
+.deck-page-controls, .deck-shortcuts { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.deck-page-btn { width: 28px; height: 28px; padding: 0; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--kbd-key-text); transition: color .18s ease, opacity .18s ease, transform .18s ease; }
+.deck-page-btn svg { width: 20px; height: 20px; display: block; }
+.deck-page-btn:hover { color: var(--control-accent); transform: scale(1.08); }
+.deck-page-btn:disabled { opacity: .38; cursor: default; }
+.deck-page-status { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; color: var(--kbd-text); }
+.deck-control-separator { width: 1px; height: 22px; margin: 0 4px; background: var(--kbd-separator); }
+.shortcut-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border-radius: 999px; color: var(--kbd-text); font-weight: 500; }
+.shortcut-keys { display: inline-flex; align-items: center; gap: 4px; }
+kbd { font: 500 11px var(--font-body); min-width: 24px; padding: 4px 7px; text-align: center; border-radius: 7px; background: var(--kbd-bg); border: 1px solid var(--kbd-border); color: var(--kbd-key-text); line-height: 1; }
+.image-lightbox { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: min(6vw, 96px); background: linear-gradient(135deg, rgba(6,10,18,.72), rgba(18,24,38,.48)); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 220ms ease, visibility 220ms ease; }
+.image-lightbox.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
+.image-lightbox[hidden] { display: none; }
+.image-lightbox__panel { position: relative; display: grid; max-width: min(82vw, 1280px); max-height: 82vh; }
+.image-lightbox__image { display: block; width: auto; height: auto; max-width: min(82vw,1280px); max-height: 78vh; object-fit: contain; border-radius: 18px; box-shadow: 0 30px 100px rgba(0,0,0,.48); }
+.image-lightbox__close { position: absolute; top: -18px; right: -18px; width: 44px; height: 44px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(10,14,24,.72); color: #fff; cursor: pointer; font-size: 26px; line-height: 1; }
+@media print { html, body { width: 1920px; height: auto; overflow: visible; background: #fff; } .deck-viewport { position: static; overflow: visible; background: #fff; } .deck-stage { position: static; width: auto; height: auto; transform: none; background: none; } .slide { position: relative; display: block; visibility: visible; opacity: 1; pointer-events: auto; width: 1920px; height: 1080px; break-after: page; page-break-after: always; } .slide:last-child { break-after: auto; page-break-after: auto; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms; transition-duration: .2s; } }
+</style>
+</head>
+<body>
+<div class="deck-viewport"><main class="deck-stage" id="deckStage"><section class="slide active visible title-slide" data-chrome="dark"><div class="slide-content is-thin">
+      <div class="title-block">
+        <p class="eyebrow reveal">Agent Reading Deck</p>
+        <h1 class="reveal">You&#x27;re Doing RAG Wrong：用问答知识单元重塑 RAG</h1>
+        <p class="subtitle reveal">作者批评 chunk 作为默认嵌入单位缺少观点边界、版本上下文和访问状态，并提出以 Question-Answer Packet / IdeaBlock 作为更明确的知识单元。</p>
+        <p class="source-chip reveal">原文：You&#x27;re doing RAG wrong</p>
+      </div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content">
+      <p class="eyebrow reveal">核心主张</p>
+      <h2 class="reveal">先理解文章真正要解决的问题</h2>
+      <div class="statement reveal">这篇文章的核心观点是：RAG 的关键改造点不一定在检索算法，而在进入向量库之前的知识单位设计。</div>
+      <div class="slide-layout split reveal">
+        <ul class="bullets"><li>chunk-as-unit 是检索失败的重要上游假设。</li><li>把问题、验证答案和治理字段组成一个可检索、可治理的原子声明。</li><li>语义去重与结构化治理让检索表面更清晰，更新也能从单条记录传播。</li></ul>
+        <div class="metric-panel"><b>8</b><span>主题段落</span><b>4</b><span>阅读模块</span></div>
+      </div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+      <p class="eyebrow reveal">结构速览</p>
+      <h2 class="reveal">文章如何组织论证</h2>
+      <div class="module-grid" data-count="4"><article class="card reveal"><span class="card-index">01</span><h3>问题不在检索器末端</h3><p>作者把 RAG 失败的根源定位到 chunk 作为知识单位的默认假设，而不是 reranker、embedding 或阈值调参。</p></article><article class="card reveal"><span class="card-index">02</span><h3>QA Packet 改变匹配形状</h3><p>一个问题、一个验证答案和治理字段组成的 IdeaBlock，让查询和索引都以问题-答案结构对齐。</p></article><article class="card reveal"><span class="card-index">03</span><h3>去重让检索表面更干净</h3><p>近重复内容会在向量空间中彼此竞争；语义蒸馏把冗余压缩为 canonical blocks，从而增强信号。</p></article><article class="card reveal"><span class="card-index">04</span><h3>治理进入数据层</h3><p>权限、版本、清理状态和来源不再只是编排器逻辑，而是每个 block 的类型化字段。</p></article></div>
+    </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">逻辑框架</p>
+          <h2 class="reveal">从问题到方法的推进路径</h2>
+          <div class="module-grid" data-count="6"><article class="card flow-card reveal"><span class="card-index">01</span><h3>从 chunk 假设开始的问题</h3><p>文章指出，RAG 的许多失败并不一定来自检索算法、reranker 或 embedding model，而是来自更上游的默认假设：把一段文本 chunk 当作知识嵌入的基本单位。作</p></article><article class="card flow-card reveal"><span class="card-index">02</span><h3>为什么 chunk 不是好的知识单元</h3><p>chunk 只是结构中性的容器，不知道观点边界、文档版本，也不知道访问权限。按 token 数切分会造成半张表、缺少论证的结论、脱离上下文的声明被检索出来；企业语料中的重复版本还会</p></article><article class="card flow-card reveal"><span class="card-index">03</span><h3>更好的单位：Question-Answer Packet</h3><p>作者提出的替代单位是 Question-Answer Packet：一个问题、一个经过验证的答案，以及以类型化 schema 表示的治理字段。Blockify 将这种结构称为 Id</p></article><article class="card flow-card reveal"><span class="card-index">04</span><h3>反直觉结果：更少数据带来更高准确性</h3><p>语义蒸馏的反直觉之处在于，缩小语料并不必然损害检索。作者给出的 Blockify 内部基准显示，2,042 个原始 IdeaBlocks 经 3 到 5 轮、80-85% 相似度阈</p></article><article class="card flow-card reveal"><span class="card-index">05</span><h3>从文档到 IdeaBlocks 的七阶段管线</h3><p>作者把改造点放在进入向量库之前的预处理层。Blockify 的流程包含七步：先定义 Organization、Business Unit、Product、Persona 等索引层级</p></article><article class="card flow-card reveal"><span class="card-index">06</span><h3>应用层会发生什么变化</h3><p>嵌入的知识单位决定应用层能做什么。查询构造会更简单，因为查询本来就是问题，而索引中存的是问题的答案；治理也会下沉到数据层，因为角色访问、版本状态和权限等级成为每个 block 的类</p></article></div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">精读切片 · 1-3</p>
+          <h2 class="reveal">从 chunk 假设开始的问题 / 为什么 chunk 不是好的知识单元</h2>
+          <div class="module-grid" data-count="3">
+            <article class="reading-card reveal"><h3>从 chunk 假设开始的问题</h3><p>文章指出，RAG 的许多失败并不一定来自检索算法、reranker 或 embedding model，而是来自更上游的默认假设：把一段文本 chunk 当作知识嵌入的基本单位。作者声称，新的预处理方式可以让语料规模减少 40x、每次查询 token 减少 3x，并将向量检索相关性提升 2.3x。</p><small>There&#x27;s a new approach that: cuts corpus size by 40x. reduces tokens per query by 3x. improves vector search relevance by 2.3x. A。</small></article><article class="reading-card reveal"><h3>为什么 chunk 不是好的知识单元</h3><p>chunk 只是结构中性的容器，不知道观点边界、文档版本，也不知道访问权限。按 token 数切分会造成半张表、缺少论证的结论、脱离上下文的声明被检索出来；企业语料中的重复版本还会让 Top-K 返回多个近似段落，混合当前版和废弃版。访问控制、版本状态和权限等级如果只挂在编排器上，就会与内容本身脱节。</p><small>A chunk of text is a structurally neutral container. It knows nothing about: where its ideas begin or end which version of a docu。</small></article><article class="reading-card reveal"><h3>更好的单位：Question-Answer Packet</h3><p>作者提出的替代单位是 Question-Answer Packet：一个问题、一个经过验证的答案，以及以类型化 schema 表示的治理字段。Blockify 将这种结构称为 IdeaBlock，把 clearance level、version state、source 等字段与答案放在同一个对象上。由于用户查询天然是问题，索引中也存储问题对应的答案，匹配就从单纯语义相似变。</p><small>The chunk fails because it’s structurally agnostic. The fix is to make the unit of knowledge structurally explicit. Instead of em。</small></article>
+          </div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content" data-layout-density="dense">
+          <p class="eyebrow reveal">精读切片 · 4-6</p>
+          <h2 class="reveal">反直觉结果：更少数据带来更高准确性 / 从文档到 IdeaBlocks 的七阶段管线</h2>
+          <div class="module-grid" data-count="3">
+            <article class="reading-card reveal"><h3>反直觉结果：更少数据带来更高准确性</h3><p>语义蒸馏的反直觉之处在于，缩小语料并不必然损害检索。作者给出的 Blockify 内部基准显示，2,042 个原始 IdeaBlocks 经 3 到 5 轮、80-85% 相似度阈值的迭代去重后，压缩为 1,200 个 canonical IdeaBlocks；词数从 88,877 降至 44,537；蒸馏后的数据集在向量准确性上高出 13.55%。原因是大量近重复段落会在。</p><small>Most people expect that shrinking the corpus hurts retrieval. That’s not what happens with semantic distillation. In Blockify’s i。</small></article><article class="reading-card reveal"><h3>从文档到 IdeaBlocks 的七阶段管线</h3><p>作者把改造点放在进入向量库之前的预处理层。Blockify 的流程包含七步：先定义 Organization、Business Unit、Product、Persona 等索引层级；再接收 DOCX、PDF、PPT、图片、Markdown、HTML 等文档；由 LLM 层把原始 chunk 转为草稿 IdeaBlocks；然后做语义去重、自动打治理标签、交给领域专家验证，最后。</p><small>The fix is a preprocessing pipeline that runs before anything touches the vector store. Blockify’s processing runs in seven stage。</small></article><article class="reading-card reveal"><h3>应用层会发生什么变化</h3><p>嵌入的知识单位决定应用层能做什么。查询构造会更简单，因为查询本来就是问题，而索引中存的是问题的答案；治理也会下沉到数据层，因为角色访问、版本状态和权限等级成为每个 block 的类型化字段；更新则可以从单条记录传播，规格变化时更新一个 IdeaBlock，所有查询该 block 的应用下次即可得到修正答案。架构并不改变查询方式，而是改变你能否信任答案。</p><small>The unit you embed determines what the application layer can do. Query construction gets simpler: your queries are already questi。</small></article>
+          </div>
+        </div></section><section class="slide" data-chrome="dark"><div class="slide-content">
+      <p class="eyebrow reveal">落地判断</p>
+      <h2 class="reveal">这篇文章给工程实践的直接启发</h2>
+      <div class="takeaway-list">
+        <article class="reveal"><strong>核心判断</strong><p>chunk-as-unit 是检索失败的重要上游假设。</p></article><article class="reveal"><strong>替代方案</strong><p>把问题、验证答案和治理字段组成一个可检索、可治理的原子声明。</p></article><article class="reveal"><strong>工程收益</strong><p>语义去重与结构化治理让检索表面更清晰，更新也能从单条记录传播。</p></article>
+      </div>
+    </div></section><section class="slide closing" data-chrome="dark"><div class="slide-content is-thin">
+      <p class="eyebrow reveal">继续阅读</p>
+      <h2 class="reveal">回到原文与双语精读</h2>
+      <p class="subtitle reveal">本 deck 按 content-slides 固定 16:9 舞台生成，支持按钮、方向键、空格、PageUp/PageDown、Home/End、触摸滑动、滚轮翻页与内联编辑。</p>
+      <p class="source-line reveal">原文：<a href="https://x.com/akshay_pachaar/status/2052743644411765230?s=20" target="_blank" rel="noopener">《You&#x27;re doing RAG wrong》</a></p>
+    </div></section></main></div>
+<div class="deck-controls-zone"><div class="deck-controls" tabindex="0" aria-label="幻灯片控制"><div class="deck-page-controls" aria-label="幻灯片分页"><button class="deck-page-btn" id="prevSlide" type="button" aria-label="上一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="deck-page-status"><span id="currentSlide">1</span>/<span id="totalSlides">1</span></span><button class="deck-page-btn" id="nextSlide" type="button" aria-label="下一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><span class="deck-control-separator" aria-hidden="true"></span><div class="deck-shortcuts" aria-label="键盘快捷键"><span class="shortcut-chip"><span class="shortcut-label">下一页</span><span class="shortcut-keys"><kbd>Space</kbd><kbd>↓</kbd><kbd>→</kbd></span></span><span class="shortcut-chip"><span class="shortcut-label">上一页</span><span class="shortcut-keys"><kbd>←</kbd><kbd>↑</kbd></span></span><span class="shortcut-chip"><span class="shortcut-label">重置</span><span class="shortcut-keys"><kbd>R</kbd></span></span></div></div></div>
+<div class="image-lightbox" id="imageLightbox" aria-modal="true" role="dialog" aria-label="图片放大视图" hidden><div class="image-lightbox__panel"><button class="image-lightbox__close" id="imageLightboxClose" type="button" aria-label="关闭图片放大视图">×</button><img class="image-lightbox__image" id="imageLightboxImage" alt=""></div></div>
+<script>
+class SlidePresentation {
+  constructor() {
+    this.stage = document.getElementById('deckStage');
+    this.slides = [...document.querySelectorAll('.slide')];
+    this.controlsZone = document.querySelector('.deck-controls-zone');
+    this.controlsBar = document.querySelector('.deck-controls');
+    this.prevButton = document.getElementById('prevSlide');
+    this.nextButton = document.getElementById('nextSlide');
+    this.currentSlideLabel = document.getElementById('currentSlide');
+    this.totalSlidesLabel = document.getElementById('totalSlides');
+    this.current = 0;
+    this.wheelLocked = false;
+    this.controlsTimer = 0;
+    if (this.totalSlidesLabel) this.totalSlidesLabel.textContent = String(this.slides.length);
+    this.bind();
+    this.show(0, { immediate: true });
+    this.resize();
+  }
+  bind() {
+    this.prevButton?.addEventListener('click', () => this.prev());
+    this.nextButton?.addEventListener('click', () => this.next());
+    window.addEventListener('resize', () => this.resize());
+    window.addEventListener('keydown', (event) => this.onKey(event));
+    let startX = 0;
+    window.addEventListener('touchstart', (event) => { startX = event.changedTouches[0].clientX; }, { passive: true });
+    window.addEventListener('touchend', (event) => {
+      const delta = event.changedTouches[0].clientX - startX;
+      if (Math.abs(delta) > 50) delta < 0 ? this.next() : this.prev();
+    }, { passive: true });
+    window.addEventListener('wheel', (event) => {
+      if (this.wheelLocked || Math.abs(event.deltaY) < 40) return;
+      this.wheelLocked = true;
+      event.deltaY > 0 ? this.next() : this.prev();
+      window.setTimeout(() => { this.wheelLocked = false; }, 420);
+    }, { passive: true });
+    window.addEventListener('mousemove', (event) => {
+      if (window.innerHeight - event.clientY < 96) this.revealControls();
+    });
+    this.controlsBar?.addEventListener('focus', () => this.revealControls());
+  }
+  onKey(event) {
+    const tag = event.target?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || event.target?.isContentEditable) return;
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(event.key)) { event.preventDefault(); this.next(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); this.prev(); }
+    else if (event.key === 'Home') { event.preventDefault(); this.show(0); }
+    else if (event.key === 'End') { event.preventDefault(); this.show(this.slides.length - 1); }
+    else if (event.key.toLowerCase() === 'r') { event.preventDefault(); this.show(0); }
+  }
+  resize() {
+    if (!this.stage) return;
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const x = (window.innerWidth - 1920 * scale) / 2;
+    const y = (window.innerHeight - 1080 * scale) / 2;
+    this.stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+  }
+  show(index, options = {}) {
+    if (!this.slides.length) return;
+    this.current = Math.max(0, Math.min(index, this.slides.length - 1));
+    this.slides.forEach((slide, slideIndex) => {
+      const active = slideIndex === this.current;
+      slide.classList.toggle('active', active);
+      slide.classList.toggle('visible', active);
+    });
+    if (this.currentSlideLabel) this.currentSlideLabel.textContent = String(this.current + 1);
+    if (this.prevButton) this.prevButton.disabled = this.current === 0;
+    if (this.nextButton) this.nextButton.disabled = this.current === this.slides.length - 1;
+    if (!options.immediate) this.revealControls();
+  }
+  next() { this.show(this.current + 1); }
+  prev() { this.show(this.current - 1); }
+  revealControls() {
+    if (!this.controlsZone) return;
+    this.controlsZone.classList.add('show-controls');
+    window.clearTimeout(this.controlsTimer);
+    this.controlsTimer = window.setTimeout(() => this.controlsZone.classList.remove('show-controls'), 1600);
+  }
+}
+function setupImageLightbox() {
+  const box = document.getElementById('imageLightbox');
+  const img = document.getElementById('imageLightboxImage');
+  const closeButton = document.getElementById('imageLightboxClose');
+  if (!box || !img || !closeButton) return;
+  const close = () => { box.classList.remove('is-open'); window.setTimeout(() => { box.hidden = true; img.removeAttribute('src'); }, 180); };
+  document.querySelectorAll('.slide img').forEach((image) => {
+    image.addEventListener('click', () => { img.src = image.currentSrc || image.src; img.alt = image.alt || ''; box.hidden = false; requestAnimationFrame(() => box.classList.add('is-open')); });
+  });
+  closeButton.addEventListener('click', close);
+  box.addEventListener('click', (event) => { if (event.target === box) close(); });
+  window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !box.hidden) close(); });
+}
+function setupInlineEditing() {
+  document.querySelectorAll('.slide h1,.slide h2,.slide h3,.slide p,.slide li,.slide blockquote,.slide small,.slide strong').forEach((element) => {
+    element.setAttribute('contenteditable', 'true');
+  });
+}
+const deck = new SlidePresentation();
+setupImageLightbox();
+setupInlineEditing();
+window.__deck = deck;
+</script>
+</body>
+</html>

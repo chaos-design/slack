@@ -325,6 +325,46 @@ describe("resource html artifacts", () => {
     expect(slide07).not.toContain("术语页不单独造概念");
   });
 
+  it("keeps resource 08 long-running Claude original view complete with inline images", () => {
+    const study = readFileSync(
+      join(process.cwd(), "resources/08/studies/long-running-claude-for-scientific-computing.html"),
+      "utf8",
+    );
+    const data = JSON.parse(
+      readFileSync(
+        join(
+          process.cwd(),
+          "resources/08/artifacts/long-running-claude-for-scientific-computing.data.json",
+        ),
+        "utf8",
+      ),
+    );
+    const originalGroups = data.original.groups as Array<{ rows: Array<{ type?: string }> }>;
+
+    expect(originalGroups.length).toBeGreaterThanOrEqual(13);
+    expect(
+      originalGroups.reduce((sum, group) => sum + group.rows.length, 0),
+    ).toBeGreaterThanOrEqual(40);
+    expect(
+      originalGroups.reduce(
+        (sum, group) => sum + group.rows.filter((row) => row.type === "image").length,
+        0,
+      ),
+    ).toBeGreaterThanOrEqual(2);
+
+    expect(study.match(/class="source-figure/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(study).toContain("data:image/svg+xml;base64");
+    expect(study).toContain("data:image/png;base64");
+    expect(study).toContain("#SBATCH --job-name=claude-agent");
+    expect(study).toContain("srun --jobid=JOBID --overlap --pty tmux attach -t claude");
+    expect(study).toContain("/ralph-loop:ralph-loop");
+    expect(study).toContain("The path to sub-percent accuracy over time");
+    expect(study).toContain("Project Fetch: Phase two");
+    expect(study).toContain("Subscribe to Anthropic Science");
+    expect(study).not.toMatch(/<(script|link)[^>]+https?:\/\//);
+    expect(study).not.toMatch(/<img[^>]+src="https?:\/\//);
+  });
+
   it("keeps Building Effective Agents workflow examples filled in slides", () => {
     const requiredExamples = [
       "先生成营销文案，再把它翻译成另一种语言。",

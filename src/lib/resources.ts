@@ -162,12 +162,29 @@ function normalizeMetaEntries(folderId: string, metaFile: ResourceMetaFile): Res
   return normalizeFolderMeta(folderId, metaFile);
 }
 
+/** 文件夹编号（如 "07" -> 7, "07-2" -> 7），用于排序 */
+function folderNumber(id: string): number {
+  return Number.parseInt(id.replace(/[^0-9].*$/, ""), 10) || 0;
+}
+
+/** 资源 id 内的子序号（如 "07-2" -> 2，无后缀为 0），用于同文件夹内排序 */
+function subIndex(id: string): number {
+  const match = id.match(/-(\d+)$/);
+  return match ? Number.parseInt(match[1], 10) : 0;
+}
+
 const resources: ResourceItem[] = Object.entries(metaModules)
   .flatMap(([path, metaFile]) => {
     const folderId = extractId(path);
     return normalizeMetaEntries(folderId, metaFile);
   })
-  .sort((a, b) => a.id.localeCompare(b.id));
+  // 倒序：文件夹编号大的在前（最新资源置顶），同文件夹内按子序号正序
+  .sort((a, b) => {
+    const fa = folderNumber(a.folderId);
+    const fb = folderNumber(b.folderId);
+    if (fa !== fb) return fb - fa;
+    return subIndex(a.id) - subIndex(b.id);
+  });
 
 export function getResources(): ResourceItem[] {
   return resources;
